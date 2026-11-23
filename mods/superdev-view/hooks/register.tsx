@@ -1,8 +1,8 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 import type { Draft, Intent, KbPage, LogEntry, Scope, Snapshot } from '../types'
-import { closedAt, eventLog, frontmatter, header, intent, progress, slices } from './parse'
+import { closedAt, eventLog, frontmatter, header, intent, progress, queuedMinors, slices } from './parse'
 
 const PANE = 'superdev-view'
 const snapshot = atom({ plugin: 'superdev-view', key: 'snapshot' } as const, null)
@@ -107,9 +107,22 @@ async function scanScope($: EngineInterface, dir: string, name: string, isOpen: 
     lockMtime: lock ? lock.mtimeMs : null,
     dod: progress(dod),
     slices: slices(ledger),
-    log: eventLog(ledger, trace, Date.now()),
+    minors: queuedMinors(ledger),
+    log: eventLog(ledger, trace, Date.now(), lock ? lock.mtimeMs : null),
     closedAt: closedTimes.get(name) ?? null,
   }
+}
+
+// The issue-tracker account's name for the assignee line, '' for none: its display name, else its identifier, each
+// trimmed. An identifier of `none` names no account, whatever the display name holds. Every other role adds nothing.
+function issueTrackerName(info: unknown): string {
+  const role = info !== null && typeof info === 'object' && !Array.isArray(info) ? (info as Record<string, unknown>)['issue-tracker'] : undefined
+  if (role === null || typeof role !== 'object' || Array.isArray(role)) return ''
+  const { assignee, displayName } = role as { assignee?: unknown; displayName?: unknown }
+  const id = typeof assignee === 'string' ? assignee.trim() : ''
+  if (id === 'none') return ''
+  if (typeof displayName === 'string' && displayName.trim() !== '') return displayName.trim()
+  return id
 }
 
 // Writes the snapshot only when it changed: every snapshot write redraws the pane.
@@ -117,15 +130,79 @@ async function store($: EngineInterface, next: Snapshot): Promise<void> {
   if (JSON.stringify(await read($, snapshot)) !== JSON.stringify(next)) await update($, snapshot, () => next)
 }
 
-// The main working tree holds `.superdev/` (a scopetree or linked worktree has none of its own).
+// One git call in `cwd`, undefined when it cannot start.
+const git = ($: EngineInterface, args: string[], cwd: string) => $.process.run(['git', ...args], { cwd }).catch(() => undefined)
+// One git call's trimmed output in `cwd`, or null when it fails.
+const gitOut = async ($: EngineInterface, args: string[], cwd: string) => {
+  const r = await git($, args, cwd)
+  return r?.exitCode === 0 ? r.stdout.trim() : null
+}
+// The main working tree and the session checkout's top level each cwd answered, so a rescan from an unchanged cwd
+// spawns no git call. A failed call stores nothing and is asked again on the next scan.
+const mainTrees = new Map<string, string>()
+const topLevels = new Map<string, string>()
+// `rel` resolved against the absolute directory `base`, its `.` and `..` segments folded. A path that opens with
+// `/` or with a drive (`C:/`, as git on Windows prints it) is absolute, and a drive stays the path's first segment.
+function resolvePath(base: string, rel: string): string {
+  const path = /^(\/|[A-Za-z]:\/)/.test(rel) ? rel : `${base}/${rel}`
+  const drive = /^[A-Za-z]:(?=\/)/.exec(path)?.[0] ?? ''
+  const out: string[] = []
+  for (const seg of path.slice(drive.length).split('/')) {
+    if (seg === '..') out.pop()
+    else if (seg !== '' && seg !== '.') out.push(seg)
+  }
+  return `${drive}/${out.join('/')}`
+}
+// The main working tree, by `plugin/lib/main-work-tree.js`'s rule: the checkout the shared git directory's own
+// `core.worktree` names, resolved against that directory (a submodule's), else the directory's parent. Null outside
+// a git repository.
+async function mainWorkTree($: EngineInterface, cwd: string): Promise<string | null> {
+  const known = mainTrees.get(cwd)
+  if (known !== undefined) return known
+  const gitDir = await gitOut($, ['rev-parse', '--path-format=absolute', '--git-common-dir'], cwd)
+  if (gitDir === null) return null
+  const dir = gitDir.replace(/\/$/, '')
+  const r = await git($, ['config', '--file', `${dir}/config`, '--get', 'core.worktree'], cwd)
+  const worktree = r?.exitCode === 0 ? r.stdout.trim() : ''
+  const main = worktree ? resolvePath(dir, worktree) : resolvePath(dir, '..')
+  // `git config --get` exits 1 for an unset key, which is an answer; any other failure is asked again.
+  if (r?.exitCode === 0 || r?.exitCode === 1) mainTrees.set(cwd, main)
+  return main
+}
+
+// The session checkout's `.superdev`, when the session's checkout is another tree than the main one; null when it is
+// the main tree, when `--show-toplevel` fails, or when it has no `.superdev`. The trees compare as real paths.
+async function sessionCheckout($: EngineInterface, cwd: string, main: string): Promise<string | null> {
+  const answered = topLevels.get(cwd) ?? (await gitOut($, ['rev-parse', '--show-toplevel'], cwd))
+  if (answered === null) return null
+  topLevels.set(cwd, answered)
+  const top = answered.replace(/(.)\/+$/, '$1')
+  const real = (p: string) => $.fs.stat(p, { resolve: true }).then(s => s.realPath ?? p).catch(() => p)
+  if ((await real(top)) === (await real(main))) return null
+  const dir = `${top}/.superdev`
+  return (await $.fs.exists(dir).catch(() => false)) ? dir : null
+}
+
+// One `.superdev` folder's Design sketches (null with no `design/` folder) and DoD drafts, from its top-level entries.
+async function sketchesAndDrafts($: EngineInterface, root: string, top: Map<string, string>): Promise<{ designs: string[] | null; drafts: Draft[] }> {
+  const designs = top.get('design') === 'dir'
+    ? (await $.fs.list(`${root}/design`).catch(() => [])).filter(f => f.kind === 'file' && f.name.endsWith('.html')).map(f => f.name.replace(/\.html$/, ''))
+    : null
+  const drafts: Draft[] = await Promise.all(
+    [...top].filter(([n, k]) => k === 'file' && /^dod-draft-.+\.md$/.test(n)).map(async ([n]) => ({
+      slug: n.replace(/^dod-draft-|\.md$/g, ''),
+      dod: progress(await $.fs.read(`${root}/${n}`).catch(() => '')),
+    })),
+  )
+  return { designs, drafts }
+}
+
+// The main working tree holds `.superdev/`. A linked worktree adds only its own DoD drafts and design sketches.
 // Only the items superdev's docs define are read: info.json, brainstorm/, scopes/, kb-pending/,
 // design/, dod-draft-<slug>.md. Anything else in the folder is ignored.
-async function scan($: EngineInterface): Promise<void> {
+async function scanOnce($: EngineInterface): Promise<void> {
   const cwd = await $.session.cwd()
-  const git = await $.process
-    .run(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd })
-    .catch(() => undefined)
-  const main = git?.exitCode === 0 ? git.stdout.trim().replace(/\/\.git\/?$/, '') : cwd
+  const main = (await mainWorkTree($, cwd)) ?? cwd
   const root = `${main}/.superdev`
   const empty = { root, assignees: null, intents: null, scopes: null, kbPending: null, designs: null, drafts: [] }
   if (!(await $.fs.exists(root))) {
@@ -138,8 +215,8 @@ async function scan($: EngineInterface): Promise<void> {
 
   let assignees: Snapshot['assignees'] = null
   if (top.get('info.json') === 'file') {
-    const info = await $.fs.read(`${root}/info.json`).then(t => JSON.parse(t) as Record<string, { assignee?: string; displayName?: unknown }>).catch(() => ({}))
-    assignees = Object.entries(info).map(([role, v]) => ({ role, who: (typeof v?.displayName === 'string' && v.displayName.trim()) || (v?.assignee ?? '') }))
+    const who = await $.fs.read(`${root}/info.json`).then(t => issueTrackerName(JSON.parse(t) as unknown)).catch(() => '')
+    if (who !== '') assignees = [{ role: 'issue-tracker', who }]
   }
   const intents: Intent[] | null = top.get('brainstorm') === 'dir'
     ? await Promise.all((await files('brainstorm', '.md')).map(async f => intent(f.name.replace(/\.md$/, ''), await $.fs.read(`${root}/brainstorm/${f.name}`).catch(() => ''))))
@@ -164,14 +241,30 @@ async function scan($: EngineInterface): Promise<void> {
       })),
     ))).flat()
   }
-  const designs = top.get('design') === 'dir' ? (await files('design', '.html')).map(f => f.name.replace(/\.html$/, '')) : null
-  const drafts: Draft[] = await Promise.all(
-    [...top].filter(([n, k]) => k === 'file' && /^dod-draft-.+\.md$/.test(n)).map(async ([n]) => ({
-      slug: n.replace(/^dod-draft-|\.md$/g, ''),
-      dod: progress(await $.fs.read(`${root}/${n}`).catch(() => '')),
-    })),
-  )
+  const own = await sketchesAndDrafts($, root, top)
+  // A linked worktree's own drafts and sketches join the main tree's, its copy winning a slug both hold.
+  const checkout = await sessionCheckout($, cwd, main)
+  const theirs = checkout === null ? null : await $.fs.list(checkout).then(l => sketchesAndDrafts($, checkout, new Map(l.map(t => [t.name, t.kind])))).catch(() => null)
+  const designs = theirs?.designs ? [...new Set([...(own.designs ?? []), ...theirs.designs])] : own.designs
+  const drafts = theirs ? [...new Map([...own.drafts, ...theirs.drafts].map(x => [x.slug, x])).values()] : own.drafts
   await store($, { root, assignees, intents, scopes, kbPending, designs, drafts })
+}
+
+// At most one scan runs at a time. A request while one runs queues one follow-up, which starts once the running scan
+// ends, and every later request in that window shares it; each request so resolves after a scan that started after it.
+// A scan that fails at any step stores nothing, so the pane keeps the last snapshot, and the flight is still released.
+let running: Promise<void> | null = null
+let queued: Promise<void> | null = null
+function scan($: EngineInterface): Promise<void> {
+  if (running === null) {
+    running = scanOnce($).catch(() => undefined).finally(() => { running = null })
+    return running
+  }
+  queued ??= running.then(() => {
+    queued = null
+    return scan($)
+  })
+  return queued
 }
 
 export const register: Register = on => {
@@ -211,7 +304,7 @@ export const register: Register = on => {
     const open = all.find(s => s.name === pick)
     const back = () => void update($, selected, () => null)
     // A closed scope's page needs its trace, which the scan reads only once the scope is picked.
-    const choose = (name: string) => () => void update($, selected, () => name).then(() => scan($))
+    const choose = (name: string) => () => update($, selected, () => name).then(() => scan($))
     // One log line: a row of sibling Text parts, cut to one row. Desktop wraps a Text holding a nested Text at the
     // nested child, so no part nests another. Only the part marked `shrink` gives up room; a `grow` spacer
     // pushes the parts after it to the right edge.
@@ -266,14 +359,14 @@ export const register: Register = on => {
         }
         case 'run': {
           // One line per dispatch run, at its start: an ended run carries its outcome and duration, a running one its elapsed
-          // time. Inside a slice group the slice id goes unsaid.
+          // time, or `lock stale` in its place under a stale run lock. Inside a slice group the slice id goes unsaid.
           const agent = isInGroup ? ` ${type(e.type)}` : ` ${type(e.type)} ${e.slice}`
           if (!e.isEnded) return row(key, [
             { text: `${hm(e.at)} ` },
             { text: '▶', color: 'green' },
             { text: agent, shrink: true },
             e.isResumed && { text: ' · resumed' },
-            { text: ` · running ${clock(e.ms)}` },
+            { text: e.isLockStale ? ' · lock stale' : ` · running ${clock(e.ms)}`, color: e.isLockStale ? 'yellow' : undefined },
           ], isInGroup)
           const outcome = e.outcome !== '' && e.outcome !== 'completed' ? e.outcome : ''
           return row(key, [
@@ -321,6 +414,7 @@ export const register: Register = on => {
           <Text dimColor>
             DoD {open.dod.done}/{open.dod.total}{open.lockMtime !== null ? ` · lock ${age(now - open.lockMtime)}` : ''}
           </Text>
+          {open.minors.length > 0 && <Text dimColor wrap="truncate-end">Minors queued: {open.minors.join(', ')}</Text>}
           {log.running > 0 && <Text color="green">● {log.running} running</Text>}
           <Box key="log" flexDirection="column">
             {log.entries.flatMap((e, n) => (e.kind === 'slice' ? group(e) : [logLine(e, `log-${n}`)]))}
@@ -335,7 +429,7 @@ export const register: Register = on => {
     const isAllClosed = opened['closed-all'] ?? false
     // A section: a card with a rounded, dim border. Its header row holds the Button with the open mark and name, which gives
     // up width in a narrow pane, and the value on the right, which stays whole; then its body while open.
-    const section = (id: string, name: string, value: string, isOpenByDefault: boolean, body: () => unknown) => {
+    const section = (id: string, name: string, value: string, isOpenByDefault: boolean, body: () => RenderChildren) => {
       const isOpen = opened[id] ?? isOpenByDefault
       return (
         <Box key={`card-${id}`} flexDirection="column" borderStyle="round" borderDimColor paddingX={1}>

@@ -2,12 +2,12 @@
 // from memory, beneath the plugin. Not a suite: the suites import it.
 import type { On } from 'claude-code'
 import { mock, test as kitTest } from 'claude-code/testing'
+import type { TestBody } from 'claude-code/testing'
 
 // The kit's `test` with a loose per-case bound. The kit's default bound, 5 s of wall clock, counts the time a case
 // spends descheduled: beside the repository's suites, a case that takes 0.6 s alone has read over 5 s. The bound
 // only catches a case that hangs, which no bound shortens, so 60 s falsifies the same failure the default did.
-type Body = Parameters<typeof kitTest>[1]
-export const test = (name: string, body: Body) => kitTest(name, { timeoutMs: 60_000 }, body)
+export const test = (name: string, body: TestBody) => kitTest(name, { timeoutMs: 60_000 }, body)
 
 export type Entry = { name: string; kind: 'file' | 'dir'; size: number; mtimeMs: number; isLink: boolean }
 export const dir = (name: string): Entry => ({ name, kind: 'dir', size: 0, mtimeMs: 0, isLink: false })
@@ -29,27 +29,44 @@ export const ledger = (stage: string, rows: ([string, string] | [string, string,
 // HOME is `/r`, so the pane shows the root as `~/.superdev`.
 // `mtimes` answers `fs.stat` for the paths it names (a held `run.lock`); `hasRoot` false is a repository with no `.superdev`.
 // `hold` runs before an existence check answers, so a test can keep one waiting.
+// `failing` names the engine calls (`session.cwd`, `fs.exists`, `process.run`, `fs.list`) that fail while they are in it.
+// `git` shapes the repository git answers for: `commonDir`, the shared git directory (`/r/.git` when not given);
+// `worktree`, the `core.worktree` its config sets, if any; `toplevel`, the session checkout `--show-toplevel` answers
+// (none when not given, so that call fails); `realPaths`, where `fs.stat` with `resolve` lands a path; `runs`, an array
+// each process call's argv is pushed onto, failed calls included.
 // Hands back a held clock: the pane's hooks leave their bookkeeping running, and `settle()` lets it finish
 // before a test looks.
-export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<string, Entry[]>, cwd = '/r', hold?: (path: string) => Promise<void>, mtimes: Record<string, number> = {}, hasRoot = true) => {
-  on('session.cwd', async () => ({ value: cwd }))
+export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<string, Entry[]>, cwd = '/r', hold?: (path: string) => Promise<void>, mtimes: Record<string, number> = {}, hasRoot = true, failing: Set<string> = new Set(), git: { commonDir?: string; worktree?: string; toplevel?: string; realPaths?: Record<string, string>; runs?: string[][] } = {}) => {
+  on('session.cwd', async () => (failing.has('session.cwd') ? { deny: 'EIO' } : { value: cwd }))
   on('env.get', async () => ({ value: '/r' }))
-  on('process.run', async (_$, e) => ({
-    value: { exitCode: e.argv.includes('--git-common-dir') && e.init?.cwd === cwd ? 0 : 1, stdout: '/r/.git\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
-  }))
+  const commonDir = git.commonDir ?? '/r/.git'
+  on('process.run', async (_$, e) => {
+    git.runs?.push([...e.argv])
+    if (failing.has('process.run')) return { deny: 'EIO' }
+    const answer = (out: string | undefined) => ({ value: { exitCode: out === undefined ? 1 : 0, stdout: `${out ?? ''}\n`, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    const a = e.argv
+    if (a.includes('--git-common-dir')) return answer(e.init?.cwd === cwd ? commonDir : undefined)
+    if (a.includes('--show-toplevel')) return answer(e.init?.cwd === cwd ? git.toplevel : undefined)
+    if (a.includes('core.worktree') && a.includes(`${commonDir}/config`)) return answer(git.worktree)
+    return answer(undefined)
+  })
   on('fs.exists', async (_$, e) => {
     await hold?.(e.path)
+    if (failing.has('fs.exists')) return { deny: 'EIO' }
     return { value: (hasRoot && e.path === R) || e.path in files }
   })
   on('fs.list', async (_$, e) => {
-    const l = lists[e.path]
+    const l = failing.has('fs.list') ? undefined : lists[e.path]
     return l ? { value: l } : { deny: 'ENOENT' }
   })
   on('fs.read', async (_$, e) => {
     const f = files[e.path]
     return f === undefined ? { deny: 'ENOENT' } : { value: f }
   })
-  on('fs.stat', async (_$, e) => (e.path in mtimes ? { value: { mtimeMs: mtimes[e.path] } as never } : { deny: 'ENOENT' }))
+  on('fs.stat', async (_$, e) => {
+    if (e.resolve && git.realPaths && e.path in git.realPaths) return { value: { kind: 'dir', size: 0, mtimeMs: 0, isLink: true, realPath: git.realPaths[e.path] } as never }
+    return e.path in mtimes ? { value: { mtimeMs: mtimes[e.path] } as never } : { deny: 'ENOENT' }
+  })
   on('ui.open', async () => ({ value: { isPlaced: true as const } }))
   return mock.clock(on)
 }
