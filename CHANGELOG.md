@@ -1,3 +1,16 @@
+# [0.115.0](https://github.com/Bomret/superdev/compare/v0.114.1...v0.115.0) (2026-11-23)
+
+
+### Bug Fixes
+
+* **superdev-view:** assignee line, scan robustness, main tree, stale runs, Minor queue, type check ([b3c0c54](https://github.com/Bomret/superdev/commit/b3c0c54c511b1dd622861f449017b27f578d89c9))
+
+
+### Features
+
+* **hooks:** superdev sends no operator alert ([#434](https://github.com/Bomret/superdev/issues/434)) ([e4d53d6](https://github.com/Bomret/superdev/commit/e4d53d6d7bc79e9dfc0b3ae8440e10914875f3f1)), closes [#427](https://github.com/Bomret/superdev/issues/427)
+* **wrap-up:** ask to delete the scope branch, locally and on the remote ([#436](https://github.com/Bomret/superdev/issues/436)) ([9998ae1](https://github.com/Bomret/superdev/commit/9998ae12445b4300284f336615350d05a69b81aa))
+
 ## [0.114.1](https://github.com/Bomret/superdev/compare/v0.114.0...v0.114.1) (2026-11-22)
 
 
