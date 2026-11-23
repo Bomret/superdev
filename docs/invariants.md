@@ -1210,7 +1210,7 @@ Paths: plugin/hooks/tree-guard.js, plugin/lib/main-work-tree.js, plugin/hooks/ho
 
 Class: architecture
 Concepts: Backend command contract
-Statement: A shipped executable hands text to a shell only to run an operator-supplied command: the repository's test command or a knowledge-base backend command template. That shell is `sh`, resolved from PATH. No shipped executable names a shell by absolute path, starts `bash`, or runs a command through Node's default shell (`exec`, `execSync`, or `shell: true`) (ADR 0150).
+Statement: A shipped executable hands text to a shell only to run an operator-supplied command: the repository's test command, a knowledge-base backend command template, or the code-host document's check-status read script that `scope.js ci --wait` runs (ADR 0280). That shell is `sh`, resolved from PATH. No shipped executable names a shell by absolute path, starts `bash`, or runs a command through Node's default shell (`exec`, `execSync`, or `shell: true`) (ADR 0150).
 Breaks: loudly
 Check: scripts/drift-check.js `shell-spawn` — fails on a shell start under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` that breaks the rule
 Paths: plugin/hooks/*.js, plugin/scripts/*.js, plugin/lib/*.js

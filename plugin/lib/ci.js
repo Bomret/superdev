@@ -60,14 +60,14 @@ const READ_MAX_MS = 120000;
 const READ_MIN_MS = 10000;
 const FAILED_READS_CAP = 3;
 
-// One read: the script text, its `<sha>` placeholders already filled, run by bash as the leader of its own process
+// One read: the script text, its `<sha>` placeholders already filled, run by `sh` as the leader of its own process
 // group, so `stop` ends the read and every child it started. A read past `boundMs` is ended the same way. Resolves
 // `{ ok, out, err }`: `ok` only for a read that exited 0 on its own.
 function runRead(script, cwd, boundMs, onStart) {
   return new Promise((resolve) => {
     let child;
     try {
-      child = spawn('bash', ['-c', script], { cwd, detached: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+      child = spawn('sh', ['-c', script], { cwd, detached: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     } catch (e) {
       resolve({ ok: false, out: '', err: `the read could not start: ${e.message}` });
       return;

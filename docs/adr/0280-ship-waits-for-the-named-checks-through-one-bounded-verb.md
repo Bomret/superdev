@@ -14,7 +14,7 @@ once CI reported. On the CI path, submit-pr asked no ship question at all.
 **Decision.** `scope.js ci --wait --read <script>` re-runs a code-host read script every 30 s and judges each read
 against the named checks. It ends on the first green, failed, or cannot-judge verdict, or as soon as no named check can still change. After a 60-minute deadline it
 makes one final read and ends not green, naming the checks still pending. Three failed or hung reads in a row end it with the
-last read's error. Each code-host seed's `## Check status` carries the read script, so shipped code names no host CLI.
+last read's error. Each code-host seed's `## Check status` carries the read script, a POSIX `sh` script the verb runs with `sh -c` (INV-0153), so shipped code names no host CLI.
 Ship runs the verb through the Bash tool's `run_in_background`, which re-invokes the session when the command exits
 (Claude Code's Bash tool description, checked 2026-11-23), and the agent itself
 never re-reads on a timer. A code-management document without the read script keeps the single read and its pending

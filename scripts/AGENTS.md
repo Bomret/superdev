@@ -726,7 +726,7 @@ commit, or a malformed section), and 1 on a usage refusal. It writes no ledger l
 record. `tests/scope-ci.test.js` holds its cases.
 
 `ci --sha <sha> --wait --read <script> [--timeout <s>] [--root <path>]` is the one wait on named checks (INV-0192,
-ADR 0280). It reads no stdin. Each read runs the script text through `bash`, every `<sha>` replaced by the full hex
+ADR 0280). It reads no stdin. Each read runs the script text through `sh -c`, every `<sha>` replaced by the full hex
 commit the SHA resolves to, as the leader of its own process group, bounded at 120 s, or at the time left to the
 deadline where that is longer than 10 s, and at 10 s otherwise. A read that exits non-zero or is ended at its bound
 is a failed read, and its stdout is never judged. Each successful read is judged as the plain verb judges stdin. The

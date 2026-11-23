@@ -2,7 +2,7 @@
 
 // Suite for plugin/scripts/scope.js's `ci --wait`: the one bounded wait on a commit's named checks, which re-runs a read
 // script and judges each read like the plain `ci` verb (INV-0192, ADR 0280). Every case runs the real CLI as a child
-// process against one repository, built once; a read script is a fixture bash file that counts its calls in a temp
+// process against one repository, built once; a read script is a fixture `sh` file that counts its calls in a temp
 // file and answers by call number. Every case asserts on read counts and verdicts, never on elapsed time (ADR 0086).
 
 require('./fixture-git');
