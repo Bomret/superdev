@@ -65,7 +65,6 @@ module.exports = ({ assert, fixture }) => {
     const declared = {
       'source-sections': 'SOURCE_SECTION_CONTRACTS',
       'change-type': 'CHANGE_TYPE_CONTRACTS',
-      'containment-delegation': 'CONTAINMENT_DELEGATION_CONTRACTS',
     };
     for (const [id, name] of Object.entries(declared)) {
       assert.strictEqual(checks.find((c) => c.id === id).contracts, contracts[name], `check ${id} declares ${name}`);

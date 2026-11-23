@@ -42,9 +42,8 @@ function healthySpawn(i) {
   if (sample.status !== 3) throw new Error(`healthy-spawn sample ${i + 1} exited ${sample.status}, not 3: ${sample.stderr}`);
 }
 
-// The elapsed ceiling of a hanging-verb block. Everything else the block does — git, the containment check,
-// the healthy verbs — slows with the machine too, so a ceiling counted in bounds still trips under load. The
-// ceiling therefore answers only the qualitative question, whether the bound ended the hang at all (AGENTS.md,
+// The elapsed ceiling of a hanging-verb block. Everything else the block does — git, the healthy verbs — slows with the
+// machine too, so a ceiling counted in bounds still trips under load. The ceiling therefore answers only the qualitative question, whether the bound ended the hang at all (AGENTS.md,
 // ADR 0086): it sits well below the time the hung verb sleeps, so a bound that failed still fails the block.
 // The reported "<verb> timed out after <bound>ms" line is what proves the bound fired, and the batch's
 // one-bound-not-one-per-page property is asserted by the untried count and the absent backend state.
@@ -91,17 +90,6 @@ function makeRepo() {
   return repo;
 }
 
-// Every staged scope other than `_adhoc` gets a `feat/<scope>` branch at the current tip, so it
-// reads `contained` against `main` (same commit, same tree) unless a test deliberately diverges it.
-// This is what keeps every pre-existing test — none of which is about the merge check — green once
-// publish-kb.js starts refusing an unmerged or unresolvable scope branch by default.
-function ensureContainedBranch(repo, scope) {
-  if (scope === '_adhoc') return;
-  const branch = `feat/${scope}`;
-  if (spawnSync('git', ['rev-parse', '--verify', '--quiet', branch], { cwd: repo }).status === 0) return;
-  git(['branch', branch], repo);
-}
-
 function commandsDoc(backendLine, verbs = ['find', 'create', 'update', 'delete']) {
   const sections = verbs
     .map((v) => `### ${v}\n\n\`\`\`sh\n${v === 'create' ? ': parentId\n' : ''}node ${shq(FAKE_BACKEND)} ${v} "$1"\n\`\`\``)
@@ -115,7 +103,6 @@ function writeKbDoc(repo, text) {
 }
 
 function stagePage(repo, scope, filename, frontmatter, body = 'body text.\n') {
-  ensureContainedBranch(repo, scope);
   const dir = path.join(repo, '.superdev', 'kb-pending', scope);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, filename), `---\n${frontmatter}\n---\n${body}`);
@@ -269,7 +256,6 @@ module.exports = {
   hangBound,
   git,
   makeRepo,
-  ensureContainedBranch,
   commandsDoc,
   writeKbDoc,
   stagePage,

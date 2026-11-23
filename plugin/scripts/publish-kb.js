@@ -9,7 +9,7 @@
 //
 // This file is the CLI: it reads the arguments, wires the `lib/kb-*.js` modules together, and prints
 // the report. The staging root, the backend configuration, the staged page, the template runner,
-// the per-file application, the parent-link edit, the containment check, the read entry, and the
+// the per-file application, the parent-link edit, the publish gate, the read entry, and the
 // report each live in their own module there.
 //
 // `--read <title>` is a read-only entry point (ADR 0094, INV-0091): see `lib/kb-read.js`. A staged
@@ -36,7 +36,7 @@ const { parseStagedPage } = require('../lib/kb-staged-page.js');
 const { hashBody, timeoutMs, runFind } = require('../lib/kb-backend.js');
 const { processStagedFiles } = require('../lib/kb-apply.js');
 const { addParentLink, removeParentLink } = require('../lib/kb-parent-link.js');
-const { parseBaseBranch, parseRemote, checkContainment } = require('../lib/kb-containment.js');
+const { checkGate } = require('../lib/kb-gate.js');
 const { runReadEntry } = require('../lib/kb-read.js');
 const { renderReport } = require('../lib/kb-report.js');
 
@@ -47,7 +47,7 @@ const USAGE = [
   '       node publish-kb.js --read <title>',
   '  (no flag)          publishes the staged pages of the one pending scope to the configured backend',
   '  --scope <slug>     publishes that pending scope; needed when more than one scope is pending',
-  '  --allow-unmerged   publishes a scope whose branch is not contained in its base',
+  '  --allow-unmerged   publishes a scope whose ledger does not record it as shipped or closed',
   '  --read <title>     prints {"title","exists","body","hash"} for one live page; writes nothing',
   '  --help, -h         this text; reads and publishes nothing',
 ].join('\n');
@@ -97,12 +97,10 @@ function run(argv, cwd) {
   const templates = liveTemplates(backend.templates, cwd);
 
   let unmerged = false;
-  const containment = checkContainment(mainCheckout, resolvedScope);
-  if (containment.performed && !containment.ok) {
-    if (containment.unreadable) fail(`${containment.message} — nothing published`);
-    if (!allowUnmerged) {
-      fail(`${containment.message} — nothing published (pass --allow-unmerged to publish anyway)`);
-    }
+  const gate = checkGate(mainCheckout, resolvedScope);
+  if (!gate.ok) {
+    if (!gate.overridable) fail(`${gate.message} — nothing published`);
+    if (!allowUnmerged) fail(`${gate.message} — nothing published (pass --allow-unmerged to publish anyway)`);
     unmerged = true;
   }
 
@@ -142,8 +140,6 @@ module.exports = {
   runFind,
   addParentLink,
   removeParentLink,
-  parseBaseBranch,
-  parseRemote,
   timeoutMs,
   hashBody,
   run,

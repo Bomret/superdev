@@ -14,7 +14,7 @@ const printable = (v) =>
     .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/g, '');
 function renderReport(scope, backendKind, results, unmerged = false) {
   const lines = [`scope: ${scope}`, `backend: ${backendKind}`];
-  if (unmerged) lines.push('unmerged: the scope branch was not confirmed contained — published with --allow-unmerged');
+  if (unmerged) lines.push('unmerged: the ledger does not record this scope as shipped or closed — published with --allow-unmerged');
   for (const raw of results) {
     const r = { ...raw };
     for (const k of ['title', 'reason', 'filename', 'fix', 'parent']) if (r[k] !== undefined) r[k] = printable(r[k]);

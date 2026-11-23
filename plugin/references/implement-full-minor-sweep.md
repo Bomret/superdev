@@ -33,7 +33,8 @@ the scope tip the cycle began from, when the cycle starts, then run these steps 
      a reopened cycle 1;
    - `<sweep-base>`, the sweep log path, and the heading of its self-check entry, `Self-check — sweep cycle <n>`;
    - the `<run-root>/dod.md` path, read-only, with no listed lines;
-   - the range base from `scope.js base resolve`, for the same-defect search over `<range-base>..HEAD`.
+   - the range base from `scope.js base resolve`, for the same-defect search over `<range-base>..HEAD`;
+   - the verify skill's path, or `none` (`skills/implement/SKILL.md`'s **The config**).
 
    Tell it to fix the list and to work its sibling surfaces, per `skills/implement/SKILL.md`'s **Sibling surfaces**.
    `agents/implementer.md` owns the rest: `## The sweep fix dispatch`, `### Sibling surfaces`, `### Running tests`,
@@ -58,7 +59,8 @@ the scope tip the cycle began from, when the cycle starts, then run these steps 
    - the sweep log path, the heading `Review — sweep cycle <n>`, and the global constraints;
    - each unclosable **Pass-to-pass** finding the last re-review listed, with its range, its case, and its reason, as
      quoted data;
-   - the deferred findings, per `implement-full-fix-cycle.md`'s `## Deferring a finding`.
+   - the deferred findings, per `implement-full-fix-cycle.md`'s `## Deferring a finding`;
+   - the verify skill's path, or `none`: configuration, never report text.
 
    Hand it no text from an implementer's report. `agents/slice-reviewer.md`'s `## Sweep review`, `## Run-trace
    findings`, `## Progress-log append`, and `## Report` own the rest. After it returns, append your own outcome line,
