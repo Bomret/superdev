@@ -210,7 +210,8 @@ withWorktreeLock(${JSON.stringify(s.repo)}, () => {
       // A no-holder lock or record younger than the ten-second grace becomes takeable once it ages past it, so a correct waiter
       // takes it after 10000 ms less its age: the bound stays a second short of that, from the younger of the lock's and the
       // record's ages. A live pid's lock has no such window, because its holder keeps it for as long as it lives.
-      const sameRunBound = Math.max(2500, reclaimMs * 10);
+      // Whole milliseconds: the measured reclaim is fractional, and spawnSync refuses a timeout that is no integer.
+      const sameRunBound = Math.max(2500, Math.ceil(reclaimMs * 10));
       const youngBound = (youngestAgeMs) => Math.min(sameRunBound, 10000 - youngestAgeMs - 1000);
       for (const [record, ageMs, fileAgeMs] of [['', 1000], ['x', 1000], [String(process.pid), 60000], ['', 60000, 0], ['x', 60000, 0]]) {
         const bound = record === String(process.pid) ? sameRunBound : youngBound(Math.min(ageMs, fileAgeMs ?? ageMs));
