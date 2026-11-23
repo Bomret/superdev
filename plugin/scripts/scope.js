@@ -556,7 +556,7 @@ function isBulletStdinInvocation(argv) {
 
 // `--help` / `-h` asks for usage unless it is the value of a flag that takes one or the text of a bullet
 // verb (`unresolved add -h`): those are data, and usage text standing in for them would be written on.
-const VALUE_FLAGS = ['--sha', '--root', '--range', '--exit', '--branch', '--tip', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict', '--map-file', '--base', '--ci-head', '--ci-file', '--remote', '--lock', '--kind', '--window', '--last', '--stage', '--range-base', '--also', '--merge', '--target', '--repair', '--tag', '--since'];
+const VALUE_FLAGS = ['--sha', '--root', '--range', '--exit', '--branch', '--tip', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict', '--map-file', '--base', '--ci-head', '--ci-file', '--remote', '--lock', '--kind', '--window', '--last', '--stage', '--range-base', '--also', '--merge', '--target', '--repair', '--tag', '--since', '--read', '--timeout'];
 // How many values a flag of VALUE_FLAGS takes: `--repair` reads two (`open|closed <key>`), every other flag one.
 const flagArity = (flag) => (flag === '--repair' ? 2 : 1);
 function asksForHelp(argv) {
@@ -569,6 +569,16 @@ function asksForHelp(argv) {
   }
   if (BULLET_STDIN_VERBS.includes(rest[0]) && libLedgerRecords().BULLET_STDIN_SUBS.includes(rest[1]) && rest[2] !== '-') rest.length = 2; // `-` reads stdin: no text on the command line
   return rest.includes('--help') || rest.includes('-h');
+}
+
+// The words of `argv` that are no value of a flag of VALUE_FLAGS.
+function optionWords(argv) {
+  const words = [];
+  for (let i = 0; i < argv.length; i++) {
+    if (VALUE_FLAGS.includes(argv[i])) i += flagArity(argv[i]);
+    else words.push(argv[i]);
+  }
+  return words;
 }
 
 // The verb and subcommand a help request names: the verb is argv[0], the token `run()` dispatches on, and none when a
@@ -592,7 +602,9 @@ function main() {
     console.log(libUsage().helpText(...helpTarget(argv)));
     return;
   }
-  const needsStdin = STDIN_VERBS.includes(argv[0]) || isBulletStdinInvocation(argv);
+  // `ci --wait` reads its check status through its read script, never stdin, so it runs with stdin left open.
+  const ciWait = argv[0] === 'ci' && optionWords(argv).includes('--wait');
+  const needsStdin = (STDIN_VERBS.includes(argv[0]) && !ciWait) || isBulletStdinInvocation(argv);
   const go = (stdinJson) => {
     // A refusal prints its message and exits nonzero; any other error is a bug and propagates.
     const settle = (e) => {
@@ -606,6 +618,7 @@ function main() {
       if (argv[0] === 'test') libTestVerb().verbTest(process.cwd(), argv.slice(1));
       else if (argv[0] === 'fail-to-pass') libFailToPass().verbFailToPass(process.cwd(), argv.slice(1)).catch(settle);
       else if (argv[0] === 'prepare') libPrepare().verbPrepare(process.cwd(), argv.slice(1)).catch(settle);
+      else if (ciWait) libCi().verbCiWait(process.cwd(), argv.slice(1)).catch(settle);
       else run(argv, process.cwd(), stdinJson);
       // Let the process exit naturally on success, so stdout is guaranteed to flush first;
       // a refusal still exits nonzero below.

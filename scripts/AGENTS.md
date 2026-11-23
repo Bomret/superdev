@@ -57,7 +57,7 @@ lazily loaded module is a getter that returns that module's own value. No module
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|reviewed|suite|failed`,
 `state [--json] --root <run-root>` (every field `get` names in one read-only call, from the ledger alone: no git, no trace line, no digest seal; `--json` prints one object with list fields as arrays and `failed` as the failed test files, its `@ <sha>` staying in `get failed` and the text output; `suite-base-get.js`'s `verbState`),
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id|scope>] [--kind <kind>[,<kind>]] [--window <dispatch id>] [--last <n>]` (prints the run trace's lines, filtered, read-only), `windows --slice <id|scope>` (read-only), `untraced <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `fail-to-pass-check <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `section <file>` (read-only, the heading line on stdin), `tier --root <run-root>` (read-only), `dod-open --root <run-root> [--tag docs]` (read-only), `contained <base> <branch> [--remote <remote>]` (read-only), `branch --root <run-root>`, `checkout --root <run-root>`, `lock --root <run-root>`, `denial <pass> [--unattended] --root <run-root>`, and `route --root <run-root> …` (each read-only), `candidates --stage <stage>[,<stage>]` (read-only, no run root), `red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]` (read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count|--line]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `source-set --tests`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `ci --sha <sha> [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
+`staging <scope> [--count|--line]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `source-set --tests`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `ci --sha <sha> [--root <path>]`, `ci --sha <sha> --wait --read <script> [--timeout <s>] [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
 `--help` or `-h` prints help and exits 0. A flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request.
 The CLI checks for help before any verb reads stdin or touches a ledger.
 An unknown verb, or no verb, refuses with exit 1 and appends the full usage on stderr. `run-state` without `delete` refuses the same way.
@@ -724,6 +724,20 @@ and its `ci:` line ends in `(no check report read)`.
 It exits 0 (green), 3 (not yet green), 4 (failed), or 2 (cannot judge: an unresolvable SHA, no named checks at that
 commit, or a malformed section), and 1 on a usage refusal. It writes no ledger line, no trace line, and no suite
 record. `tests/scope-ci.test.js` holds its cases.
+
+`ci --sha <sha> --wait --read <script> [--timeout <s>] [--root <path>]` is the one wait on named checks (INV-0192,
+ADR 0280). It reads no stdin. Each read runs the script text through `bash`, every `<sha>` replaced by the full hex
+commit the SHA resolves to, as the leader of its own process group, bounded at 120 s, or at the time left to the
+deadline where that is longer than 10 s, and at 10 s otherwise. A read that exits non-zero or is ended at its bound
+is a failed read, and its stdout is never judged. Each successful read is judged as the plain verb judges stdin. The
+wait ends at the first green, failed, or cannot-judge verdict, and at once when no named check is pending or missing.
+Otherwise it reads again 30 s later. At the deadline, 3600 s unless `--timeout` names other whole seconds, it makes
+one final read and prints that judgment. A failed final read prints the last successful read's judgment, or `(no
+check report read)`. A head or section the plain verb cannot judge exits 2 before any read. A successful read resets
+the failed-read count, and the third failed read in a row exits 5 on a `ci: read-failed <sha>` line followed by that
+read's stderr. SIGTERM, SIGINT, or SIGHUP ends the running read's process group, prints `ci: stopped <sha>` and no
+verdict, and exits 6. `--wait` without `--read`, `--read` without `--wait`, a read file that cannot be read, and a
+`--timeout` that is no positive whole number each refuse with exit 1. `tests/scope-ci-wait.test.js` holds its cases.
 
 `init` writes a fresh ledger at stage `planned` (ADR 0079) — the one stage that precedes the four-command
 chain rather than naming a step within it, ranked below `implementing` so `stage set implementing` (or any
