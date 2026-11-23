@@ -30,7 +30,7 @@
 
 **Cut the worktree.** Applies once the ignore check passed. Run `git -C <main> worktree add -b <branch> <tree> HEAD`, never `-B`. The cut comes first, so the calling skill disposes of its intent and drafts only after it succeeded.
 
-- **The command fails** (the branch exists, the directory exists, a worktree registration names the path, the ref name is invalid, or `HEAD` names no commit) → the off-ramp ends here. The calling skill removes, deletes, and writes nothing more, so every intent, record, and draft stays as it was. Its closing message ends on its Next block with a `Blocked: <what git reported>` line.
+- **The command fails** (the branch exists, the directory exists, a worktree registration names the path, the ref name is invalid, or `HEAD` names no commit) → the off-ramp ends here. The calling skill removes, deletes, and writes nothing more, so every intent, record, and draft stays as it was. Its closing message ends on its Next block with a `Blocked: <what git reported>` line, and the fence holds the calling skill's own command, `/superdev:brainstorm` or `/superdev:plan`.
 - **It succeeds** → tell the operator `<tree>` and `<branch>`. Say that uncommitted changes in the invoking checkout are not carried over.
 
 ## 4. The work
