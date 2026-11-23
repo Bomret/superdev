@@ -61,20 +61,22 @@ function run(argv, cwd) {
     console.log(USAGE);
     return;
   }
-  const args = argv.slice();
   // Every argument is a known flag or the value of one; anything else refuses before the repository is read.
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--read' || args[i] === '--scope') {
-      if (!args[i + 1]) fail(`${args[i]} needs ${args[i] === '--read' ? 'a title' : 'a value'}\n${USAGE}`);
-      i++;
-    } else if (args[i] !== '--allow-unmerged') fail(`unrecognized argument "${args[i]}"\n${USAGE}`);
-  }
-  const ri = args.indexOf('--read');
-  if (ri >= 0) return runReadEntry(cwd, args[ri + 1]);
+  // The first `--read` and the first `--scope` win on a repeat.
+  let read = null;
   let scope = null;
-  const si = args.indexOf('--scope');
-  if (si >= 0) scope = args[si + 1];
-  const allowUnmerged = args.includes('--allow-unmerged');
+  let allowUnmerged = false;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--read' || a === '--scope') {
+      const value = argv[++i];
+      if (!value) fail(`${a} needs ${a === '--read' ? 'a title' : 'a value'}\n${USAGE}`);
+      if (a === '--read') read ??= value;
+      else scope ??= value;
+    } else if (a === '--allow-unmerged') allowUnmerged = true;
+    else fail(`unrecognized argument "${a}"\n${USAGE}`);
+  }
+  if (read !== null) return runReadEntry(cwd, read);
 
   const mainCheckout = resolveMainCheckout(cwd);
   const stagingRoot = path.join(mainCheckout, '.superdev', 'kb-pending');
