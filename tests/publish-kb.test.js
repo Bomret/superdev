@@ -103,4 +103,26 @@ assert.throws(
   }
 }
 
+// --- --help / -h: usage on stdout, exit 0, before any repository or backend is read -------------
+{
+  const { spawnSync } = require('node:child_process');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-help-'));
+  try {
+    const cli = (...a) => spawnSync(process.execPath, [publishKbPath, ...a], { cwd: dir, encoding: 'utf8' });
+    for (const argv of [['--help'], ['-h'], ['--scope', 'x', '--help'], ['--allow-unmerged', '-h']]) {
+      const r = cli(...argv);
+      assert.equal(r.status, 0, `${argv.join(' ')} exits 0 outside a repository`);
+      assert.match(r.stdout, /^usage: node publish-kb\.js/, `${argv.join(' ')} prints the usage`);
+    }
+    // As the value of --scope or --read it is data, never a help request: outside a repository both refuse.
+    for (const argv of [['--scope', '-h'], ['--read', '--help']]) {
+      const r = cli(...argv);
+      assert.equal(r.status, 1, `${argv.join(' ')} is no help request`);
+      assert.equal(r.stdout, '', `${argv.join(' ')} prints no usage`);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 console.log('publish-kb.test.js: all assertions passed');

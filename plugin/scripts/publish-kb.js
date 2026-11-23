@@ -21,6 +21,10 @@
 // own create landing, and is sent as an `update` with no live-hash check. A recorded `live-hash`
 // always wins over the marker: the marker only ever substitutes for a live-hash that was never
 // recorded, never overrides one that was.
+//
+// `--help` / `-h` prints the usage and exits 0, reading no repository and calling no backend, except as the
+// value of `--read` or `--scope`, where it is data. Any other argument it does not take, or a flag missing its
+// value, refuses with the usage before the repository is read.
 
 const fs = require('fs');
 const path = require('path');
@@ -37,20 +41,39 @@ const { renderReport } = require('../lib/kb-report.js');
 
 // --- CLI ---------------------------------------------------------------------------------------
 
+const USAGE = [
+  'usage: node publish-kb.js [--scope <slug>] [--allow-unmerged]',
+  '       node publish-kb.js --read <title>',
+  '  (no flag)          publishes the staged pages of the one pending scope to the configured backend',
+  '  --scope <slug>     publishes that pending scope; needed when more than one scope is pending',
+  '  --allow-unmerged   publishes a scope whose branch is not contained in its base',
+  '  --read <title>     prints {"title","exists","body","hash"} for one live page; writes nothing',
+  '  --help, -h         this text; reads and publishes nothing',
+].join('\n');
+
+// `--help` / `-h` asks for usage unless it is the value of `--read` or `--scope`.
+function asksForHelp(argv) {
+  return argv.some((a, i) => (a === '--help' || a === '-h') && argv[i - 1] !== '--read' && argv[i - 1] !== '--scope');
+}
+
 function run(argv, cwd) {
-  const args = argv.slice();
-  const ri = args.indexOf('--read');
-  if (ri >= 0) {
-    const title = args[ri + 1];
-    if (!title) fail('--read needs a title');
-    return runReadEntry(cwd, title);
+  if (asksForHelp(argv)) {
+    console.log(USAGE);
+    return;
   }
+  const args = argv.slice();
+  // Every argument is a known flag or the value of one; anything else refuses before the repository is read.
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--read' || args[i] === '--scope') {
+      if (!args[i + 1]) fail(`${args[i]} needs ${args[i] === '--read' ? 'a title' : 'a value'}\n${USAGE}`);
+      i++;
+    } else if (args[i] !== '--allow-unmerged') fail(`unrecognized argument "${args[i]}"\n${USAGE}`);
+  }
+  const ri = args.indexOf('--read');
+  if (ri >= 0) return runReadEntry(cwd, args[ri + 1]);
   let scope = null;
   const si = args.indexOf('--scope');
-  if (si >= 0) {
-    scope = args[si + 1];
-    if (!scope) fail('--scope needs a value');
-  }
+  if (si >= 0) scope = args[si + 1];
   const allowUnmerged = args.includes('--allow-unmerged');
 
   const mainCheckout = resolveMainCheckout(cwd);

@@ -870,6 +870,8 @@ directory, a scopetree or a submodule included, through `mainWorkTree` from `plu
 edit under `- **Hierarchy:** links`, `kb-containment.js` the merge check,
 `kb-read.js` the `--read` entry, and `kb-report.js` the report. They take `SLUG_RE` and `CHANGE_TYPES` from `plugin/lib/ledger.js`,
 `refResolves` from `plugin/lib/git-spawn.js`, and `fail` from `plugin/lib/refusal.js`, and carry no copy of any of them.
+`--help` or `-h` anywhere among the arguments prints the usage and exits 0 before any repository or backend is read,
+except as the value of `--read` or `--scope`, where it is data.
 This is what makes `.superdev/kb-pending/` resolve against the repository root, not one level too
 deep, from inside `.superdev/scopes/<scope>/scopetree`. `--scope <slug>` selects which pending scope to
 publish. Left out, the script publishes the one pending scope there is. It refuses when there is more
