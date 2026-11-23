@@ -18,12 +18,12 @@
 
 ## The scaffold
 
-**The sections.** Applies to the skill file `/superdev:setup` drafts. It carries each of these level-2 headings with exactly this name, and a reader recognises a section by its heading alone:
+**The sections.** Applies to the skill file `/superdev:setup` drafts. It carries each of these level-2 headings with exactly this name, and a reader recognizes a section by its heading alone:
 
 - `## Start`: how to start the app for this checkout, and the readiness check that shows it is up.
 - `## Drive`: how to exercise it, such as requests to send or commands to run.
 - `## Inspect`: where to read what it did, such as responses, logs, or a data store.
-- `## Stop`: how to stop it and remove what Start created.
+- `## Stop`: how to stop it and remove everything Start and the app wrote outside ignored paths, so the checkout's status reads as it did before Start.
 - `## Isolation`: how several checkouts run it side by side, each with its own port, instance name, and data store.
 - `## Untracked inputs`: each input a checkout needs that git does not hold, named by variable or file name, never by value, and how a checkout gets it.
 - `## May touch`: the state its own instance owns, inside the verification ceiling (`scope-mode.md`'s `## Verification ceiling`).
@@ -65,7 +65,7 @@ disable-model-invocation: true
 
 **Untracked inputs.** Applies to every input the skill's `## Untracked inputs` names. It comes through the environment or by the skill's own instruction. Never print, quote, or commit its value.
 
-**A clean tree.** Applies once the app ran. The tracked tree is as clean as before Start, and you commit nothing the app wrote.
+**A clean tree.** Applies once the app ran. After Stop, `git status --porcelain`, which leaves ignored files out, reads exactly as it read before Start: no file the app wrote stays untracked, no tracked file stays modified, and you commit nothing the app wrote. A later traced run then reads the tree `clean`, and the worktree removes without `--force`.
 
 **The verification ceiling.** Applies to every step. The instance the skill starts for your checkout, with the state it alone owns, is inside the ceiling (`scope-mode.md`'s `## Verification ceiling`). Skip a step that would touch state outside the skill's `## May touch`, or state shared with the main checkout or a third-party service. The item that step would observe reads `not observable`.
 

@@ -74,7 +74,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 - **An authoring dispatch** (implementer, fix) → `scope.js degraded add`.
 - **A verification dispatch** → `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc rather than a shell argument.
-- **Then, for either** → ask `scope.js denial <pass> [--unattended] --root <run-root>` for the verdict, per that section's **The verdict**: `inline` → do the pass inline, and a `block …` verdict blocks. On the `full` tier, `implement-full-denied.md` owns the inline pass. A `behavior` slice you build or fix inline with a skill path follows the verify skill as the implementer would (`${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## Following the skill`).
+- **Then, for either** → ask `scope.js denial <pass> [--unattended] --root <run-root>` for the verdict, per that section's **The verdict**: `inline` → do the pass inline, and a `block …` verdict blocks. On the `full` tier, `implement-full-denied.md` owns the inline pass, the verify skill on a `behavior` slice included.
 
 **Agents carry their own discipline.** Applies to every dispatch. Pass specifics, not lectures. A `mechanical` or `docs` slice invents no tests: the loop's runs and the full-suite evidence `/superdev:ship` takes, from the named CI checks or a local run (a full run, or the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits), are the net.
 

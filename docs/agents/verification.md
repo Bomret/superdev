@@ -94,4 +94,4 @@ counts for nothing here. This explanation carries no backtick span, because ever
 `none`
 
 This repository ships a plugin of prose and hooks, and no app a builder can start and drive
-(plugin/references/verify-skill.md). This note carries no backtick span, so the section names one value.
+(plugin/references/verify-skill.md).

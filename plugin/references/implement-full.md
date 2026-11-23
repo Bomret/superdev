@@ -117,8 +117,7 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    - on a `behavior` slice, the verify skill's path, or `none` (`verify-skill.md`'s `## The section`). Every route
      that dispatches or resumes the implementer on that slice hands the same value: this dispatch, a re-dispatch after
      NEEDS_CONTEXT or BLOCKED, a slice fix dispatch, and a SendMessage resume. A `mechanical` or `docs` slice, a tiny
-     slice, and a sweep fix dispatch hand none. The slice-reviewer dispatch hands it as configuration, so the reviewer
-     knows a skill was named, and never follows it.
+     slice, and a sweep fix dispatch hand none.
 
    `agents/implementer.md` owns the rest, and the dispatch restates none of it: `## Scope of the work`, `### Defect
    repair` (a `fix` change type starts a `behavior` slice at `references/diagnosis.md`), `### Running tests`, `### Fail-to-pass run`, `### A dependency you add`, `### Edit

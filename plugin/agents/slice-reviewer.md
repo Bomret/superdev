@@ -183,6 +183,7 @@ Applies when a recorded run at the reviewed tip holds a failing test.
 Name each inherited failure under `### Inherited failures`. Leave it out of your verdict. It is no finding and no strike.
 
 - A test is inherited when it fails at the reviewed tip and also fails at the review base. How you establish that is your call.
+- A flaky test the slice's range did not touch is inherited even when it passes at the review base. A test is flaky when it both passes and fails at one commit with nothing changed (`${CLAUDE_PLUGIN_ROOT}/agents/implementer.md`'s `## A flaky test`).
 - A failing test absent at the review base is the slice's own.
 - The scope review's fix loop repairs an inherited failure.
 - A failing test the slice caused stays a finding.
@@ -212,7 +213,7 @@ For each: file:line · what's wrong · why it matters · how to fix (if not obvi
 ### Simplicity (first review only)
 <each cut in the line format of simplicity-lens.md, then its net line, or `Lean already. Ship.`>
 
-### Inherited failures (only when a recorded run holds one) — a note, never an Issue: <the test> · <how you established it fails at the review base>
+### Inherited failures (only when a recorded run holds one) — a note, never an Issue: <the test> · <how you established it fails at the review base, or that it is flaky and untouched by the slice>
 
 ### Fail-to-pass unknown (only when the trace holds one) — a note, never an Issue: <its reason: control=<exit status or signal>, or bound=<ms>, or start-failed:<code> in control= or put-back=, or prepare=<exit, signal, start-failed:<code>, or dirty>>
 

@@ -357,10 +357,10 @@ Applies to the full interview. Scan these before any decision:
 
 - **No** → write `## Verify skill` reading `none`, and no skill file.
 - **Yes** → draft `.claude/skills/verify/SKILL.md` from the §1 manifest scan, with every section of `references/verify-skill.md`'s `## The scaffold`. Mark each section the scan cannot fill `TODO`. Show the draft, and write it and the section naming its path only on the operator's confirmation.
-- **A file already at that path** → never overwrite it. Keep it, or show a diff against the draft and write only on the operator's confirmation.
+- **A file already at that path** → keep it, or replace it only after you show a diff against the draft and the operator confirms. Never overwrite it silently.
 - **Untracked inputs** are named by variable or file name only. Setup reads no `.env` value.
 - **Setup runs no step of the skill** (`references/verify-skill.md`'s `## Setup runs no step`).
-- **After the write**, setup commits nothing. When `git check-ignore -q <path>` matches, or `git status --porcelain -- <path>` lists it untracked or modified, warn and tell the operator to commit the skill before `/superdev:implement`.
+- **After the write**, setup commits nothing. When `git check-ignore -q <path>` matches, or `git status --porcelain -- <path>` lists it untracked or modified, warn and tell the operator to commit the skill and push it to the base branch before `/superdev:implement`, whose base step merges the fetched remote base into the scope branch.
 - A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
 
 ### F — Toolchain (optional)
