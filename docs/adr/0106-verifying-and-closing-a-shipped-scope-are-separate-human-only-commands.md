@@ -10,6 +10,8 @@ point 1 below: ship prints `/superdev:wrap-up <scope>` instead when nothing is l
 `shipped` run holding a `not met:` line to `/superdev:plan`'s repair choice.
 **Amended by:** [ADR 0132](0132-ship-is-the-only-human-only-skill-and-offers-the-rest.md), which lifts the
 human-only flag from verify-ship and wrap-up in point 4: only ship keeps it.
+**Amended by:** [ADR 0274](0274-wrap-up-offers-to-delete-the-scope-branch.md), which has wrap-up's
+cleanup ask to delete the scope branch where point 3 kept it.
 
 **Amends:** [ADR 0040](0040-the-sweep-defers-an-anchor-whose-blocker-has-not-shipped.md),
 [ADR 0096](0096-opening-the-pull-request-and-merging-it-are-separate-commands.md) point 5, and

@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0274](0274-wrap-up-offers-to-delete-the-scope-branch.md), under which wrap-up
+deletes a contained scope branch on the operator's yes, and the prune stays the backstop.
+
 **Amends:** [ADR 0007](0007-scope-prune-ttl.md), which gave the reap its TTL and its subject — the run
 root alone.
 

@@ -17,7 +17,11 @@ const template = fs.mkdtempSync(path.join(os.tmpdir(), 'fixture-git-template-'))
 made.push(template);
 
 try {
+  // #no-auto-maintenance: a fixture commit starts no detached `git maintenance run --auto` or auto gc, which could repack a
+  // template's loose objects while `copyFixture` copies it.
   git(['init', '-q', '-b', 'main'], template);
+  assert.strictEqual(git(['config', '--get', 'maintenance.auto'], template), 'false', 'git children run no auto maintenance');
+  assert.strictEqual(git(['config', '--get', 'gc.auto'], template), '0', 'git children run no auto gc');
   git(['config', 'user.email', 'test@example.com'], template);
   git(['config', 'user.name', 'test'], template);
   fs.writeFileSync(path.join(template, 'a.txt'), 'one\n');

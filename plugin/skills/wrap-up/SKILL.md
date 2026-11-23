@@ -28,7 +28,7 @@ Applies to every start. Start this command only on one of the starts below. The 
 
 ## No extra question
 
-Applies to every start. Ask no extra question.
+Applies to every start. Ask no extra question. §6's branch question is the one exception: it holds on every start, and no carried consent answers it.
 
 ## The closing message
 
@@ -119,12 +119,23 @@ Applies once the gate passed. Read every bullet from the `unresolved` field of t
 
 1. Remove `<run-root>/scopetree`. Remove each slicetree at `<run-root>/slicetrees/*`. Remove the emptied `<run-root>/slicetrees/` directory. Run `git worktree prune`.
 2. Delete any leftover `slice/<scope>/*` branch.
-3. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" run-state delete --root <run-root>`. Print its `run-state:` line and continue whatever it reports.
-4. Remove `<run-root>/run.lock` if it exists.
+3. Run **The branch question** below.
+4. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" run-state delete --root <run-root>`. Print its `run-state:` line and continue whatever it reports.
+5. Remove `<run-root>/run.lock` if it exists.
 
 **A refused tree removal.** Applies when `git worktree remove` refuses a tree. Report the refusal, name the path, and leave the stage at `shipped`. Stop, and never force-remove.
 
-**What stays.** Applies to every cleanup. Keep the rest of `<run-root>`. Keep `.superdev/kb-pending/<scope>/`. Never delete the scope branch.
+**The branch question.** Applies to cleanup step 3, once the trees are removed. Test the scope branch with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" contained <base> <scope-branch>`, called exactly as §3 calls it: `<base>` the base branch `docs/agents/code-management.md` names, `<scope-branch>` the `branch` field of §2's `scope.js state` read, and no `--remote`, so the verb resolves the `Remote:` value itself.
+
+- **A first line of `contained`**, with or without a `fallback ancestor` line → ask one question: delete the scope branch now, locally and on the remote the `Remote:` value of `docs/agents/code-management.md` names, or keep both. With no `Remote:` value, the question names the local branch alone.
+- **Any other verdict** → ask nothing. Report that the scope branch stays, with the verdict and any `refetch …` line, and go on to step 4.
+
+**The answer.** Applies to the branch question's answer.
+
+- **Yes** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" branch delete --root <run-root> --base <base>`, with no `--remote`, so it resolves the same remote `contained` did. Print its lines. Whatever it exits, 0, 3, 4, or 1, continue the cleanup and §7, and report each kept or failed ref with the command to run by hand that the verb printed.
+- **Keep** → run nothing. The prune reaps the local ref later.
+
+**What stays.** Applies to every cleanup. Keep the rest of `<run-root>`. Keep `.superdev/kb-pending/<scope>/`. Keep the scope branch unless the operator answers yes to the branch question.
 
 ## 7. Finish
 

@@ -1,12 +1,17 @@
 'use strict';
 
-// Appends `commit.gpgsign=false` to git's env-injected config, keeping any GIT_CONFIG_* entry the
-// environment already carries (e.g. a CI-injected safe.directory). Idempotent across repeated requires.
+// Appends `commit.gpgsign=false`, `maintenance.auto=false`, and `gc.auto=0` to git's env-injected config, keeping any
+// GIT_CONFIG_* entry the environment already carries (e.g. a CI-injected safe.directory). Idempotent across repeated
+// requires. The last two stop a commit from starting a detached `git maintenance run --auto`, which can repack a
+// template's loose objects while `copyFixture` copies it and fail the copy with ENOENT.
 if (!process.env.GIT_FIXTURE_GPGSIGN) {
-  const i = Number(process.env.GIT_CONFIG_COUNT || 0);
-  process.env[`GIT_CONFIG_KEY_${i}`] = 'commit.gpgsign';
-  process.env[`GIT_CONFIG_VALUE_${i}`] = 'false';
-  process.env.GIT_CONFIG_COUNT = String(i + 1);
+  let i = Number(process.env.GIT_CONFIG_COUNT || 0);
+  for (const [key, value] of [['commit.gpgsign', 'false'], ['maintenance.auto', 'false'], ['gc.auto', '0']]) {
+    process.env[`GIT_CONFIG_KEY_${i}`] = key;
+    process.env[`GIT_CONFIG_VALUE_${i}`] = value;
+    i++;
+  }
+  process.env.GIT_CONFIG_COUNT = String(i);
   process.env.GIT_FIXTURE_GPGSIGN = '1';
 }
 

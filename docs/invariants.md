@@ -1611,4 +1611,13 @@ Concepts: Scope branch, Containment, Code host
 Statement: Every superdev step that reaches a remote, a push of the scope branch, a fetch of base, or a containment refetch, names the `Remote:` value of `docs/agents/code-management.md` or a remote its caller passed explicitly. With neither, the step reaches no remote; no step falls back to a remote named `origin`.
 Breaks: silently
 Check: tests/scope-open.test.js — `open` with no `--remote` refetches from the configured remote, and with no `Remote:` value refetches nothing; tests/publish-kb-containment.test.js — no `Remote:` value judges locally with no refetch; tests/scope-contained.test.js — the configured remote and the no-remote local verdict
-Paths: plugin/lib/plan-open.js, plugin/lib/contained.js, plugin/lib/containment.js, plugin/lib/kb-containment.js, plugin/skills/ship/SKILL.md, plugin/references/shipped-run.md, plugin/references/scope-branch.md, plugin/references/code-management-*.md
+Paths: plugin/lib/plan-open.js, plugin/lib/contained.js, plugin/lib/containment.js, plugin/lib/kb-containment.js, plugin/lib/branch-delete.js, plugin/skills/ship/SKILL.md, plugin/references/shipped-run.md, plugin/references/scope-branch.md, plugin/references/code-management-*.md
+
+### INV-0204
+
+Class: architecture
+Concepts: Scope branch, Containment, Code host
+Statement: A superdev step deletes a scope branch only when base contains it, and wrap-up deletes it only on the operator's yes to its one branch question. The remote delete is leased on the tip the containment test judged, so a remote branch that moved since keeps its commits; a remote branch already gone counts as deleted.
+Breaks: silently
+Check: tests/scope-branch-delete.test.js — a not-contained branch deletes nothing, a remote moved past the tested tip is kept, a remote already gone reads deleted, and no `--remote` deletes the local ref alone
+Paths: plugin/scripts/scope.js, plugin/lib/branch-delete.js, plugin/skills/wrap-up/SKILL.md, plugin/hooks/scope-prune.js
