@@ -19,11 +19,11 @@ Applies to every start. You turn a vague idea into an intent sharp enough for `/
 
 ## What you write
 
-Applies to every start. Write only these: the intent file as the interview runs, `.superdev/` in `.gitignore` when absent, §6's intent record with the deletion of the file it replaces, and §4's prototype on a throwaway branch. Write no slice, no Definition of Done, no glossary entry, and no ADR. Durable capture is `/superdev:plan`'s job.
+Applies to every start. Write only these: the intent file as the interview runs, `.superdev/` in `.gitignore` when absent, §6's intent record with the deletion of the file it replaces, §4's prototype on a throwaway branch, and on §6's inline off-ramp the worktree `${CLAUDE_PLUGIN_ROOT}/references/inline-offramp.md` cuts with the work inside it. Write no slice, no Definition of Done, no glossary entry, and no ADR. Durable capture is `/superdev:plan`'s job.
 
 ## The closing message
 
-Applies to the message of each exit of §6: the intent is ready, or the operator stops before it is. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`. An interview turn that ends on a question to the operator is no exit: end it on the question, with no Next block and no next command.
+Applies to the message of each exit of §6: the intent is ready, the operator takes the inline off-ramp, or the operator stops before the intent is ready. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`. An interview turn that ends on a question to the operator is no exit: end it on the question, with no Next block and no next command.
 
 ## The mode
 
@@ -116,7 +116,14 @@ Applies once the space has been explored. Bring the intent file to its final for
 
 ## 6. Hand off
 
-**A ready intent.** Applies once the intent has a clear problem, checkable success criteria, and a bounded scope, even with decisions still open. Set `status: ready` in the frontmatter, then hand the intent off as an intent record by `${CLAUDE_PLUGIN_ROOT}/references/intent-handoff.md`. The record replaces the file.
+**The readiness test.** Applies to the intent file. It passes once the intent has a clear problem, checkable success criteria, and a bounded scope, even with decisions still open.
+
+**The off-ramp check.** Applies once the readiness test passes, before `status: ready` is set. Check the criterion of `${CLAUDE_PLUGIN_ROOT}/references/inline-offramp.md`'s `## 1. The criterion` against the agreed scope. When it holds, ask that reference's question in place of the hand-off.
+
+- **"continue superdev"**, or no question asked → **A ready intent** below.
+- **"inline here"** → follow the reference from its `## 3. The worktree` to its exit report. Only after a successful cut, write no intent record, and delete the intent file only when this session created it. A resumed draft stays, keeps `status: draft`, and the report names its path.
+
+**A ready intent.** Applies once the readiness test passes and the operator did not take the inline off-ramp. Set `status: ready` in the frontmatter, then hand the intent off as an intent record by `${CLAUDE_PLUGIN_ROOT}/references/intent-handoff.md`. The record replaces the file.
 
 - The record confirmed → delete the file.
 - A record that cannot be written whole → the file stays `ready`, and the report says why.
@@ -128,3 +135,5 @@ Applies once the space has been explored. Bring the intent file to its final for
 - `/superdev:plan` skips a draft, so it is never this exit's next command.
 
 **The report.** Applies to every exit. Close with the brainstorm report per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The brainstorm report` section.
+
+- **The inline exit** → close per that file's `## The inline exit` section.
