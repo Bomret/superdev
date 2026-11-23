@@ -121,7 +121,7 @@ Applies once the space has been explored. Bring the intent file to its final for
 **The off-ramp check.** Applies once the readiness test passes, before `status: ready` is set. Check the criterion of `${CLAUDE_PLUGIN_ROOT}/references/inline-offramp.md`'s `## 1. The criterion` against the agreed scope. When it holds, ask that reference's question in place of the hand-off.
 
 - **"continue superdev"**, or no question asked → **A ready intent** below.
-- **"inline here"** → follow the reference from its `## 3. The worktree` to its exit report. Only after a successful cut, write no intent record, and delete the intent file only when this session created it. A resumed draft stays, keeps `status: draft`, and the report names its path.
+- **"inline here"** → follow the reference from its `## 3. The worktree` to its exit report. After a successful cut, skip the intent record, and delete the intent file when this session created it. A resumed draft stays and keeps `status: draft`.
 
 **A ready intent.** Applies once the readiness test passes and the operator did not take the inline off-ramp. Set `status: ready` in the frontmatter, then hand the intent off as an intent record by `${CLAUDE_PLUGIN_ROOT}/references/intent-handoff.md`. The record replaces the file.
 
@@ -136,4 +136,4 @@ Applies once the space has been explored. Bring the intent file to its final for
 
 **The report.** Applies to every exit. Close with the brainstorm report per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The brainstorm report` section.
 
-- **The inline exit** → close per that file's `## The inline exit` section.
+- **The inline exit after a successful worktree cut** → close per that file's `## The inline exit` section.

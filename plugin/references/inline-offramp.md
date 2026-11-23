@@ -30,27 +30,26 @@
 
 **Cut the worktree.** Applies once the ignore check passed. Run `git -C <main> worktree add -b <branch> <tree> HEAD`, never `-B`. The cut comes first, so the calling skill disposes of its intent and drafts only after it succeeded.
 
-- **The command fails** (the branch exists, the directory exists, a worktree registration names the path, the ref name is invalid, or `HEAD` names no commit) → stop the off-ramp and name what git reported. Remove nothing and delete nothing. Every intent, record, and draft stays as it was.
+- **The command fails** (the branch exists, the directory exists, a worktree registration names the path, the ref name is invalid, or `HEAD` names no commit) → the off-ramp ends here. The calling skill removes, deletes, and writes nothing more, so every intent, record, and draft stays as it was. Its closing message ends on its Next block with a `Blocked: <what git reported>` line.
 - **It succeeds** → tell the operator `<tree>` and `<branch>`. Say that uncommitted changes in the invoking checkout are not carried over.
 
 ## 4. The work
 
-**Work in the worktree.** Applies to every edit, git call, and command of the inline work. The session never switches into `<tree>`. Edit every file by its absolute path under `<tree>`, run every git call as `git -C <tree>`, and run every other command with `<tree>` as its working directory.
+**Work in the worktree.** Applies to every edit, git call, and command of the inline work. The session never switches into `<tree>`. Edit every file by its absolute path under `<tree>`, run every git call as `git -C <tree>`, and run every other command in a subshell, `(cd <tree> && <command>)`, so the session's own working directory stays where it was.
 
 ## 5. The closing checks
 
-**Prepare, then run the focused command.** Applies once the inline work is done. With `<tree>` as the working directory, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <tree>` when `<tree>`'s `docs/agents/verification.md` sets a `## Prepare command`. Then run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused --since <cut>`, which takes committed, uncommitted, and untracked changes alike.
+**Prepare, then run the focused command.** Applies once the inline work is done. In `<tree>`, by `## 4. The work`'s subshell form, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <tree>` when `<tree>`'s `docs/agents/verification.md` sets a `## Prepare command`. Then run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused --since <cut>`, which takes committed, uncommitted, and untracked changes alike.
 
 - **No `docs/agents/verification.md`, no focused fence, or no path changed since `<cut>`** → run no test and record `not run: <reason>`.
 - **A failed preparation** → record `not run: <the command and its reason>`.
 
-**Offer a review of the branch.** Applies after the focused run. Offer an ad-hoc `/superdev:review <cut>..<branch>` once the operator has committed. A working-tree review from the main checkout sees the ignored worktree as empty.
-
 ## 6. The exit report
 
-**The report.** Applies at the end of the off-ramp. Report these items, then close per the calling skill's closing message.
+**The report.** Applies at the end of the off-ramp. Report these items.
 
 - `<tree>` and `<branch>`.
 - `<cut>`.
 - The focused-run outcome, or its `not run: <reason>`.
 - That committing, merging, `git -C <main> worktree remove <tree>`, and `git -C <main> branch -D <branch>` stay the operator's.
+- The offered review: after committing, run an ad-hoc `/superdev:review <cut>..<branch>`. A working-tree review from the main checkout sees the ignored worktree as empty.

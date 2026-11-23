@@ -27,7 +27,7 @@ Applies to every start. You turn an intent into **independently-green vertical s
 
 ## The closing message
 
-Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`. On §1's inline off-ramp, close it per that file's `## The inline exit` instead.
+Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`. After a successful worktree cut on §1's inline off-ramp, close it per that file's `## The inline exit` instead.
 
 ## 0. Config
 
@@ -112,11 +112,11 @@ A new-feature plan loads neither reference.
 **The inline off-ramp.** Applies right after the feature label is picked, before the deploy question, on a new plan whose label is not `fix`, while no capture has run `scope.js open` or is held under §2's **A capture before the label**, and no triage record was written (**A later defect**) or absorbed (**The triage check**). Every other plan skips it. Offer the off-ramp per `${CLAUDE_PLUGIN_ROOT}/references/inline-offramp.md`, from its `## 1. The criterion`.
 
 - **"continue superdev"**, or no question asked → the plan goes on unchanged.
-- **"inline here"** → follow the reference's `## 3. The worktree`. Only after a successful cut, take the steps below in order, then follow the reference from its `## 4. The work` to its exit report. The plan ends there.
+- **"inline here"** → follow the reference's `## 3. The worktree`. After a successful cut, take the steps below in order, then follow the reference from its `## 4. The work` to its exit report. The plan ends there.
 
-1. Ignore the result of any running derive dispatch, and write no draft.
+1. Ignore the result of any running derive dispatch, and skip the draft write.
 2. Delete this run's draft and slice draft where they exist.
-3. For a seeded intent record or a ready local intent file, run **Settling the seeded intent** of §6 with these changes: no scope is filed, its question asks whether the intent is fully handled, its comment says the intent is handled inline outside superdev and names no anchor and no label, and a failed settle is reported once.
+3. For a seeded intent record or a ready local intent file, run **Settling the seeded intent** of §6 with these changes: every `Rejected direction` and every `Load-bearing commitment` it carried is resolved out loud first, no scope is filed, its question asks whether the intent is fully handled, its comment says the intent is handled inline outside superdev and names no anchor and no label, and a failed settle is reported once.
 
 **The deploy question.** Applies once the label is picked. Read the `Posture:` line in `docs/agents/deployment.md`'s `## Posture` section; a missing document, or one with no such line, reads as `none`. Under `manual` or `auto` with a non-empty `## Targets` table, ask which recorded targets this feature deploys to, offering only those targets plus `none`, and the answer order becomes the deploy order. Under `none`, or with the `## Targets` table empty, ask nothing.
 

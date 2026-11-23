@@ -99,8 +99,8 @@ section headings, and one-line bullets, in this order. It carries no paragraph o
 1. **One opening line.** The verdict, then the intent record's store reference after a store handoff
    (`references/intent-handoff.md`), or the path of the intent file for a draft or the handoff's fallback, where the
    line also says the intent exists only in this checkout and names the cause. A discovery that wrote no intent file
-   gives the verdict alone, with no path. On the inline exit the line names the worktree path and the branch, per `##
-   The inline exit`, with no record reference and no intent file path.
+   gives the verdict alone, with no path. On the inline exit the line is the opening line of
+   `## The inline exit`.
 2. **`### Settled`.** One bullet per settled decision, as `- **<decision>:** <one line>`.
 3. **`### Rejected`.** One bullet per rejected direction, as `- **<direction>:** <one line on why it lost>`.
 4. **`### Still open`.** One one-line bullet per decision left open.
@@ -115,11 +115,11 @@ always has a bullet once the brainstorm reached §4, and the Next block is alway
 ## The inline exit
 
 **The exit.** Applies to the closing message of `/superdev:brainstorm` and `/superdev:plan` after the operator chose
-"inline here" (`references/inline-offramp.md`). Close with these parts, in this order.
+"inline here" (`references/inline-offramp.md`) and the worktree cut succeeded. Close with these parts, in this order.
 
-1. **One opening line.** The verdict, the worktree path, and the branch.
-2. **The exit report.** One one-line bullet per item of `inline-offramp.md`'s `## 6. The exit report`.
+1. **One opening line.** The verdict, the worktree path, and the branch, plus the path of a resumed brainstorm draft
+   that stays.
+2. **The exit report.** One one-line bullet per item of `inline-offramp.md`'s `## 6. The exit report`. On
+   `/superdev:brainstorm`, sections 2 to 6 of `## The brainstorm report` come first, between the opening line and the
+   exit report.
 3. **The Next block**, per `## The Next block`, in its no-successor variant. It names no superdev command.
-
-**Brainstorm's report.** Applies to `/superdev:brainstorm` on this exit. Its `## The brainstorm report` sections 2 to 6
-stay between the opening line and the exit report.
