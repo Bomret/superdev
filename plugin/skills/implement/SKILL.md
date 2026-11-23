@@ -144,7 +144,7 @@ Applies to every `full` dispatch; `lite` dispatches none, and the reviews later 
 | slice-reviewer | `opus` | a slice's review and re-review, and a Minor sweep re-review after a fix list with any other finding |
 | slice-reviewer | `sonnet` | a Minor sweep re-review after a fix list in which every finding is a mechanical finding |
 
-**A mechanical finding.** Applies to the fix rows and the Minor sweep's re-review rows. A mechanical finding's fix changes no stated rule or behaviour (a rename, a rewrap, a typo). A fix that changes a rule or behaviour any surface states stays off `haiku`. An implementer working from a prose specification takes at least `sonnet`.
+**A mechanical finding.** Applies to the fix rows, the Minor sweep's re-review rows, and every reader of `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s **A behavior-changing finding**: the fixer, the scope review's observation check, and the sweep re-review. A mechanical finding's fix changes no stated rule or behaviour (a rename, a rewrap, a typo). A fix that changes a rule or behaviour any surface states stays off `haiku`. An implementer working from a prose specification takes at least `sonnet`.
 
 ## Red flags
 

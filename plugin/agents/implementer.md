@@ -223,7 +223,7 @@ A test is flaky when it both passes and fails at one commit with nothing changed
 
 Applies to a slice dispatch and a slice fix dispatch on a `behavior` slice, and to a review fix dispatch and a sweep fix dispatch, that hand a skill path other than `none`.
 
-Follow `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## Following the skill` against your own change, before your self-check or report, its **Stop on every exit** included. A `mechanical` or `docs` slice changes nothing here. A review fix dispatch or a sweep fix dispatch follows it only when a finding in its list changes behaviour, by that file's **Who follows it**.
+Follow `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## Following the skill` against your own change, before your self-check or report, its **Stop on every exit** included. A `mechanical` or `docs` slice changes nothing here. A review fix dispatch or a sweep fix dispatch follows that file's **Who follows it**.
 
 ## Deep modules and domain language
 
@@ -343,7 +343,7 @@ Before you report, walk your work against the whole slice range (`<base>..HEAD`,
 - Mark an item `covered` only where the entry quotes what the item demands beside what the work does. Where the `spec` or the dispatch cites a reference artifact (a design-system component, a mockup, an interface record), quote the demand from that artifact itself. A file, test, or commit pointer locates the evidence and proves nothing alone.
 - On a slice fix dispatch and a sweep fix dispatch, quote each finding's claim beside what the work now does.
 - On a `behavior` slice, and on a sweep fix for each finding whose fix changes behaviour, name for each `covered` item one plausible wrong implementation that its test rejects.
-- Where you followed a verify skill (`## The verify skill`), quote per acceptance item you exercised what you observed in the running app, or on a sweep fix dispatch per behaviour-changing finding. An item the skill cannot reach is `not observable`, with its reason. An observation that contradicts an item makes it `not covered`.
+- Where you followed a verify skill (`## The verify skill`), quote per acceptance item you exercised what you observed in the running app, or on a sweep fix dispatch per behavior-changing finding. An item the skill cannot reach is `not observable`, with its reason. An observation that contradicts an item makes it `not covered`.
 - Mark an item `not observable`, with its reason, where no tool the repository offers can observe it after you tried them. Observing changes nothing outside the repository, and the instance a verify skill starts for your checkout counts as inside. This mark is distinct from a dependency your log names as unverified (`### A dependency you add`).
 - Mark every other item `not covered`.
 - On a `behavior` slice, read the run trace (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --kind edit,run --root <run-root>`) and confirm that a failing test came before each change. The log still carries no RED or GREEN line: the entry holds the confirmation only.
@@ -367,7 +367,7 @@ Return the report only to the controller that dispatched you. You never talk to 
 - Each flaky test you met, with what you did about it (`## A flaky test`).
 - The `AGENTS.md`-hierarchy and knowledge-base places you left unedited (`## Documentation`).
 - On a fix dispatch: the rule you applied to each finding (`### RED-test rule`), each place you checked and each you changed (`### Sibling surfaces`), each same-defect instance you fixed, each such instance outside the scope's changed files as an observation, and each place outside your checkout left unedited.
-- On a review fix dispatch that followed a verify skill: per behaviour-changing finding, what you observed in the running app, quoted, or `not observable` with its reason (`## The verify skill`).
+- On a review fix dispatch that followed a verify skill: per behavior-changing finding, what you observed in the running app, quoted, or `not observable` with its reason (`## The verify skill`).
 - On a dispatch that repairs a defect: the ranked hypotheses your diagnosis wrote, in rank order (`### Defect repair`).
 - On a sweep fix dispatch: each collected Minor as fixed, closed with its evidence, or reported unedited (`## The sweep fix dispatch`).
 

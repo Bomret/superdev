@@ -19,7 +19,7 @@ runs. A Stop before Start that fails is a concern, and nothing starts.
 **Considered options.**
 
 - **Gate the path on the scope's `behavior` slices.** Rejected: a scope-review finding names files, never the slice
-  that wrote them, so the controller cannot map a finding to its slice's type. Whether the fix changes behaviour is
+  that wrote them, so the controller cannot map a finding to its slice's type. Whether the fix changes behavior is
   the fixer's own judgment, and the one that matters.
 - **A `SubagentStop` or `SessionEnd` hook that stops the app.** Rejected: the skill is prose, so no hook holds the
   command or the process that Stop names.
