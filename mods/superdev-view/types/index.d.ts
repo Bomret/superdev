@@ -5,7 +5,8 @@ export type Slice = { id: string; title: string; status: string }
 // lines and a stage write past merged. `tamper` is a `tamper` trace line (ADR 0227): scope.js found `file` (`ledger.md` or
 // `trace.log`) changed outside scope.js. `run` is one run of a dispatch, placed at its start (a resumed run at its resume): `ms` is its
 // duration once it ended (`isEnded`), else the time from its start to now; `outcome` is its dispatch outcome ('' when none is
-// recorded). `date` opens a new day: the
+// recorded). `isLockStale` marks a run with no recorded end in a scope whose run lock is an hour old or older, or absent:
+// the run lock calls such a run dead, so it draws `lock stale` in place of `running` and its time. `date` opens a new day: the
 // flat log reads a group on the day where it sits, and a group's own lines start from the day of its header's `at`.
 export type LogEntry =
   | { kind: 'date'; at: number }
@@ -14,7 +15,7 @@ export type LogEntry =
   | { kind: 'wait'; at: number; ms: number }
   | { kind: 'stage'; at: number; stage: string }
   | { kind: 'tamper'; at: number; file: string }
-  | { kind: 'run'; at: number; type: string; slice: string; isResumed: boolean; isEnded: boolean; ms: number; outcome: string }
+  | { kind: 'run'; at: number; type: string; slice: string; isResumed: boolean; isEnded: boolean; ms: number; outcome: string; isLockStale?: true }
   | { kind: 'slice'; at: number; id: string; title: string; status: string; ms?: number; isRunning: boolean; review: number; isOpenByDefault: boolean; entries: LogEntry[] }
   | { kind: 'sliceEnd'; at: number; status: string; ms?: number }
   | ({ kind: 'sliceSummary'; at: number; id: string } & SliceSummary)
@@ -28,7 +29,8 @@ export type LogEntry =
 // slice in one stretch: `path` and `suite` runs failed and passed, completed slice-review rounds, and the latest
 // fail-to-pass outcome ('' when none).
 export type SliceSummary = { path: { fail: number; pass: number }; suite: { fail: number; pass: number }; review: number; f2p: string }
-// `running`: the dispatches whose last run has no recorded end, plus the slices started and not yet merged or blocked. `ahead`: the commands still ahead in chain order,
+// `running`: the dispatches whose last run has no recorded end, unless the run lock is stale, plus the slices started and
+// not yet merged or blocked, whatever the lock. `ahead`: the commands still ahead in chain order,
 // 'closed' once the scope closed, or null when the log names none.
 export type EventLog = { entries: LogEntry[]; running: number; ahead: string[] | 'closed' | null }
 export type Progress = { done: number; total: number }
@@ -40,6 +42,8 @@ export type Scope = {
   lockMtime: number | null
   dod: Progress
   slices: Slice[]
+  // The run's Minor queue: the slice ids under the ledger's `**Minors:**` line, empty with none.
+  minors: string[]
   log: EventLog
   // When the trace records the closed stage write; null for an open scope or a trace with none.
   closedAt: number | null

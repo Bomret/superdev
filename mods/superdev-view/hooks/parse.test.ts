@@ -4,6 +4,9 @@ import { DOD_LOOKALIKE_LINES, DOD_OPEN_LINES, DOD_SHORTEST_LINES, DOD_WRITTEN_LI
 import { LEDGER_LINES, LEDGER_QUEUE_LINES, LEDGER_REVIEWED_LINES, LEDGER_STEP_LINES } from './ledger-fixtures'
 import { TRACE_LINES, TRACE_REVIEWED_LINES } from './trace-fixtures'
 
+// A run lock touched after every case's now: a held lock, so no run reads `lock stale` unless a case says otherwise.
+const HELD = Number.MAX_SAFE_INTEGER
+
 test('a header the ledger lacks reads empty', () => {
   expect(header(LEDGER_LINES.join('\n'), 'PR')).toBe('')
 })
@@ -122,11 +125,11 @@ test('a ledger and a trace carrying a reviewed-tip record draw the same entries 
   expect(queuedMinors(reviewed)).toEqual(queuedMinors(step))
   const i = STEPPED.findIndex(l => l.endsWith('scope main ledger step clear'))
   const withRecord = [...STEPPED.slice(0, i + 1), ...TRACE_REVIEWED_LINES.map(l => `${at('10:14:00')} ${l}`), ...STEPPED.slice(i + 1)]
-  expect(eventLog(LEDGER_CLOSED, withRecord.join('\n'), t('12:00:00'))).toEqual(eventLog(LEDGER_CLOSED, STEPPED.join('\n'), t('12:00:00')))
+  expect(eventLog(LEDGER_CLOSED, withRecord.join('\n'), t('12:00:00'), HELD)).toEqual(eventLog(LEDGER_CLOSED, STEPPED.join('\n'), t('12:00:00'), HELD))
 })
 
 test('a trace with step lines draws each started command, done with its duration, waits between them, and closed at the end', () => {
-  const log = eventLog(LEDGER_CLOSED, STEPPED.join('\n'), t('12:00:00'))
+  const log = eventLog(LEDGER_CLOSED, STEPPED.join('\n'), t('12:00:00'), HELD)
   expect(heads(log)).toEqual([
     ['plan', true, 3600e3], ['implement', true, 360e3], ['review', true, 240e3], ['document', true, 30e3],
     ['submit', true, 50e3], ['ship', true, 40e3], ['wrap-up', true, 60e3],
@@ -141,29 +144,29 @@ test('a trace with step lines draws each started command, done with its duration
 
 test('on a running scope the last command reads running, the ahead line skips verify-ship, and running dispatches count', () => {
   const lines = [...STEPPED.slice(0, 7)]
-  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('10:20:00'))
+  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('10:20:00'), HELD)
   expect(heads(log).at(-1)).toEqual(['review', false, 600e3])
   expect(log.ahead).toEqual(['document', 'submit', 'ship', 'wrap-up'])
   expect(log.running).toBe(1)
-  expect(eventLog(LEDGER_OPEN, STEPPED.slice(0, 9).join('\n'), t('10:20:00')).running).toBe(0)
-  const shipped = eventLog(LEDGER_OPEN, STEPPED.slice(0, 20).join('\n'), t('10:20:00'))
+  expect(eventLog(LEDGER_OPEN, STEPPED.slice(0, 9).join('\n'), t('10:20:00'), HELD).running).toBe(0)
+  const shipped = eventLog(LEDGER_OPEN, STEPPED.slice(0, 20).join('\n'), t('10:20:00'), HELD)
   expect(shipped.ahead).toEqual(['wrap-up'])
-  const verifying = eventLog(LEDGER_OPEN, [...STEPPED.slice(0, 20), `${at('10:30:00')} scope main ledger step set verify-ship`].join('\n'), t('10:31:00'))
+  const verifying = eventLog(LEDGER_OPEN, [...STEPPED.slice(0, 20), `${at('10:30:00')} scope main ledger step set verify-ship`].join('\n'), t('10:31:00'), HELD)
   expect(heads(verifying).at(-1)).toEqual(['verify-ship', false, 60e3])
   expect(verifying.ahead).toEqual(['wrap-up'])
 })
 
 test('a trace without step lines draws plan and implement, then every stage write as a plain line under no command', () => {
   const lines = STEPPED.filter(l => !/ ledger step /.test(l))
-  const open = eventLog(LEDGER_OPEN, lines.slice(0, 12).join('\n'), t('12:00:00'))
+  const open = eventLog(LEDGER_OPEN, lines.slice(0, 12).join('\n'), t('12:00:00'), HELD)
   expect(heads(open)).toEqual([['plan', true, 3600e3], ['implement', true, 360e3]])
   expect(open.entries.filter(e => e.kind === 'stage').map(e => e.kind === 'stage' && e.stage)).toEqual(['merged', 'reviewed', 'documented', 'submitted', 'shipped'])
   expect(open.ahead).toBeNull()
-  const closed = eventLog(LEDGER_CLOSED, lines.join('\n'), t('12:00:00'))
+  const closed = eventLog(LEDGER_CLOSED, lines.join('\n'), t('12:00:00'), HELD)
   expect(closed.ahead).toEqual('closed')
   expect(heads(closed).map(h => h && h[0])).toEqual(['plan', 'implement'])
   // still in implement: nothing after implement yet, so the commands ahead show
-  expect(eventLog(LEDGER_OPEN, lines.slice(0, 3).join('\n'), t('12:00:00')).ahead).toEqual(['review', 'document', 'submit', 'ship', 'wrap-up'])
+  expect(eventLog(LEDGER_OPEN, lines.slice(0, 3).join('\n'), t('12:00:00'), HELD).ahead).toEqual(['review', 'document', 'submit', 'ship', 'wrap-up'])
 })
 
 const ends = (log: ReturnType<typeof eventLog>) => log.entries.filter(e => e.kind === 'commandEnd').map(e => e.kind === 'commandEnd' && [e.name, e.ms, e.isBlocked, e.at])
@@ -171,7 +174,7 @@ const seq = (log: ReturnType<typeof eventLog>) => log.entries.map(e => (e.kind =
 
 test('step set plan and its step clear draw a plan header and an end line with the duration between them', () => {
   const lines = [`${at('09:00:00')} scope main ledger init fix/x planned`, `${at('09:10:00')} scope main ledger step set plan`, `${at('09:40:00')} scope main ledger step clear`]
-  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('12:00:00'))
+  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('12:00:00'), HELD)
   expect(seq(log)).toEqual(['+plan', '-plan'])
   expect(heads(log)).toEqual([['plan', true, 1800e3]])
   expect(ends(log)).toEqual([['plan', 1800e3, false, t('09:40:00')]])
@@ -180,24 +183,24 @@ test('step set plan and its step clear draw a plan header and an end line with t
 
 test('a plan with no end draws running with its elapsed time, and implement starting ends it at the stage write', () => {
   const lines = [`${at('09:00:00')} scope main ledger init fix/x planned`, `${at('09:10:00')} scope main ledger step set plan`]
-  expect(heads(eventLog(LEDGER_OPEN, lines.join('\n'), t('09:30:00')))).toEqual([['plan', false, 1200e3]])
-  expect(ends(eventLog(LEDGER_OPEN, lines.join('\n'), t('09:30:00')))).toEqual([])
+  expect(heads(eventLog(LEDGER_OPEN, lines.join('\n'), t('09:30:00'), HELD))).toEqual([['plan', false, 1200e3]])
+  expect(ends(eventLog(LEDGER_OPEN, lines.join('\n'), t('09:30:00'), HELD))).toEqual([])
   const next = [...lines, `${at('09:50:00')} scope main ledger stage set implementing`, `${at('09:50:00')} scope main ledger step set implement`]
-  const log = eventLog(LEDGER_OPEN, next.join('\n'), t('10:00:00'))
+  const log = eventLog(LEDGER_OPEN, next.join('\n'), t('10:00:00'), HELD)
   expect(seq(log)).toEqual(['+plan', '-plan', '+implement'])
   expect(ends(log)).toEqual([['plan', 2400e3, false, t('09:50:00')]])
 })
 
 test('two step set review lines with no end between draw two headers, the first ended at the second start', () => {
   const lines = [`${at('10:00:00')} scope main ledger step set review`, `${at('10:05:00')} scope main ledger step set review`]
-  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('10:06:00'))
+  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('10:06:00'), HELD)
   expect(seq(log)).toEqual(['+review', '-review', '+review'])
   expect(heads(log)).toEqual([['review', true, 300e3], ['review', false, 60e3]])
 })
 
 test('a step block draws a stopped header and a blocked end line, and a later step set draws a new header', () => {
   const lines = [`${at('10:00:00')} scope main ledger step set review`, `${at('10:05:00')} scope main ledger step block review`, `${at('10:20:00')} scope main ledger step set review`]
-  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('10:21:00'))
+  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('10:21:00'), HELD)
   expect(seq(log)).toEqual(['+review', '-review', 'wait', '+review'])
   expect(log.entries[0]).toMatchObject({ kind: 'command', isDone: true, isBlocked: true })
   expect(ends(log)).toEqual([['review', 300e3, true, t('10:05:00')]])
@@ -205,12 +208,12 @@ test('a step block draws a stopped header and a blocked end line, and a later st
 
 test('a step clear or step block with no open command draws no line', () => {
   const lines = [`${at('10:00:00')} scope main ledger step clear`, `${at('10:01:00')} scope main ledger step block review`, `${at('10:02:00')} scope main ledger step set document`, `${at('10:03:00')} scope main ledger step clear`, `${at('10:04:00')} scope main ledger step clear`, `${at('10:05:00')} scope main ledger step block document`]
-  expect(seq(eventLog(LEDGER_OPEN, lines.join('\n'), t('10:06:00')))).toEqual(['+document', '-document'])
+  expect(seq(eventLog(LEDGER_OPEN, lines.join('\n'), t('10:06:00'), HELD))).toEqual(['+document', '-document'])
 })
 
 test('a step set implement right after the implementing stage write moves the implement start to the step line', () => {
   const lines = [`${at('09:00:00')} scope main ledger init fix/x planned`, `${at('09:30:00')} scope main ledger stage set implementing`, `${at('09:30:30')} scope main ledger step set implement`]
-  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('10:00:00'))
+  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('10:00:00'), HELD)
   expect(seq(log)).toEqual(['+plan', '-plan', '+implement'])
   expect(log.entries.filter(e => e.kind === 'command' && e.name === 'implement')).toEqual([expect.objectContaining({ at: t('09:30:30') })])
 })
@@ -220,13 +223,13 @@ test('an implement run from before the step lines keeps its header when a later 
     `${at('09:00:00')} scope main ledger init fix/x planned`, `${at('09:30:00')} scope main ledger stage set implementing`,
     `${at('09:31:00')} 01 main ledger slice 01 in-progress`, `${at('10:30:00')} scope main ledger step set implement`,
   ]
-  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('11:00:00'))
+  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('11:00:00'), HELD)
   expect(log.entries.filter(e => e.kind === 'command' && e.name === 'implement').map(e => e.at)).toEqual([t('09:30:00'), t('10:30:00')])
 })
 
 test('a line drawn into a slice group since the fallback implement header keeps that header when step set implement follows', () => {
   const opened = [`${at('09:00:00')} scope main ledger init fix/x planned`, `${at('09:20:00')} 01 main run path pass 6e9 dirty a.js`, `${at('09:30:00')} scope main ledger stage set implementing`]
-  const heads = (lines: string[]) => eventLog(LEDGER_OPEN, lines.join('\n'), t('11:00:00')).entries.filter(e => e.kind === 'command' && e.name === 'implement').map(e => e.at)
+  const heads = (lines: string[]) => eventLog(LEDGER_OPEN, lines.join('\n'), t('11:00:00'), HELD).entries.filter(e => e.kind === 'command' && e.name === 'implement').map(e => e.at)
   // A trace line that only opens the slice's group, and a dispatch drawn inside a group that already sits in the log.
   expect(heads([...opened.slice(0, 1), opened[2]!, `${at('09:31:00')} 02 main edit impl b.js`, `${at('10:30:00')} scope main ledger step set implement`])).toEqual([t('09:30:00'), t('10:30:00')])
   expect(heads([...opened, `${at('09:31:00')} 01 main dispatch superdev:implementer i1 Build s1`, `${at('10:30:00')} scope main ledger step set implement`])).toEqual([t('09:30:00'), t('10:30:00')])
@@ -234,13 +237,13 @@ test('a line drawn into a slice group since the fallback implement header keeps 
 
 test('a plan run from before the step lines keeps its header when a later plan run writes step set plan', () => {
   const lines = [`${at('09:00:00')} scope main ledger init fix/x planned`, `${at('10:00:00')} scope main ledger init fix/x planned`, `${at('10:00:10')} scope main ledger step set plan`]
-  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('11:00:00'))
+  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('11:00:00'), HELD)
   expect(log.entries.filter(e => e.kind === 'command').map(e => e.at)).toEqual([t('09:00:00'), t('10:00:10')])
 })
 
 test('step clear then stage set merged at one timestamp draw one implement end line', () => {
   const lines = [`${at('10:00:00')} scope main ledger step set implement`, `${at('10:07:00')} scope main ledger step clear`, `${at('10:07:00')} scope main ledger stage set merged`]
-  expect(ends(eventLog(LEDGER_OPEN, lines.join('\n'), t('11:00:00')))).toEqual([['implement', 420e3, false, t('10:07:00')]])
+  expect(ends(eventLog(LEDGER_OPEN, lines.join('\n'), t('11:00:00'), HELD))).toEqual([['implement', 420e3, false, t('10:07:00')]])
 })
 
 test('a trace with a plan or implement step line starts that command there, not at the init or the implementing stage', () => {
@@ -249,14 +252,14 @@ test('a trace with a plan or implement step line starts that command there, not 
     `${at('09:40:00')} scope main ledger step clear`, `${at('10:00:00')} scope main ledger stage set implementing`,
     `${at('10:01:00')} scope main ledger step set implement`, `${at('10:07:00')} scope main ledger step clear`, `${at('10:07:00')} scope main ledger stage set merged`,
   ]
-  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('12:00:00'))
+  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('12:00:00'), HELD)
   expect(seq(log)).toEqual(['+plan', '-plan', 'wait', '+implement', '-implement'])
   expect(heads(log)).toEqual([['plan', true, 1800e3], ['implement', true, 360e3]])
 })
 
 test('a trace parked at merged before its first step line draws no stage line and shows the commands ahead', () => {
   const parked = STEPPED.slice(0, 5)
-  const log = eventLog(LEDGER_OPEN, parked.join('\n'), t('10:08:00'))
+  const log = eventLog(LEDGER_OPEN, parked.join('\n'), t('10:08:00'), HELD)
   expect(log.entries.some(e => e.kind === 'stage')).toBe(false)
   expect(log.ahead).toEqual(['review', 'document', 'submit', 'ship', 'wrap-up'])
 })
@@ -283,7 +286,7 @@ test('each dispatch run is one entry at its start time, carrying type, slice, re
     `${at('10:15:00')} 03 main verdict r3 pass changes-needed 0 i1`,
     `${at('10:16:00')} 03 main dispatch superdev:implementer i4 Fix s1`,
   ].join('\n')
-  const log = eventLog(LEDGER_OPEN, trace, t('11:00:00'))
+  const log = eventLog(LEDGER_OPEN, trace, t('11:00:00'), HELD)
   const { running } = log
   const entries = log.entries.flatMap(e => (e.kind === 'slice' ? e.entries : [e]))
   expect(entries.map(e => e.kind)).toEqual(['run', 'run', 'run', 'run', 'run', 'run', 'run'])
@@ -306,12 +309,12 @@ test('a run crossing midnight gets a date line before the first line of each new
     `${at('12:00:00', '12')} scope main dispatch superdev:implementer i2 Fix s1`,
     `${at('12:10:00', '12')} scope main dispatch-end superdev:implementer i2 completed`,
   ].join('\n')
-  const kinds = eventLog(LEDGER_OPEN, trace, t('13:00:00', '12')).entries.map(e => e.kind)
+  const kinds = eventLog(LEDGER_OPEN, trace, t('13:00:00', '12'), HELD).entries.map(e => e.kind)
   expect(kinds).toEqual(['run', 'date', 'run'])
 })
 
 test('a missing or empty trace draws nothing; a torn line, a bad time, and an unknown kind are skipped', () => {
-  expect(eventLog(LEDGER_OPEN, '', 0)).toEqual({ entries: [], running: 0, ahead: null })
+  expect(eventLog(LEDGER_OPEN, '', 0, HELD)).toEqual({ entries: [], running: 0, ahead: null })
   const trace = [
     `${at('10:00:00')} scope main dispatch superdev:implementer i1 Build s1`,
     `${at('10:00:30')} scope main fail-to-pass a..b fail-to-pass control=0,put-back=1`,
@@ -320,13 +323,13 @@ test('a missing or empty trace draws nothing; a torn line, a bad time, and an un
     `${at('10:01:00')} scope main dispatch-end superdev:implementer i1 completed`,
     `${at('10:02:00')} scope ma`,
   ].join('\n')
-  expect(eventLog(LEDGER_OPEN, trace, t('11:00:00')).entries.map(e => e.kind)).toEqual(['run'])
+  expect(eventLog(LEDGER_OPEN, trace, t('11:00:00'), HELD).entries.map(e => e.kind)).toEqual(['run'])
 })
 
 // --- slice groups (ADR 0141) ---
 
 const SLICES = '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n| 01 | #1 | Draw tiles | behavior | — | merged | — |\n| 02 | #2 | Draw map | behavior | — | merged | — |\n| 03 | #3 | Never ran | behavior | — | todo | — |\n'
-const logOf = (trace: string[], now = t('12:00:00')) => eventLog(LEDGER_OPEN + SLICES, trace.join('\n'), now)
+const logOf = (trace: string[], now = t('12:00:00')) => eventLog(LEDGER_OPEN + SLICES, trace.join('\n'), now, HELD)
 type Group = Extract<ReturnType<typeof eventLog>['entries'][number], { kind: 'slice' }>
 const groups = (trace: string[], now?: number) => logOf(trace, now).entries.filter((e): e is Group => e.kind === 'slice')
 const none = { fail: 0, pass: 0 }
@@ -479,7 +482,7 @@ test('a day change inside a group draws a date line inside it, and the flat log 
     `${at('11:50:00', '11')} 01 main dispatch-end superdev:implementer i1 completed`,
     `${at('12:20:00', '12')} 01 main dispatch superdev:implementer i2 Fix s1`,
     `${at('12:30:00', '12')} 01 main dispatch-end superdev:implementer i2 completed`,
-  ].join('\n'), t('13:00:00', '12'))
+  ].join('\n'), t('13:00:00', '12'), HELD)
   expect(log.entries.map(e => e.kind)).toEqual(['command', 'slice'])
   expect((log.entries[1] as Group).entries.map(e => e.kind)).toEqual(['run', 'date', 'run'])
 })
@@ -498,7 +501,7 @@ test('the flat log dates a group by where it sits, not by its later in-progress 
     `${at('11:10:00', '11')} 01 main run path fail 6e9 dirty a.js`,
     `${at('11:20:00', '11')} scope main dispatch superdev:final-reviewer f1 Final\\x20review s1`,
     `${at('12:10:00', '12')} 01 main ledger slice 01 in-progress`,
-  ].join('\n'), t('13:00:00', '12'))
+  ].join('\n'), t('13:00:00', '12'), HELD)
   expect(log.entries.map(e => e.kind)).toEqual(['command', 'slice', 'run'])
 })
 
@@ -555,7 +558,7 @@ test('a run line before any start counts into the stretch the merge ends, and a 
 
 test('reads the ledger and dispatch lines of the shared trace fixture', () => {
   const trace = TRACE_LINES.map((l, i) => `2026-10-11T10:00:${String(i).padStart(2, '0')}.000Z ${l}`).join('\n')
-  const log = eventLog(LEDGER_OPEN, trace, t('11:00:00'))
+  const log = eventLog(LEDGER_OPEN, trace, t('11:00:00'), HELD)
   const kinds = log.entries.map(e => (e.kind === 'command' ? e.name : e.kind === 'slice' ? `${e.id} ${e.status}` : e.kind))
   expect(kinds.filter(k => k !== 'run')).toEqual(['plan', 'commandEnd', 'implement', '04 merged', '05 blocked', 'commandEnd', 'review', 'commandEnd'])
   expect(log.entries.at(-1)).toMatchObject({ kind: 'commandEnd', name: 'review', isBlocked: true })
@@ -573,7 +576,44 @@ test('reads the ledger and dispatch lines of the shared trace fixture', () => {
 
 test('a tamper line scope.js writes draws one line naming the file, in the flat log, and no command or slice group', () => {
   const lines = [`${at('09:00:00')} scope main ledger init fix/x planned`, `${at('09:05:00')} scope main tamper ledger.md`, `${at('09:06:00')} scope main tamper trace.log`]
-  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('12:00:00'))
+  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('12:00:00'), HELD)
   expect(log.entries.filter(e => e.kind === 'tamper')).toEqual([{ kind: 'tamper', at: t('09:05:00'), file: 'ledger.md' }, { kind: 'tamper', at: t('09:06:00'), file: 'trace.log' }])
   expect(log.entries.some(e => e.kind === 'slice')).toBe(false)
+})
+
+test('a slice-reviewer dispatch counts toward review ×N by the name after its last colon, whatever the prefix; no other agent counts', () => {
+  const trace = ['other-plugin:slice-reviewer', 'slice-reviewer', 'superdev:final-reviewer', 'superdev:slice-reviewer-x'].flatMap((type, n) => [
+    `${at(`10:0${n}:00`)} 01 main dispatch ${type} r${n} Review s1`,
+    `${at(`10:0${n}:30`)} 01 main dispatch-end ${type} r${n} completed`,
+  ]).join('\n')
+  const g = eventLog(LEDGER_OPEN, `${at('09:59:00')} scope main ledger slice 01 in-progress\n${trace}\n${at('10:09:00')} scope main ledger slice 01 merged`, t('11:00:00'), HELD).entries.find(e => e.kind === 'slice')
+  expect(g?.kind === 'slice' && g.review).toBe(2)
+})
+
+// A never-ended scope-level dispatch, and one inside slice 01's in-progress group, at 10:00; now is 12:00.
+const NEVER_ENDED = [
+  `${at('09:59:00')} scope main ledger slice 01 in-progress`,
+  `${at('10:00:00')} scope main dispatch superdev:final-reviewer f1 Final s1`,
+  `${at('10:00:00')} 01 main dispatch superdev:implementer i1 Build s1`,
+].join('\n')
+const runs = (log: ReturnType<typeof eventLog>) => log.entries.flatMap(e => (e.kind === 'slice' ? e.entries : [e])).filter(e => e.kind === 'run')
+
+for (const [what, lock, isStale] of [
+  ['two hours old', t('10:00:00'), true],
+  ['absent', null, true],
+  ['exactly one hour old', t('11:00:00'), true],
+  ['five minutes old', t('11:55:00'), false],
+] as const)
+  test(`a never-ended dispatch under a run lock ${what} reads ${isStale ? 'lock stale and leaves the running count' : 'running, counted'}`, () => {
+    const log = eventLog(LEDGER_OPEN, NEVER_ENDED, t('12:00:00'), lock)
+    expect(runs(log).map(r => r.kind === 'run' && !!r.isLockStale)).toEqual([isStale, isStale])
+    // The in-progress slice's started stretch counts whatever the lock: the ledger records it.
+    expect(log.running).toBe(isStale ? 1 : 3)
+    const g = log.entries.find(e => e.kind === 'slice')
+    expect(g?.kind === 'slice' && [g.isRunning, g.ms]).toEqual([true, t('12:00:00') - t('09:59:00')])
+  })
+
+test('a run that later gets its dispatch-end draws its outcome and duration under a stale lock, as today', () => {
+  const log = eventLog(LEDGER_OPEN, `${NEVER_ENDED}\n${at('10:30:00')} scope main dispatch-end superdev:final-reviewer f1 completed`, t('12:00:00'), null)
+  expect(runs(log).find(r => r.kind === 'run' && r.type === 'superdev:final-reviewer')).toEqual({ kind: 'run', at: t('10:00:00'), type: 'superdev:final-reviewer', slice: 'scope', isResumed: false, isEnded: true, ms: 30 * 60e3, outcome: 'completed' })
 })

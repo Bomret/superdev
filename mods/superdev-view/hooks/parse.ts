@@ -85,6 +85,10 @@ export const frontmatter = (md: string) => ({ title: fmField(md, 'title'), actio
 
 // --- the event log (ADR 0141): what happened in a scope run, read from its ledger and run trace alone ---
 
+// The run lock's staleness bound, `plugin/lib/run-lock.js`'s STALENESS_MS (CONTEXT.md → *Run lock*): a lock this old
+// or older marks the run dead. tests/scope-open.test.js asserts the two are equal.
+const LOCK_STALE_MS = 60 * 60e3
+
 const CHAIN = ['plan', 'implement', 'review', 'document', 'submit', 'ship', 'verify-ship', 'wrap-up']
 const WAIT_MS = 60e3
 
@@ -108,8 +112,9 @@ type Dispatch = { type: string; slice: string; runs: Run[] }
 // dispatch run is one entry at its start; a dispatch's first end per run wins. A `verdict` or `final-verdict`
 // line, which an older release wrote, draws nothing (ADR 0197). Slices: every line
 // whose slice field names a slice id draws inside that slice's group, which sits where the slice's first line
-// falls; its header reads the slice's latest status, its first start, and its last end.
-export const eventLog = (ledger: string, trace: string, now: number): EventLog => {
+// falls; its header reads the slice's latest status, its first start, and its last end. A run with no recorded end
+// under a run lock an hour old or older, or absent (`lockMtime` null), reads `isLockStale` and leaves the running count.
+export const eventLog = (ledger: string, trace: string, now: number, lockMtime: number | null): EventLog => {
   const entries: LogEntry[] = []
   // The entry drawn last, flat or inside a group: a fallback header gives way to its `step set` only while it is.
   let last: LogEntry | null = null
@@ -195,7 +200,10 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
         close(at)
         if (isStepless && hasImplementEnded) draw({ kind: 'stage', at, stage: b })
       } else if (verb === 'step' && a === 'set' && b) {
-        if (fallback && fallback.name === b && !fallback.isDone && last === fallback) fallback.at = at
+        // Casts, not narrowings: `startFallback` and `draw` set `fallback` and `last` from closures, which the checker's
+        // flow analysis misses.
+        const fb = fallback as Extract<LogEntry, { kind: 'command' }> | null
+        if (fb && fb.name === b && !fb.isDone && (last as LogEntry | null) === fb) fb.at = at
         else begin(at, b)
         seenSteps.add(b)
         fallback = null
@@ -253,14 +261,18 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
       run.ms = at - run.at
       run.outcome = untrace(f[2])
       // A dispatch counts once per stretch, however many runs a resume adds; an end with no outcome is completed.
-      if (d.type === 'superdev:slice-reviewer' && (run.outcome === 'completed' || run.outcome === '')) {
+      if (d.type.split(':').pop() === 'slice-reviewer' && (run.outcome === 'completed' || run.outcome === '')) {
         counting(d.slice)?.reviews.add(untrace(f[1]))
         if (isSliceId(d.slice)) groupOf(d.slice, at).reviews.add(untrace(f[1]))
       }
     }
   }
   for (const c of commands) if (!c.isDone) c.ms = now - c.at
-  for (const d of dispatches.values()) for (const r of d.runs) if (!r.isEnded) r.ms = now - r.at
+  const isLockStale = lockMtime === null || now - lockMtime >= LOCK_STALE_MS
+  for (const d of dispatches.values()) for (const r of d.runs) if (!r.isEnded) {
+    r.ms = now - r.at
+    if (isLockStale) r.isLockStale = true
+  }
   // A group's header: ended slices run from the first start to the last end, a running one to now. The last
   // stretch's end is the header itself when its status is the header's, so only that end line leaves the group;
   // an end whose status a later merged or blocked line changed with no start between stays inside it.
@@ -281,7 +293,7 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
   const reached = Math.max(-1, ...commands.map(c => CHAIN.indexOf(c.name)))
   const rest = CHAIN.slice(reached + 1).filter(c => c !== 'verify-ship')
   const ahead = isClosed ? 'closed' : !commands.length || (isStepless && hasImplementEnded) || !rest.length ? null : rest
-  const running = [...dispatches.values()].filter(d => !d.runs.at(-1)?.isEnded).length + [...stretches.values()].filter(s => s.start !== undefined && !s.isEnded).length
+  const running = [...dispatches.values()].filter(d => !d.runs.at(-1)?.isEnded && !isLockStale).length + [...stretches.values()].filter(s => s.start !== undefined && !s.isEnded).length
 
   // The day-change rule runs on the flat log and on each group's lines separately. The flat log reads a group at
   // where it sits; a group's lines start from its header's day.

@@ -316,6 +316,52 @@ for (const name of ['""', '"  "', 'null', '42', '{"first":"Stefan"}'])
     expect((await assigneeLine($, on, `{"issue-tracker":{"assignee":"stefan","displayName":${name}}}`))?.text).toBe('🪪 stefan')
   })
 
+test('an info.json of null draws no assignee line, and the overview renders its path line and Scopes card', async ($, on) => {
+  const { files, lists } = overviewRepo()
+  fakeRepo(on, { ...files, [`${R}/info.json`]: 'null' }, lists)
+  await $.command.run(runCommand)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'mobile', ...PANE })
+  expect((await ui.findAll({ type: 'Text' }))[0]?.text).toBe('~')
+  expect(await ui.find({ key: 'card-scopes' })).toBeDefined()
+})
+
+test('only the issue-tracker role names the assignee: other roles add no entry', async ($, on) => {
+  const info = '{"issue-tracker":{"assignee":"stefan","displayName":"Stefan Reichel"},"code-host":{"pushTimeoutMs":5000},"verification":{"failToPassFloorMs":1}}'
+  expect((await assigneeLine($, on, info))?.text).toBe('🪪 Stefan Reichel')
+})
+
+for (const [what, info, drawn] of [
+  ['an identifier alone draws the identifier', '{"issue-tracker":{"assignee":"stefan"}}', '🪪 stefan'],
+  ['a display name with no identifier draws the name', '{"issue-tracker":{"displayName":"Stefan Reichel"}}', '🪪 Stefan Reichel'],
+  ['an identifier of none draws no line, whatever the display name holds', '{"issue-tracker":{"assignee":"none","displayName":"Stefan Reichel"}}', '~'],
+  ['an identifier of none alone draws no line', '{"issue-tracker":{"assignee":"none"}}', '~'],
+  ['an identifier of none padded with spaces draws no line', '{"issue-tracker":{"assignee":" none ","displayName":"Stefan Reichel"}}', '~'],
+  ['an identifier padded with spaces draws the identifier trimmed', '{"issue-tracker":{"assignee":"  stefan  "}}', '🪪 stefan'],
+  ['a blank identifier draws no line', '{"issue-tracker":{"assignee":"  "}}', '~'],
+  ['a non-string identifier draws no line', '{"issue-tracker":{"assignee":42}}', '~'],
+  ['no issue-tracker role draws no line', '{"code-host":{"assignee":"stefan"}}', '~'],
+  ['an issue-tracker role of null draws no line', '{"issue-tracker":null}', '~'],
+  ['an issue-tracker role that is a string draws no line', '{"issue-tracker":"stefan"}', '~'],
+  ['an issue-tracker role that is an array draws no line', '{"issue-tracker":["stefan"]}', '~'],
+  ['a top level that is an array draws no line', '[{"assignee":"stefan"}]', '~'],
+  ['a top level that is a number draws no line', '42', '~'],
+  ['a top level that is a string draws no line', '"stefan"', '~'],
+  ['malformed JSON draws no line', '{"issue-tracker":', '~'],
+] as const)
+  test(`${what}, and the overview renders`, async ($, on) => {
+    expect((await assigneeLine($, on, info))?.text).toBe(drawn)
+  })
+
+test('an unreadable info.json draws no assignee line, and the overview renders', async ($, on) => {
+  const { files, lists } = overviewRepo()
+  delete files[`${R}/info.json`]
+  fakeRepo(on, files, lists)
+  await $.command.run(runCommand)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'mobile', ...PANE })
+  expect((await ui.findAll({ type: 'Text' }))[0]?.text).toBe('~')
+  expect(await ui.find({ key: 'card-scopes' })).toBeDefined()
+})
+
 test('a press writes no file', async ($, on) => {
   const { files, lists } = overviewRepo()
   fakeRepo(on, files, lists)
