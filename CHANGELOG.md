@@ -1,3 +1,10 @@
+# [0.118.0](https://github.com/Bomret/superdev/compare/v0.117.0...v0.118.0) (2026-11-23)
+
+
+### Features
+
+* **plan:** brainstorm and plan offer an inline off-ramp for scopes with no behavior slice ([#451](https://github.com/Bomret/superdev/issues/451)) ([a517442](https://github.com/Bomret/superdev/commit/a517442a39926740613916082964a6436030cd30))
+
 # [0.117.0](https://github.com/Bomret/superdev/compare/v0.116.0...v0.117.0) (2026-11-23)
 
 
