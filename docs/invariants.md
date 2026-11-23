@@ -1586,15 +1586,6 @@ Breaks: silently
 Check: tests/scope-prune-containment.test.js — a second Stop on an unchanged not-contained scope runs no containment git call, a moved base or branch reruns the test and reaps once the branch is contained, an unreadable record reruns the test, and a run root whose only fresh file is the record still reaps
 Paths: plugin/hooks/scope-prune.js, plugin/lib/containment.js
 
-### INV-0200
-
-Class: correctness
-Concepts: Operator alert, Next block
-Statement: `hooks/operator-alert.js` stops the main session at most once per wait, and only to make the model send the operator alert. A wait starts at the operator's last input in the session transcript: a typed prompt, or an answer to an `AskUserQuestion`. The rule applies when the newest superdev skill start in the transcript carries no `--unattended`. That start is a Skill tool call or a typed `/superdev:` command. The hook's earlier deny is the error result of an `AskUserQuestion` call. Its text opens with `PreToolUse:AskUserQuestion hook error: [<command>]: ` and the hook's marker. The marker in another tool's output or in a typed prompt releases nothing. A wait that holds no `PushNotification` call and no earlier deny of this hook gets two stops. The hook denies an `AskUserQuestion` call. It blocks a Stop whose last message's last Next block carries a `Blocked:` or `First:` line before its fence, while `stop_hook_active` is false. Every other call and Stop gets no decision. So does a call carrying `agent_id`, a transcript that cannot be read, and input lacking a field the rule needs (ADR 0272).
-Breaks: silently
-Check: tests/operator-alert.test.js — a first ask in an attended superdev wait is denied. A re-ask after the denial or after a PushNotification call passes. A question after an answered question is denied again. A failing tool call whose output carries the marker, or a typed prompt quoting the reason, releases no wait. An unattended newest start, a mention, or a subagent call passes. A Blocked: or First: Next block blocks once and passes under stop_hook_active. A plain Next block or a Blocked: inside the fence passes. A missing or unreadable transcript passes
-Paths: plugin/hooks/operator-alert.js, plugin/hooks/hooks.json
-
 ### INV-0201
 
 Class: safety
@@ -1620,7 +1611,16 @@ Concepts: Scope branch, Containment, Code host
 Statement: Every superdev step that reaches a remote, a push of the scope branch, a fetch of base, or a containment refetch, names the `Remote:` value of `docs/agents/code-management.md` or a remote its caller passed explicitly. With neither, the step reaches no remote; no step falls back to a remote named `origin`.
 Breaks: silently
 Check: tests/scope-open.test.js — `open` with no `--remote` refetches from the configured remote, and with no `Remote:` value refetches nothing; tests/publish-kb-containment.test.js — no `Remote:` value judges locally with no refetch; tests/scope-contained.test.js — the configured remote and the no-remote local verdict
-Paths: plugin/lib/plan-open.js, plugin/lib/contained.js, plugin/lib/containment.js, plugin/lib/kb-containment.js, plugin/skills/ship/SKILL.md, plugin/references/shipped-run.md, plugin/references/scope-branch.md, plugin/references/code-management-*.md
+Paths: plugin/lib/plan-open.js, plugin/lib/contained.js, plugin/lib/containment.js, plugin/lib/kb-containment.js, plugin/lib/branch-delete.js, plugin/skills/ship/SKILL.md, plugin/references/shipped-run.md, plugin/references/scope-branch.md, plugin/references/code-management-*.md
+
+### INV-0204
+
+Class: architecture
+Concepts: Scope branch, Containment, Code host
+Statement: A superdev step deletes a scope branch only when base contains it, and wrap-up deletes it only on the operator's yes to its one branch question. The remote delete is leased on the tip the containment test judged, so a remote branch that moved since keeps its commits; a remote branch already gone counts as deleted.
+Breaks: silently
+Check: tests/scope-branch-delete.test.js — a not-contained branch deletes nothing, a remote moved past the tested tip is kept, a remote already gone reads deleted, and no `--remote` deletes the local ref alone
+Paths: plugin/scripts/scope.js, plugin/lib/branch-delete.js, plugin/skills/wrap-up/SKILL.md, plugin/hooks/scope-prune.js
 
 ### INV-0205
 

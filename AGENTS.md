@@ -133,9 +133,10 @@ end of this document names the files that own each subtree's contracts.
   repository once per process and copies it per case. Each `run-tests: <label>: <ms> ms` line is wall clock including the wait for a CPU,
   so time one suite alone with `time node tests/<suite>.test.js` (`scripts/AGENTS.md` → run-tests.js; measured on Node v26.12.1, about 90 s for the full run, in `docs/agents/verification.md`). No roster needs an edit when a suite is added. The runner then runs `invariant-check.js` against this repository's own register, `drift-check`'s own
   `--selftest`, `drift-check` itself, and `claude plugin validate ./plugin` as a manifest-validation
-  gate. A suite that commits in a fixture repository sets `commit.gpgsign=false` for every git child
-  by requiring `tests/fixture-git.js` at its top (it appends to `GIT_CONFIG_COUNT`), so a maintainer's global signing setup never fails a fixture
-  commit.
+  gate. A suite that commits in a fixture repository sets `commit.gpgsign=false`, `maintenance.auto=false`, and
+  `gc.auto=0` for every git child by requiring `tests/fixture-git.js` at its top (it appends to `GIT_CONFIG_COUNT`). A
+  maintainer's global signing setup then never fails a fixture commit. No commit starts a detached auto maintenance run
+  that repacks a template's objects while `copyFixture` copies it.
 - **A duration assertion is legitimate only against a same-run baseline, or a qualitative ceiling.**
   A process that did not finish carries no verdict (INV-0009): never bracket a bounded `spawnSync`
   with `Date.now()` and assert an absolute elapsed ceiling, because wall clock includes every
