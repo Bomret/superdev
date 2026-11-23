@@ -5,6 +5,9 @@
 **Amends:** [ADR 0023](0023-the-knowledge-base-publish-is-its-own-command.md), which keeps
 `/superdev:plan` as a knowledge-base writer that stages its pages.
 
+**Amended by:** [ADR 0278](0278-publish-kb-gates-on-the-ledger-stage.md), which replaces the containment guard
+named in Context with a gate on the ledger stage.
+
 ## Context
 
 ADR 0023 removes every knowledge-base backend call from `/superdev:plan`, and keeps plan's seed of the

@@ -1040,12 +1040,14 @@ and sends `update` directly (ADR 0130), never the hash guard and never a `read` 
 run itself just created skips the guard.
 
 Before publishing, `kb-gate.js`'s `checkGate` reads the scope's run root and its ledger's `**Stage:**` line through
-`lib/ledger.js`'s `readLedgerHeader`, the reader `hooks/scope-prune.js` uses (ADR 0278, INV-0207). A run root that is gone
-(`lstat` answers ENOENT), or a ledger at `shipped` or `closed`, publishes. A stage below `shipped` refuses, naming the stage
-and `/superdev:ship <scope>`. A missing ledger, a ledger with no `**Stage:**` line, or a stage outside the stage vocabulary
-refuses, naming what it read. `--allow-unmerged` overrides each of these once the operator confirms, and the report then
-carries its `unmerged:` line. Any other read error of the run root or the ledger, a dangling symlink run root included,
-refuses naming the error, and `--allow-unmerged` does not override it. The gate runs no git command and reads no
+`lib/ledger.js`'s `readLedgerHeader`, the reader `hooks/scope-prune.js` uses (ADR 0278, INV-0207). It `lstat`s
+`.superdev`, `.superdev/scopes`, and the run root in turn, and `stat`s through any symlink among them. An `lstat` that
+answers ENOENT on one of them reads as a gone run root and publishes, as does a ledger at `shipped` or `closed`. A stage
+below `shipped` refuses, naming the stage and `/superdev:ship <scope>`. A run root with no `ledger.md`, a ledger with no
+`**Stage:**` line, or a stage outside the stage vocabulary refuses, naming what it read. `--allow-unmerged` overrides each
+of these once the operator confirms, and the report then carries its `unmerged:` line. Any other failure to `lstat` or
+`stat` one of the three paths, a symlink whose target is missing included, and any read error of the ledger other than
+ENOENT, refuses naming the error, and `--allow-unmerged` does not override it. The gate runs no git command and reads no
 `docs/agents/code-management.md`. `_adhoc`, the literal value
 `/superdev:document` writes for a doc pass outside a live scope, skips the gate entirely. The report
 a run prints never carries a page's body, only filenames, titles, and reasons.
