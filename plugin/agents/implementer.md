@@ -220,9 +220,9 @@ A test is flaky when it both passes and fails at one commit with nothing changed
 
 ## The verify skill
 
-Applies to a slice dispatch and a slice fix dispatch on a `behavior` slice that hand a skill path.
+Applies to a slice dispatch and a slice fix dispatch on a `behavior` slice that hand a skill path other than `none`.
 
-Follow `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## Following the skill` against your own change, before your self-check, its **Stop on every exit** included. A handed `none`, no handed path, and a `mechanical` or `docs` slice change nothing here.
+Follow `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## Following the skill` against your own change, before your self-check, its **Stop on every exit** included. A `mechanical` or `docs` slice changes nothing here.
 
 ## Deep modules and domain language
 

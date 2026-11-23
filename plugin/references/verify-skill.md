@@ -30,7 +30,7 @@
 
 **Plain text.** Applies to every section's content. A reader takes the file as plain text, so a `!` command injection, `$ARGUMENTS`, and `${CLAUDE_SKILL_DIR}` stay unexpanded. The scaffold uses none of them.
 
-**The frontmatter.** Applies to the scaffold's frontmatter. It carries `disable-model-invocation: true`. The operator runs it as `/verify`, no session loads its description or starts the app unasked, and a builder still reads it as a file by its path.
+**The frontmatter.** Applies to the scaffold's frontmatter. It carries `disable-model-invocation: true`. The operator runs it as `/verify`. At the repo root, a project skill at `.claude/skills/verify/SKILL.md` replaces the bundled `/verify` (Claude Code skills docs, https://code.claude.com/docs/en/skills.md, checked 2026-11-23). No session loads its description or starts the app unasked, and a builder still reads it as a file by its path.
 
 ````markdown
 ---

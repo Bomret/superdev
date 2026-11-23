@@ -28,4 +28,4 @@ claim, like every other self-check line. A named path missing in the checkout is
 
 **Consequences.** Every repository with no section, or with `none`, sees no change. The skill states how two
 slicetrees run it side by side, which untracked inputs a slicetree needs, and what state its own instance may touch,
-because the full tier starts several implementers at once. The scaffold carries `disable-model-invocation: true`, so only the operator runs it as `/verify` and no session starts the app unasked. `/superdev:setup` drafts and writes the skill and runs none of its steps.
+because the full tier starts several implementers at once. The scaffold carries `disable-model-invocation: true`, so only the operator runs it as `/verify` and no session starts the app unasked. At the repo root, a project skill at `.claude/skills/verify/SKILL.md` replaces the bundled `/verify` (Claude Code skills docs, https://code.claude.com/docs/en/skills.md, checked 2026-11-23). `/superdev:setup` drafts and writes the skill and runs none of its steps.
