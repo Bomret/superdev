@@ -45,7 +45,7 @@ Applies to every refusal outside §2. Relay the script's stderr reason and stop,
 
 - No knowledge-base configuration, or a `local`/`none` backend — nothing to publish.
 - `docs/agents/knowledge-base.md` carries no `## Commands` section — relay the refusal and its `/superdev:setup` pointer.
-- A run root or ledger the script cannot read — the refusal names the read error and ends with `— nothing published` alone, and `--allow-unmerged` does not lift it.
+- A run root or ledger the script cannot read, a dangling symlink on the run root's path included — the refusal names the read error and ends with `— nothing published` alone, and `--allow-unmerged` does not lift it.
 - An unresolvable `--scope`, an unresolvable staging root, or any other reason the script names.
 
 ## 4. Report

@@ -1644,7 +1644,7 @@ Paths: plugin/references/inline-offramp.md, plugin/skills/brainstorm/SKILL.md, p
 
 Class: architecture
 Concepts: Staged page, Run root, Ledger, Stage
-Statement: `publish-kb.js` sends a scope's staged pages without `--allow-unmerged` only when the scope is `_adhoc`, its run root is gone, or its ledger's `**Stage:**` reads exactly `shipped` or `closed`. A standing run root whose ledger is missing, unreadable, carries no `**Stage:**` line, or reads any other stage refuses and names what it read; it never reads as settled.
+Statement: `publish-kb.js` sends a scope's staged pages without `--allow-unmerged` only when the scope is `_adhoc`, its run root is gone, or its ledger's `**Stage:**` reads exactly `shipped` or `closed`. A standing run root whose ledger is missing, unreadable, carries no `**Stage:**` line, or reads any other stage refuses and names what it read; it never reads as settled. A run root, `.superdev/scopes`, or `.superdev` that is a dangling symlink is unreadable, never gone, and refuses naming the read error even under `--allow-unmerged`.
 Breaks: silently
 Check: tests/publish-kb-gate.test.js — a gone run root, `shipped`, and `closed` publish; every other stage, a missing or unreadable ledger, and a ledger with no Stage line refuse
 Paths: plugin/lib/kb-gate.js, plugin/scripts/publish-kb.js
