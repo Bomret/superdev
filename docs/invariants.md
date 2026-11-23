@@ -1534,11 +1534,11 @@ Paths: plugin/skills/review/**, plugin/references/review-scope-*.md, plugin/agen
 
 Class: architecture
 Concepts: Containment, Scope branch, Run root
-Statement: A branch listing git could not produce never reads as a repository without that branch. Where the listing fails, `hooks/scope-prune.js` prunes nothing. `publish-kb.js` refuses the publish and names the git failure, whether or not the scope's run root survives. A listing that succeeds and finds no branch is the only absence either reads.
+Statement: A branch listing git could not produce never reads as a repository without that branch. Where the listing fails, `hooks/scope-prune.js` prunes nothing. A listing that succeeds and finds no branch is the only absence it reads.
 Breaks: silently
-Check: tests/publish-kb-containment.test.js — a failing branch listing refuses with the run root gone and with it surviving; tests/scope-prune-main.test.js — a failing `for-each-ref` prunes nothing
-Symbols: branchNamesFrom, shapeScanBranch, checkContainment
-Paths: plugin/lib/kb-containment.js, plugin/hooks/scope-prune.js
+Check: tests/scope-prune-main.test.js — a failing `for-each-ref` prunes nothing
+Symbols: branchNamesFrom
+Paths: plugin/hooks/scope-prune.js
 
 ### INV-0195
 
@@ -1639,3 +1639,12 @@ Statement: An inline off-ramp writes no slice, epic, intent record, scope branch
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/inline-offramp.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md
+
+### INV-0207
+
+Class: architecture
+Concepts: Staged page, Run root, Ledger, Stage
+Statement: `publish-kb.js` sends a scope's staged pages without `--allow-unmerged` only when the scope is `_adhoc`, its run root is gone, or its ledger's `**Stage:**` reads exactly `shipped` or `closed`. A standing run root whose ledger is missing, unreadable, carries no `**Stage:**` line, or reads any other stage refuses and names what it read; it never reads as settled.
+Breaks: silently
+Check: tests/publish-kb-gate.test.js — a gone run root, `shipped`, and `closed` publish; every other stage, a missing or unreadable ledger, and a ledger with no Stage line refuse
+Paths: plugin/lib/kb-gate.js, plugin/scripts/publish-kb.js

@@ -11,6 +11,8 @@ gained since the fork point, so a base that edits the branch's files after takin
 contained.
 And by [ADR 0167](0167-plan-pushes-the-scope-branch.md), which permits one forced push on the
 test's proof: a lease push of a remote scope branch whose tip the test proves contained in base.
+And by [ADR 0278](0278-publish-kb-gates-on-the-ledger-stage.md), which takes `/superdev:publish-kb` off this
+test: it gates on the ledger stage instead.
 
 **Amends:** [ADR 0007](0007-scope-prune-ttl.md), whose Decision rests on "A code host that squash-merges
 also deletes the branch, which is why absence carries the signal that ancestry lost", and
