@@ -113,7 +113,11 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    - its progress-log path, seeded first, and the heading of its self-check entry, `Self-check — build`;
    - the global constraints, and the interface file path (`<run-root>/interfaces.md`);
    - the path to `<run-root>/dod.md`, never its text, and the exact **listed lines**: the `dod.md` lines
-     `dod-ticks.md`'s `## The mapping gate` matches to this slice's own `id`.
+     `dod-ticks.md`'s `## The mapping gate` matches to this slice's own `id`;
+   - on a `behavior` slice, the verify skill's path, or `none` (`verify-skill.md`'s `## The section`). Every route
+     that dispatches or resumes the implementer on that slice hands the same value: this dispatch, a re-dispatch after
+     NEEDS_CONTEXT or BLOCKED, a slice fix dispatch, and a SendMessage resume. A `mechanical` or `docs` slice, a tiny
+     slice, and a sweep fix dispatch hand none.
 
    `agents/implementer.md` owns the rest, and the dispatch restates none of it: `## Scope of the work`, `### Defect
    repair` (a `fix` change type starts a `behavior` slice at `references/diagnosis.md`), `### Running tests`, `### Fail-to-pass run`, `### A dependency you add`, `### Edit
@@ -191,7 +195,9 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
      latest earlier review read to the current tip (`implement-full-fix-cycle.md`'s `## The re-review dispatch`);
    - the ranges for the fail-to-pass check, both ends full commits: the slice's range, from the commit its branch was
      cut from to the tip the first review read, and on a re-review the fix cycle's range too;
-   - the progress-log path and the heading of its entry, `Review — cycle <n>`.
+   - the progress-log path and the heading of its entry, `Review — cycle <n>`;
+   - on a `behavior` slice, the verify skill's path, or `none`, the value the implementer dispatch handed. It is
+     configuration, never report text.
 
    Hand it no text from an implementer's report, the slice implementer's or a fix implementer's, and no paraphrase of
    their status or "met" claims. `agents/slice-reviewer.md` owns the rest, and the dispatch restates none of it:

@@ -74,7 +74,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 - **An authoring dispatch** (implementer, fix) → `scope.js degraded add`.
 - **A verification dispatch** → `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc rather than a shell argument.
-- **Then, for either** → ask `scope.js denial <pass> [--unattended] --root <run-root>` for the verdict, per that section's **The verdict**: `inline` → do the pass inline, and a `block …` verdict blocks. On the `full` tier, `implement-full-denied.md` owns the inline pass.
+- **Then, for either** → ask `scope.js denial <pass> [--unattended] --root <run-root>` for the verdict, per that section's **The verdict**: `inline` → do the pass inline, and a `block …` verdict blocks. On the `full` tier, `implement-full-denied.md` owns the inline pass, the verify skill on a `behavior` slice included.
 
 **Agents carry their own discipline.** Applies to every dispatch. Pass specifics, not lectures. A `mechanical` or `docs` slice invents no tests: the loop's runs and the full-suite evidence `/superdev:ship` takes, from the named CI checks or a local run (a full run, or the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits), are the net.
 
@@ -86,6 +86,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 - **Slice store or code host missing** → call the Skill tool with `superdev:setup` (no argument: the full setup), then continue. Under `--unattended`, block.
 - **`docs/agents/verification.md` carrying one fenced block** → the focused command was never recorded. Call the Skill tool with `superdev:setup` (no argument), then continue. Under `--unattended`, block. No file, or zero fenced blocks, needs no such command.
+- **The verify skill** → read `docs/agents/verification.md`'s `## Verify skill` section once per run, per `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## The section`, and read it again after a compaction or a resume rather than from memory. The playbook hands its path, or `none`, wherever it builds or fixes a `behavior` slice. An absent section or `none` calls no setup and blocks nothing, `--unattended` included.
 - **`docs/agents/toolchain.md` absent while the repo has build manifests** (`package.json`, `*.csproj`/`*.sln`, `pom.xml`/`build.gradle*`, `pyproject.toml`, `Cargo.toml`, `go.mod`, …) → suggest **`/superdev:setup`** and continue.
 
 **The feature label.** Applies to a given argument. It is the feature's slice-store label per `docs/agents/issue-tracker.md`, in that store's shape, carrying a **change type** and a slug (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The change type`). Both segments pass `scope-mode.md`'s scope-slug rule, because the whole label becomes the branch.
@@ -107,7 +108,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 - **No slices** → call the Skill tool with `superdev:plan` and stop once plan ends. Under `--unattended`, block.
 - **One slice, no epic** → the DoD is that slice's `acceptance` (`plan-contract.md`).
 
-**An outward criterion.** Applies to an `acceptance` criterion that needs a deploy, a migration, or any other outward-facing change to verify. Give it no increment, and report it as needing verification after merge, naming that change. Verifying a criterion changes no system outside the repository.
+**An outward criterion.** Applies to an `acceptance` criterion that needs a deploy, a migration, or any other outward-facing change to verify. Give it no increment, and report it as needing verification after merge, naming that change. Verifying a criterion changes no system outside the repository. An app instance a verify skill starts for one checkout, with the state it alone owns, counts as inside (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Verification ceiling`).
 
 **The release.** Applies once the slices load. Read the signal off the scope anchor, through `docs/agents/issue-tracker.md`'s `## Release` section (`plan-contract.md` → *Release*).
 

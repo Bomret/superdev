@@ -26,6 +26,8 @@ or Important finding outside the deferred and unclosable ones.
 - the slicetree path (`<run-root>/slicetrees/<id>`), and the slice's `<base>`, the commit its branch was cut from, as a
   full commit;
 - the progress-log path and the heading of its self-check entry, `Self-check — fix cycle <n>`;
+- on a `behavior` slice, the verify skill's path, or `none`, as the slice's own dispatch handed it
+  (`implement-full.md`'s **The implementer dispatch**);
 - for a **Pass-to-pass** finding, that finding's original base.
 
 Tell it to fix every finding on the list and to work its sibling surfaces, which `skills/implement/SKILL.md`'s

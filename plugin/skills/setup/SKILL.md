@@ -22,7 +22,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
   | `documentation.md` | the in-repo **documentation** convention |
   | `knowledge-base.md` | the optional **knowledge base**: software, local file, or none |
   | `toolchain.md` | the detected **toolchain** profile (package manager, build, lint, format, and release commands, style pointers), one section per workspace |
-  | `verification.md` | the optional **test commands**: a full one and, for every repository with a suite, a required focused one, which the implement chain's test runs read, an optional **timing command**, which a test audit reads, and the **prepare command**, which every test worktree runs first |
+  | `verification.md` | the optional **test commands**: a full one and, for every repository with a suite, a required focused one, which the implement chain's test runs read, an optional **timing command**, which a test audit reads, the **prepare command**, which every test worktree runs first, and the **verify skill**'s path or `none` |
   | `deployment.md` | the repository's **deploy posture** (`none` / `manual` / `auto`) and its **deploy targets**, which `/superdev:ship` reads once a feature's pull request has merged |
 
 - **The operator file**: `.superdev/info.json`, the **operator configuration** (`CONTEXT.md`). It is no config document. It holds the slice store's assignee and display name under `issue-tracker`, a Forgejo knowledge base's tea login under `knowledge-base`, and the time bounds an operator sets (`assignee.md` → *Assignee* lists every key). It is git-ignored.
@@ -56,6 +56,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 | `verification.md` | CI workflow files under `.github/workflows/`, `.forgejo/workflows/`, or `.gitea/workflows/` and no `## CI` section is reported: state that ship takes the full-suite evidence from a local run, and that the full `/superdev:setup` records the named checks. Make no code-host call. |
 | `verification.md` | A `## CI` section holding both `none` and a check name, a check name being any backtick span outside a fence other than `none`, and a bare `none` line counting as `none`, is drift: state that `scope.js ci` cannot judge it, that ship refuses on it, and that the section must hold the names alone or `none` alone, with any explanation written outside the section or with no backtick span. |
 | `verification.md` | Test commands and no `## Prepare command` section, or a section holding neither a command nor `none`, is reported: state that no test worktree is prepared and that a **Fail-to-pass run** reuses no traced control (`references/test-selection.md`'s `## Prepare command`), and that a re-run of `/superdev:setup` proposes the section. A command the section names gets the resolution check of the first row. |
+| `verification.md` | A `## Verify skill` section naming a path is drift when the file does not exist, `git ls-files --error-unmatch <path>` finds it untracked, or it lacks a `## Start` or `## Stop` heading. A section breaking `references/verify-skill.md`'s **Drift** rule is drift too. `none`, or no section, gets no line. |
 | `deployment.md` | The same resolution check on each target's command: a target naming a script the manifest no longer defines is drift. A `none` posture, or a `manual`/`auto` posture with an empty targets table, reports consistent once confirmed present. |
 | `issue-tracker.md`, `issue-tracker-plan.md`, `code-management.md` | A recorded host/owner/repo (or base URL) still matches `git remote -v`. Compare the host/owner/repo path alone, ignoring userinfo such as `https://user:TOKEN@host/owner/repo.git`. Report the remote with any userinfo stripped, never verbatim. A document naming no such fact (an "Other" backend written as prose) reports consistent once confirmed present. |
 | `documentation.md` | A `## Writing standard` naming a repo-relative path still resolves to a file, and each `## Audit set` glob still matches at least one file. |
@@ -352,6 +353,16 @@ Applies to the full interview. Scan these before any decision:
 - **A runner reporting no durations** records no section, with the runner stated as the reason in prose.
 - **A user who declines** records no section either: ask what makes that right here, and record the reason as prose (a suite finishing in seconds is one).
 
+**The verify skill.** Applies to decision E, in every repository that writes `verification.md`. Read `references/verify-skill.md`, which owns the section and the scaffold. Ask whether the repository has a runnable surface, an app a builder can start and drive.
+
+- **No** → write `## Verify skill` reading `none`, and no skill file.
+- **Yes** → draft `.claude/skills/verify/SKILL.md` from the §1 manifest scan, with every section of `references/verify-skill.md`'s `## The scaffold`. Mark each section the scan cannot fill `TODO`. Show the draft, and write it and the section naming its path only on the operator's confirmation.
+- **A file already at that path** → keep it, or replace it only after you show a diff against the draft and the operator confirms. Never overwrite it silently.
+- **Untracked inputs** are named by variable or file name only. Setup reads no `.env` value.
+- **Setup runs no step of the skill** (`references/verify-skill.md`'s `## Setup runs no step`).
+- **After the write**, setup commits nothing. When `git check-ignore -q <path>` matches, or `git status --porcelain -- <path>` lists it untracked or modified, warn and tell the operator to commit the skill and land it on the remote base, through their usual route such as a pull request, before `/superdev:implement`. Its base step merges the fetched remote base into the scope branch, so a local-only commit never reaches the scopetree.
+- A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
+
 ### F — Toolchain (optional)
 
 **The profile.** Applies to decision F. From §1's scan, propose the package manager, the build, lint, format, and release commands agents should use, and pointers to the linter and formatter configs and style-prose docs. Record pointers, never copied rules.
@@ -450,6 +461,7 @@ full command except a test-first step, which runs its own test file (`references
 | `## Prepare command` | decision E settled a command or `none` | the command, or `none`, in a backtick span |
 | `## CI` | decision E settled named checks or `none` | each named check as a list item in a backtick span, or `none` in a backtick span; `references/test-selection.md`'s `## CI` |
 | `## Whole-repo command` | a monorepo whose full command took the affected form | its command in a backtick span. No affected form (no tool owns one, or the operator kept the whole-suite command after a failed query) writes no section. |
+| `## Verify skill` | decision E settled a skill path or `none` | the repository-relative path, or `none`, in a backtick span; `references/verify-skill.md`'s `## The section` |
 
 ````markdown
 ## Timing command

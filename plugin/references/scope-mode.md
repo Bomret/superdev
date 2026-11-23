@@ -272,8 +272,10 @@ asks attended, in the same words.
 ## Verification ceiling
 
 **Verifying a Definition-of-Done criterion observes.** Applies to every criterion. Verifying it changes no system
-outside the repository. A criterion that needs a deploy, a migration, or any other outward-facing change to verify
-stays unticked, with a note naming what it needs, for the operator to verify after merge.
+outside the repository. An app instance a verify skill starts for one checkout, with the state that instance alone
+owns, counts as inside; state shared with the main checkout or with a third-party service counts as outside
+(`verify-skill.md`, ADR 0277). A criterion that needs a deploy, a migration, or any other outward-facing change to
+verify stays unticked, with a note naming what it needs, for the operator to verify after merge.
 
 ## The stage never moves backwards
 

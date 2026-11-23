@@ -56,6 +56,11 @@ implementer subagent carries, because no agent body is loaded on this tier:
 - **Every acceptance criterion gets at least one increment.** On a `behavior` slice each criterion, its failure and
   boundary cases included, is the RED test of its own increment.
 - **A `mechanical` or `docs` slice** needs no new test: the existing suite is its net.
+- **The verify skill.** On a `behavior` slice, with a skill path the run read (`skills/implement/SKILL.md`'s **The
+  config**), follow `verify-skill.md`'s `## Following the skill` before the slice's `merged` write, its **Stop on
+  every exit** included. Your report to yourself quotes what you observed per acceptance item, and backs the slice's DoD ticks.
+  An observation that contradicts an acceptance item is a RED step. `none`, an absent section, and a `mechanical` or
+  `docs` slice change nothing here.
 
 **Domain shapes.** Applies to a slice whose `spec` names domain shapes. Declare them before its first RED test. The
 fields are yours, and a shape whose term `CONTEXT.md` lacks is reported rather than invented. A `spec`-named shape is
@@ -72,8 +77,10 @@ test`, per its `## The two commands` and its `## The changed-path set` **The bui
 started.
 
 **A failing test the slice did not cause is named, never fixed.** Applies to a test that also fails at the slice's
-base commit. Name it in your report. Fix none, block on none, and count no strike for it; the scope review's fix loop
+base commit, and to a flaky test the slice did not touch, even when it passes at that base. Name it in your report. Fix none, block on none, and count no strike for it; the scope review's fix loop
 repairs it.
+
+**A flaky test.** Applies to a test that both passes and fails at one commit with nothing changed, seen within the slice's own runs. Follow `agents/implementer.md`'s `## A flaky test`, with the slice base as `<range-start>`. A flaky test the slice did not touch is named as an inherited failure, and you record it as an observation yourself (**Observations** below).
 
 **Observations.** Applies to a defect you meet that no slice of this scope covers and the scope did not cause. Capture
 it now, per `scope-findings.md`'s `## Observations`.

@@ -80,7 +80,7 @@ Applies to every review dispatch.
 Verify the integrated behaviour against the requirements yourself. Defer to no implementer or controller narrative of what was built. Length is no completeness.
 
 - Reject a "requirement met" claim backed only by proxy counts (coverage percentage, line count, lint score). Confirm the observable, user-facing behaviour.
-- Verifying a criterion observes. It changes no system outside the repository.
+- Verifying a criterion observes. It changes no system outside the repository. An app instance a verify skill starts for one checkout, with the state it alone owns, counts as inside, so a builder's own instance breaches no ceiling (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Verification ceiling`).
 - Report a criterion that needs a deploy, a migration, or another outward-facing change as unverifiable on the branch and needing verification after merge. Give it the payload `### Judge every criterion` states for the `ceiling` verdict, which a scope dispatch records.
 
 ### Review economically
