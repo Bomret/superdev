@@ -195,7 +195,7 @@ module.exports = [
     id: 'no-ci-wait',
     ok: 'no shipped prose names a wait or a poll on CI: no `--watch`, no `gh run watch`, no sleep over a check or a status (INV-0192)',
     run: scanNoCiWait,
-    format: (g) => `plugin/${g.source}:${g.line} names a wait or a poll on CI — superdev never waits on a check; ship refuses as pending instead (INV-0192, ADR 0255)`,
+    format: (g) => `plugin/${g.source}:${g.line} names a wait or a poll on CI — the only wait on a check is `scope.js ci --wait`, bounded (INV-0192, ADR 0280)`,
   },
   {
     id: 'no-base-branch-commit',

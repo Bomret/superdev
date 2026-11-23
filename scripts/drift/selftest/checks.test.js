@@ -94,7 +94,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     ],
     'no-ci-wait': [
       { source: 'skills/x/SKILL.md', line: 7 },
-      'plugin/skills/x/SKILL.md:7 names a wait or a poll on CI — superdev never waits on a check; ship refuses as pending instead (INV-0192, ADR 0255)',
+      'plugin/skills/x/SKILL.md:7 names a wait or a poll on CI — the only wait on a check is `scope.js ci --wait`, bounded (INV-0192, ADR 0280)',
     ],
     'no-base-branch-commit': [
       { source: 'skills/x/SKILL.md', line: 9 },

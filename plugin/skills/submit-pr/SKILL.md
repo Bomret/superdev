@@ -103,15 +103,20 @@ Applies to every start past §1. Find the scope checkout.
 
 **The stage write.** Applies after the open. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. Then run the publish.
 
-**The ship question.** Applies to an attended run, after the stage write and its publish, where §4 found no named checks and no configuration error, and the open recorded a pull request number. Ask one `AskUserQuestion`: ship it now? Its text names the pull request URL, says nobody has reviewed it, and says a yes merges it now through `/superdev:ship`, which first takes the full-suite evidence (a reusable record, the carry, or a local run), with the host's approvals and branch protection in force. Put the explicit yes option first and a no option second.
+**The ship question.** Applies to an attended run, after the stage write and its publish, where §4 found no configuration error and the open recorded a pull request number. Ask one `AskUserQuestion`: ship it now? Its text names the pull request URL, says nobody has reviewed it, and says what a yes does, with the host's approvals and branch protection in force:
+
+- **§4 found no named checks** → a yes merges it now through `/superdev:ship`, which first takes the full-suite evidence (a reusable record, the carry, or a local run).
+- **§4 found named checks** → a yes merges it through `/superdev:ship` once every named check is green on the pull request's head, ship waiting up to 60 minutes for them.
+
+Put the explicit yes option first and a no option second.
 
 - **The yes option** → start `/superdev:ship <scope>` per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`; the yes is the merge consent.
 - **Any other answer, a dismissal, or a question the platform cannot ask** → print the next command below and start nothing.
 
-**No ship question.** Applies where §4 found named checks or the configuration error, where no pull request number was recorded, and to an unattended run. Ask nothing, start nothing, and print the next command below.
+**No ship question.** Applies where §4 found the configuration error, where no pull request number was recorded, and to an unattended run. Ask nothing, start nothing, and print the next command below.
 
 **The next command.** Applies to every run that reaches the stage write. Print `/superdev:ship <scope>` as the next command, with one line on what it does: it merges the pull request once an operator has reviewed it and applies the repository's deploy posture to the merge. It then starts `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to verify.
 
-- **§4 found named checks** → add one line: run it once the named checks are green on the pull request's head. Ship refuses while one is pending, and nothing waits for them.
+- **§4 found named checks** → add one line: ship waits up to 60 minutes for the named checks on the pull request's head and merges once every one is green, where `docs/agents/code-management.md` carries the check-status read script; without the script it refuses while one is pending.
 - **§4 found the configuration error** → put fixing the `## CI` section through `/superdev:setup` on a `First:` line: ship refuses until the section holds names or `none` alone.
 - **No pull request number was recorded** (the `push-only` posture, or an open degraded to the compare URL) → add one line: ship has no pull request to read until one is opened and its number recorded.
