@@ -1,3 +1,10 @@
+# [0.116.0](https://github.com/Bomret/superdev/compare/v0.115.0...v0.116.0) (2026-11-23)
+
+
+### Features
+
+* **scripts:** --help per verb and subcommand for scope.js, and help plus unknown-argument refusal for the other Node CLIs ([#444](https://github.com/Bomret/superdev/issues/444)) ([324c353](https://github.com/Bomret/superdev/commit/324c353ac88c1adb65a7c8e0a41b70c242522a28))
+
 # [0.115.0](https://github.com/Bomret/superdev/compare/v0.114.1...v0.115.0) (2026-11-23)
 
 
