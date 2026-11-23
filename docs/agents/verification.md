@@ -88,3 +88,10 @@ The full-suite workflow under .github/workflows runs the full command on Linux f
 one job reports the check run named above. /superdev:ship merges when that check is green on the head it merges, and
 runs no local suite (ADR 0255). The cross-platform workflow runs the knowledge-base template suite and the write-fence suite on three platforms and
 counts for nothing here. This explanation carries no backtick span, because every span in this section reads as a check name.
+
+## Verify skill
+
+`none`
+
+This repository ships a plugin of prose and hooks, and no app a builder can start and drive
+(plugin/references/verify-skill.md). This note carries no backtick span, so the section names one value.
