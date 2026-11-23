@@ -59,15 +59,18 @@ lazily loaded module is a getter that returns that module's own value. No module
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id|scope>] [--kind <kind>[,<kind>]] [--window <dispatch id>] [--last <n>]` (prints the run trace's lines, filtered, read-only), `windows --slice <id|scope>` (read-only), `untraced <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `fail-to-pass-check <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `section <file>` (read-only, the heading line on stdin), `tier --root <run-root>` (read-only), `dod-open --root <run-root> [--tag docs]` (read-only), `contained <base> <branch> [--remote <remote>]` (read-only), `branch --root <run-root>`, `checkout --root <run-root>`, `lock --root <run-root>`, `denial <pass> [--unattended] --root <run-root>`, and `route --root <run-root> …` (each read-only), `candidates --stage <stage>[,<stage>]` (read-only, no run root), `red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]` (read-only), `publish`, `adopt`, `root <slug>`,
 `staging <scope> [--count|--line]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `source-set --tests`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `ci --sha <sha> [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
 `--help` or `-h` prints help and exits 0. A flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request.
-The help is checked before any verb reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
+The CLI checks for help before any verb reads stdin or touches a ledger.
+A stdin verb such as `dod-line` therefore never waits on input for it.
 `lib/usage.js` holds the usage text once. `usage()` returns all of it, and the refusals that print usage append it whole.
 `helpText(verb, sub)` returns a cut of the same lines: the header and the `--help, -h` line, then the verb's **entries**.
 An entry starts at a line indented exactly two spaces whose first token is the verb, and runs through the lines indented deeper.
 The verb is `argv[0]` and matches whole, so `pr --help` prints no `prepare`, `publish`, or `push` entry.
 The subcommand is the first later token that is no flag, after the values of every value-taking flag (`--repair` takes two).
 A subcommand narrows the cut to the entries whose **syntax head** names it as a literal word.
-The syntax head is the entry's first line after the verb, up to a run of two spaces or the first token starting with `-` or `[`.
-Its words split on `|`, and a `<…>` placeholder, nested ones included, holds no literal word.
+The syntax head is the entry's first line after the verb.
+It ends at a run of two spaces or at the first token that starts with `-` or `[`.
+The CLI splits the head's words on `|`.
+A `<…>` placeholder holds no literal word, and that includes nested placeholders.
 A subcommand that names no entry prints every entry of the verb.
 No verb, a flag in first position, or a verb with no entry prints the whole usage.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -888,8 +891,8 @@ deep, from inside `.superdev/scopes/<scope>/scopetree`. `--scope <slug>` selects
 publish. Left out, the script publishes the one pending scope there is. It refuses when there is more
 than one pending scope or none, and names every pending scope with its staged-page count on refusal.
 `--help` or `-h` anywhere among the arguments prints the usage and exits 0 before any repository or backend is read.
-As the value of `--read` or `--scope` it is data. `run()` refuses every other argument it does not take before it
-reads the repository: an unknown flag, a stray word, or `--read` or `--scope` with no value. The refusal names the
+As the value of `--read` or `--scope` it is data. Before `run()` reads the repository, it refuses every argument it does not take.
+These are an unknown flag, a stray word, and `--read` or `--scope` with no value. The refusal names the
 argument, appends the usage, and exits 1. `--scope=x` is such an unknown argument.
 
 It classifies `docs/agents/knowledge-base.md`'s `- **Backend:**` bullet. A `local` or `none` value
