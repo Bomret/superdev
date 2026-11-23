@@ -54,7 +54,6 @@ const {
   ADR_STATUSES,
   CHANGE_TYPE_CONTRACTS,
   SOURCE_SECTION_CONTRACTS,
-  CONTAINMENT_DELEGATION_CONTRACTS,
 } = require('./contracts');
 
 // The printer most checks share. A gap is `{ source, expectation }`.
@@ -180,12 +179,6 @@ module.exports = [
     run: scanTestSeams,
     format: contractGap,
   },
-  table(
-    'containment-delegation',
-    CONTAINMENT_DELEGATION_CONTRACTS,
-    "lib/kb-containment.js delegates its containment check to lib/containment.js's testContainment or judgeContainment rather than " +
-      'reimplementing the ancestry test itself',
-  ),
   {
     id: 'past-pr-skills',
     ok: 'review, document, submit-pr, ship, verify-ship, wrap-up, and publish-kb carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, no `--from-ship` remains, and every start of ship in review-scope-mode.md and document names `scope.js consent` (INV-0066, INV-0093, ADR 0268)',

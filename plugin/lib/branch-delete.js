@@ -10,7 +10,7 @@ const { fail } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
 const { readLines, getHeader } = require('./ledger.js');
 const { judgeContainment, refetchMark } = require('./containment.js');
-const { resolveRemote } = require('./kb-containment.js');
+const { resolveRemote } = require('./remote.js');
 const { gitCall, lastLine, boundEnded, pushTimeoutMs, CREDENTIAL_RE } = require('./push.js');
 
 // A gate refusal (not contained, undecidable, nothing to judge) deletes nothing and exits 3. A ref kept or failed exits

@@ -123,9 +123,8 @@ git, writes nothing, and prints one line:
 - **`none`** → nothing matches. Say so and stop.
 - **`git-failed <reason>`** → git could not list the branches. Stop and name the reason; this is no `none`.
 
-**The shared shape rule.** Applies to the Stop hook's prune and the knowledge-base publish's containment check. They
-apply the same rule (`lib/scope-branch.js`). Where two branches match, the hook prunes, reaps, and deletes nothing for
-that scope, and the publish refuses naming both.
+**The shared shape rule.** Applies to the Stop hook's prune. It applies the rule this verb applies
+(`lib/scope-branch.js`). Where two branches match, the hook prunes, reaps, and deletes nothing for that scope.
 
 ## The scope checkout
 
