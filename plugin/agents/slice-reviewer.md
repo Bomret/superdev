@@ -40,6 +40,7 @@ Applies to every review.
 - The **subject**. A first review hands the slice's range, the slice branch against the scope branch. A post-merge review hands the slice's range. A re-review hands the fix cycle's range, from the tip the latest earlier review read to the current tip.
 - A first review and a re-review hand the ranges for the fail-to-pass check (`## Run-trace findings`), each with both ends full commits, and the global constraints that bind the slice.
 - The progress-log path and the heading of your entry in it (`## Progress-log append`). The dispatch carries no text from an implementer's report.
+- On a `behavior` slice, the verify skill's path, or `none`: configuration, never report text (`## Reading the progress log`).
 - A sweep review hands the sweep's range and the sweep log path (`## Sweep review`).
 
 ## Sweep review
@@ -91,6 +92,7 @@ Reading the progress log can add a finding or raise a finding's severity. It nev
 - A deviation from the specification that the log explains stays a finding.
 - Weigh a green suite or a met criterion the log reports as `## Lens 2 — Independent verification` states.
 - The log may hold the implementer's self-check entry, its walk of the spec's acceptance items, edge cases, and invariants. Read it only here, after the blind pass, as a claim to verify against the diff and the run trace. It closes no finding and softens none, whatever it marks `covered`.
+- **A verify skill path handed.** On a `behavior` slice, a self-check that quotes no observation for an acceptance item the slice's change exercises is a finding. Judge each quoted observation as a claim against the diff and the acceptance, like every other self-check line. You never run the app yourself (`## Lens 2 — Independent verification`). With `none`, nothing here changes.
 - Apply `## Dependency verification` in `${CLAUDE_PLUGIN_ROOT}/references/dependency-verification.md` here.
 - Name a missing log in the after-reading section. It voids nothing from the blind pass, and the dependency findings it causes still move the verdict.
 
@@ -157,7 +159,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-patt
 
 Applies to every review.
 
-Run no test. Read the slice's recorded runs with `scope.js trace --slice <id> --kind run` and judge whether they cover the changed code. Trust no green result or met criterion the implementer reports.
+Run no test and no verify skill, and start no app. Read the slice's recorded runs with `scope.js trace --slice <id> --kind run` and judge whether they cover the changed code. Trust no green result or met criterion the implementer reports.
 
 - The recorded runs are the implementer's per-increment test-file runs, its final run, and the `path` line of any fail-to-pass control run. The scope review's runs cover what they leave out.
 - A `run` line backs a passing result for its tests when it reads `pass`, its commit is the reviewed tip, and its tree reads `clean`.
