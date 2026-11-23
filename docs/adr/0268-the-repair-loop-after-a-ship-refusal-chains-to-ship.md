@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0280](0280-ship-waits-for-the-named-checks-through-one-bounded-verb.md), whose ship waits on CI after its push.
+
 **Amends:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), whose chain start
 covers only the first pass to submit-pr. Review and document on a scope at `submitted` now start their
 successor too.
