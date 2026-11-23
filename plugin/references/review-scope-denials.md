@@ -19,5 +19,5 @@ Applies to a scope-mode `/superdev:review` when the permission classifier denies
 
 - The fix implementer is an authoring dispatch, none of the three verification passes the denial cap counts
   (`final-reviewer`, `slice-reviewer`, `doc-reader`).
-- **Attended** → apply the fix inline yourself and say so in §3's report.
+- **Attended** → apply the fix inline yourself and say so in §3's report. Follow `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## Following the skill` with the path §0 read, as the dispatched fixer would.
 - **Unattended** → `scope.js denial fix --unattended` prints `block implementer`: **block there** instead of fixing the list §4.6 builds "attended and `--unattended` alike".

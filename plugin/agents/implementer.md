@@ -37,6 +37,7 @@ Applies to every dispatch.
 - A slice dispatch names the feature's change type. A `fix` change type makes a `behavior` slice a defect repair (`### Defect repair`).
 - A sweep fix dispatch hands the sweep log path as its progress log, and the `<run-root>/dod.md` path read-only with no listed line. It names `<sweep-base>`, the scope branch's tip when the sweep began, as a full commit.
 - A review fix dispatch names `<cycle-base>`, the scope branch's tip before the dispatch, as a full commit, and hands `<base-branch>`, the scope's base branch.
+- A review fix dispatch hands the verify skill's path, or `none` (`## The verify skill`).
 - An inline fix dispatch names `<cycle-base>`, the reviewed tip the fix branch was cut from, as a full commit. It hands no `dod.md`, no run root, and no progress log.
 
 ## Scope of the work
@@ -220,9 +221,9 @@ A test is flaky when it both passes and fails at one commit with nothing changed
 
 ## The verify skill
 
-Applies to a slice dispatch and a slice fix dispatch on a `behavior` slice that hand a skill path other than `none`.
+Applies to a slice dispatch and a slice fix dispatch on a `behavior` slice, and to a review fix dispatch, that hand a skill path other than `none`.
 
-Follow `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## Following the skill` against your own change, before your self-check, its **Stop on every exit** included. A `mechanical` or `docs` slice changes nothing here.
+Follow `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## Following the skill` against your own change, before your self-check or report, its **Stop on every exit** included. A `mechanical` or `docs` slice changes nothing here. A review fix dispatch follows it only when a finding in its list changes behaviour, by that file's **Who follows it**.
 
 ## Deep modules and domain language
 
@@ -366,6 +367,7 @@ Return the report only to the controller that dispatched you. You never talk to 
 - Each flaky test you met, with what you did about it (`## A flaky test`).
 - The `AGENTS.md`-hierarchy and knowledge-base places you left unedited (`## Documentation`).
 - On a fix dispatch: the rule you applied to each finding (`### RED-test rule`), each place you checked and each you changed (`### Sibling surfaces`), each same-defect instance you fixed, each such instance outside the scope's changed files as an observation, and each place outside your checkout left unedited.
+- On a review fix dispatch that followed a verify skill: per behaviour-changing finding, what you observed in the running app, quoted, or `not observable` with its reason (`## The verify skill`).
 - On a dispatch that repairs a defect: the ranked hypotheses your diagnosis wrote, in rank order (`### Defect repair`).
 - On a sweep fix dispatch: each collected Minor as fixed, closed with its evidence, or reported unedited (`## The sweep fix dispatch`).
 

@@ -200,6 +200,7 @@ message. It carries each of these, the fix duties, the test-run bound, and the r
   whole`, or a `test focused` with neither a path nor a ref.
 - The report contract: the implementer returns its required report (`agents/implementer.md`'s `## Report`) and repeats
   no narrative its log holds.
+- The verify skill's path, or `none`, the value the loop's fresh fix dispatch hands: `review-scope-mode.md`'s `### 4.7 Fix cycles` for the scope review, and the sweep's Fix step for the sweep.
 - In the Minor sweep, the self-check `implement-full-minor-sweep.md`'s `## Minor sweep` states for the sweep log. Scope
   review's fix loop keeps no self-check.
 - No implementer report text to a reviewer. A reviewer reads the code and the range.
