@@ -1,3 +1,10 @@
+# [0.117.0](https://github.com/Bomret/superdev/compare/v0.116.0...v0.117.0) (2026-11-23)
+
+
+### Features
+
+* **marketplace:** list the superdev-view mod as its own entry that depends on superdev ([#445](https://github.com/Bomret/superdev/issues/445)) ([6070c3d](https://github.com/Bomret/superdev/commit/6070c3dc81688cf163abc1bd63dd867d85e46345))
+
 # [0.116.0](https://github.com/Bomret/superdev/compare/v0.115.0...v0.116.0) (2026-11-23)
 
 
