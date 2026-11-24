@@ -199,7 +199,7 @@ module.exports = [
   },
   {
     id: 'no-base-branch-commit',
-    ok: 'no shipped prose instructs a commit, a push, or a merge to the base branch, other than ship\'s own admitted host-API merge (INV-0001)',
+    ok: 'no shipped prose instructs a commit, a push, or a merge to the base branch, other than ship\'s own admitted host-API merge and setup\'s push offer (INV-0001, ADR 0282)',
     run: scanNoBaseBranchCommit,
     format: (g) => `${g.source}:${g.line} instructs a commit, a push, or a merge to the base branch — no superdev command reaches the base branch that way (INV-0001, docs/invariants.md)`,
   },

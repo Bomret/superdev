@@ -360,7 +360,7 @@ Applies to the full interview. Scan these before any decision:
 - **A file already at that path** → keep it, or replace it only after you show a diff against the draft and the operator confirms. Never overwrite it silently.
 - **Untracked inputs** are named by variable or file name only. Setup reads no `.env` value.
 - **Setup runs no step of the skill** (`references/verify-skill.md`'s `## Setup runs no step`).
-- **After the write**, setup commits nothing. When `git check-ignore -q <path>` matches, or `git status --porcelain -- <path>` lists it untracked or modified, warn and tell the operator to commit the skill and land it on the remote base, through their usual route such as a pull request, before `/superdev:implement`. Its base step merges the fetched remote base into the scope branch, so a local-only commit never reaches the scopetree.
+- **After the write**, the skill file joins §4's **The push offer**. When `git check-ignore -q <path>` matches, warn that the offer cannot carry it, and tell the operator to land it on the remote base, through their usual route such as a pull request, before `/superdev:implement`. Its base step merges the fetched remote base into the scope branch, so a local-only commit never reaches the scopetree.
 - A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
 
 ### F — Toolchain (optional)
@@ -558,6 +558,18 @@ The focused command selects every test a changed path can affect.
 - They can edit `docs/agents/*.md` directly.
 - A re-run switches backends or picks up what a newer release added, by reconciling each document with its seed (§3).
 - The operator file is theirs alone and travels with no clone, so a fresh checkout configures it again or falls back to the API token's own identity.
+
+**The push offer.** Applies at the end of every run where `git status --porcelain --untracked-files=all` lists at least one path setup wrote this run: a `docs/agents/*.md` document, the root file holding the `## Agent skills` block, `.gitignore`, or the verify skill. Those listed paths are the **offer paths**. Ask with `AskUserQuestion`, listing each offer path, and offer the choices below. `<remote>` is the `Remote:` value of `docs/agents/code-management.md`. With no `Remote:` value, offer only **Leave uncommitted** and say no remote is configured.
+
+- **Push to a new branch** `(Recommended)`. Run `git fetch <remote> <base>`, then cut `superdev-setup` from `<remote>/<base>` in a temporary worktree outside the checkout: `git worktree add "$(mktemp -d)/wt" -b superdev-setup <remote>/<base>`, with a numeric suffix on the branch when that name exists locally or on `<remote>`. Copy each offer path into the worktree, commit there, push with `-u <remote> <branch>`, then `git worktree remove` it. The invoking checkout is never switched, and the files stay in its working tree. Say that `/superdev:implement` reads the configuration from the remote base, so the branch lands there through the operator's usual route, such as a pull request, before the first run.
+- **Push to the current branch.** Offered only when `HEAD` is a branch. Commit in the invoking checkout and push with `-u <remote> <branch>`, the base branch included (INV-0001, ADR 0282). When that branch is not the base branch decision B confirmed, say the same as for a new branch.
+- **Leave uncommitted.** Write nothing more, and say the files stay in the working tree.
+
+**The commit.** Applies to both push choices. The commit holds the offer paths alone, with the message `chore(setup): configure superdev`. Commit with an explicit pathspec, `git commit -m "chore(setup): configure superdev" -- <paths>`, so nothing the index already holds joins it. The operator file stays out of it.
+
+- **A file setup wrote only part of** (the root file holding the `## Agent skills` block, `.gitignore`) → diff it against the commit's parent: `git diff HEAD -- <path>` for the current branch, `git diff <remote>/<base> -- <path>` for a new branch. A hunk setup did not write is named to the operator, and the file joins the commit only on the operator's yes. Otherwise it stays out, and the report says so.
+- **The push** runs as `GIT_TERMINAL_PROMPT=0 git push …`, so a credential prompt fails at once. Pass the Bash tool's `timeout` set to `code-host.pushTimeoutMs` of the operator file, or 60000 milliseconds when unset, and at most the Bash tool's ceiling, 600000 milliseconds unless `BASH_MAX_TIMEOUT_MS` raises it.
+- **A failed commit or push** is reported with git's output. The commit stays local, and a new branch's worktree is removed with the branch kept.
 
 **Secrets.** Applies to every write. Record only env-var **names** for secrets, never token values. The operator file holds identifiers, display names, and time bounds only.
 

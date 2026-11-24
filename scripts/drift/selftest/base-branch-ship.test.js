@@ -156,6 +156,21 @@ module.exports = ({ assert, fixture, found }) => {
     0,
     "ship's own base-into-scope-branch merge is never mistaken for a commit onto base",
   );
+  assert.equal(
+    noBase({ 'skills/setup/SKILL.md': 'Commit on the checked-out branch and push it, the base branch included (INV-0001, ADR 0282).\n' }).length,
+    0,
+    "setup's push offer onto base is admitted (ADR 0282)",
+  );
+  assert.equal(
+    noBase({ 'skills/setup/SKILL.md': 'Commit the configuration straight onto the base branch.\n' }).length,
+    1,
+    "setup's file is not itself an excuse — only the ADR 0282 citation is",
+  );
+  assert.equal(
+    noBase({ 'skills/plan/SKILL.md': 'Commit and push it, the base branch included (INV-0001, ADR 0282).\n' }).length,
+    1,
+    'the setup admission wording outside setup is no excuse',
+  );
 
   // --- ship-no-opens-pr: no shipped surface pairs `/superdev:ship` with opening the pull request
   // (ADR 0096) ---
