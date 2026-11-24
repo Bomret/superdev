@@ -14,9 +14,10 @@ The calls `/superdev:plan` makes on `Bomret/superdev` and no other command makes
 
 ## Creating issues
 
-- **Labels exist first.** The status labels (`ready`, `in-progress`, `in-review`, `blocked`), the
-  `behavior`/`mechanical`/`docs` set, `epic`, `released`, `triage`, and `intent` exist in the repository.
-  Run **Create a missing label** for a new feature label before the first issue that carries it.
+- **Labels exist first.** Before the first issue that carries a label, run **Create a missing label** for
+  the feature label, the release label (`released`), the status labels (`ready`, `in-progress`,
+  `in-review`, `blocked`), the `behavior`/`mechanical`/`docs` set, `epic`, `triage`, and `intent`. Labels
+  are addressed by name, so nothing else catches a missing one.
 - **Create an issue:** `gh issue create --repo Bomret/superdev --title "$title" --body-file - --label
   "<labels>" --assignee <assignee>`, the specification and acceptance checklist on stdin. Set `title`
   first from a quoted heredoc (`title=$(cat <<'SUPERDEV_TEXT_EOF' … SUPERDEV_TEXT_EOF)`), so a backtick or

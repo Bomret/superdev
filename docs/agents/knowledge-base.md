@@ -59,7 +59,8 @@ This outline is a living skeleton. `/superdev:document` extends it.
   that built it. A mechanism belongs on its topic page, not here. Parent: `Home`, section `Concepts`.
 
 **Every outline entry names a topic page** (ADR 0229, INV-0188). An entry gives one page's exact title,
-and the page holds one subject a reader looks up. `/superdev:document`'s doc pass extends the topic page a
+and the page holds one subject a reader looks up. An entry holding a placeholder (`<...>`) names no page,
+and the doc pass writes no page under it. `/superdev:document`'s doc pass extends the topic page a
 change touches. Only when no topic fits does it add one explicit entry here, in the scope's doc commit,
 with its reason. A page per feature is no entry.
 
@@ -74,7 +75,7 @@ subsection) and every line that item carries, or below the heading as its first 
 holds none yet.
 
 Decisions stay in the repository's `docs/adr/`, which the code host renders. The knowledge base carries
-no ADR digest.
+no ADR digest and no ADR summaries.
 
 **Naming.** The prefix ends in a colon and one space. No trailing period. No `#` title heading in the
 body: the wiki renders the page title itself. A page's `title` is the whole string, prefix included.
