@@ -117,6 +117,6 @@ Put the explicit yes option first and a no option second.
 
 **The next command.** Applies to every run that reaches the stage write. Print `/superdev:ship <scope>` as the next command, with one line on what it does: it merges the pull request once an operator has reviewed it and applies the repository's deploy posture to the merge. It then starts `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to verify.
 
-- **§4 found named checks** → add one line: ship waits up to 60 minutes for the named checks on the pull request's head and merges once every one is green, where `docs/agents/code-management.md` carries the check-status read script; without the script it refuses while one is pending.
+- **§4 found named checks** → add one line: ship merges once every named check is green on the pull request's head, and waits for them only where `docs/agents/code-management.md` carries the check-status read script.
 - **§4 found the configuration error** → put fixing the `## CI` section through `/superdev:setup` on a `First:` line: ship refuses until the section holds names or `none` alone.
 - **No pull request number was recorded** (the `push-only` posture, or an open degraded to the compare URL) → add one line: ship has no pull request to read until one is opened and its number recorded.

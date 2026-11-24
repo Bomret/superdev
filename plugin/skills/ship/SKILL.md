@@ -216,7 +216,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 1. Write the read script, `<sha>` left in place, to a file named with `mktemp`.
 2. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`, so a wait that never reports back leaves the step and consent a pending refusal leaves.
 3. Start `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <tip> --wait --read <file> --timeout 3600 --root <run-root>/scopetree` through the Bash tool with `run_in_background: true`. Tell the operator that ship waits up to 60 minutes for the named checks on `<tip>`, and end the turn. The Bash tool re-invokes the session when the verb exits.
-4. On that re-invocation, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set ship --root <run-root>` again, read the verb's output, and act on its exit status:
+4. On that re-invocation, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set ship --root <run-root>` again, remove the read-script file, read the verb's output, and act on its exit status:
 
 - **Green, exit 0** → go to **The merge**, pinned to that SHA.
 - **Failed, exit 4** → refuse: run `step block`, merge nothing, name each failed check with its link, and point at `/superdev:review <scope>`, which starts from that red.
@@ -224,14 +224,12 @@ Applies to every start past §1. Read the stage and the pull request number with
 - **Cannot judge, exit 2, or a usage refusal, exit 1** → refuse: run `step block`, name the verb's reason or its usage error, and merge nothing.
 - **Read failed, exit 5** → refuse: run `step block`, relay the read's error the verb printed, and merge nothing.
 - **Stopped, exit 6** → the wait was stopped and carries no verdict: run `step block`, merge nothing, and print `/superdev:ship <scope>` to wait again.
+- **Any other exit status** (a crash of the verb itself) → refuse: run `step block`, relay the verb's output, and merge nothing.
 
-**The single CI read.** Applies to the CI path where the code-management document carries no **read script**: take one CI read for the tip.
+**The single CI read.** Applies to the CI path where the code-management document carries no **read script**: take one CI read for the tip, and act on the verb's exit status as **The CI wait**'s step 4 does for exits 0 to 4 and any other status, with two differences:
 
 - **The read fails** (no CLI, no login, an HTTP error, or the network) → refuse: run `step block`, relay its error, and merge nothing.
-- **Green, exit 0** → go to **The merge**, pinned to that SHA.
-- **Not yet green, exit 3** → refuse: run `step block`, merge nothing, name the SHA and each check the verb lists as pending, missing, or finished not green, print `/superdev:ship <scope>` to run once they are green, and point at `/superdev:setup`, whose re-run offers the read script that lets ship wait.
-- **Failed, exit 4** → refuse: run `step block`, merge nothing, name each failed check with its link, and point at `/superdev:review <scope>`, which starts from that red.
-- **Cannot judge, exit 2, or a usage refusal, exit 1** → refuse: run `step block`, name the verb's reason or its usage error, and merge nothing.
+- **Not yet green, exit 3** → also point at `/superdev:setup`, whose re-run offers the read script that lets ship wait, and print `/superdev:ship <scope>` to run once the checks are green.
 
 **The merge.** Applies once **The CI gate** passes. Print the pull request, its head, the base, and the CI verdict, the suite result, or the carry outcome. Then squash-merge it into the base branch through the host's merge API, pinned to the tip, per `docs/agents/code-management.md`'s `## Merge` section: the one write this plugin makes straight onto base, and the only merge this contract admits.
 
