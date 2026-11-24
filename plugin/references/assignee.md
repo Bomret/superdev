@@ -1,8 +1,9 @@
 # Assignee
 
-The account every issue a run creates is assigned to, and the operator configuration file that names it beside the
-operator's other settings. `## Assignee` states the generic contract, and the active `docs/agents/issue-tracker.md`
-specialises it in a section of the same name.
+The account every issue a run creates is assigned to, the **Claim** `/superdev:implement` writes over that assignment,
+and the operator configuration file that names the account beside the operator's other settings. `## Assignee` and
+`## Claim` state the generic contracts, and the active `docs/agents/issue-tracker.md` specialises each in a section of
+the same name.
 
 ## Assignee
 
@@ -54,14 +55,14 @@ inside a submodule. `scope.js root <slug>` prints a run root and resolves no mai
 
 **Resolving the assignee.** Applies to every issue create.
 
-- **No file, no `issue-tracker` key, or no `assignee`** → resolve the API token's own identity from the backend's
-  whoami call, or its CLI login's identity, assign that, and report nothing.
+- **No file, no `issue-tracker` key, or no `assignee`** → resolve the API token's own identity, or its CLI login's
+  identity, through the store's **Resolve the operator** call (`## Claim`), assign that, and report nothing.
 - **`"assignee": "none"`** → create the issues unassigned, with no warning and no error.
 - **Malformed JSON, or an `assignee` present but empty** → fall through to the token's own identity, and report it
   **once** for the whole run, naming the file. The run keeps its issues.
 
-**Applied at creation.** Applies to the epic and every slice. Set the assignee when the issue is created, never in a
-follow-up pass over issues that already exist.
+**Applied at creation.** Applies to the epic and every slice. Set the assignee when the issue is created. The one
+follow-up write over issues that already exist is the claim, which `/superdev:implement` alone makes (`## Claim`).
 
 **A bad assignee never costs the run its issues.** Applies to a store that rejects the configured assignee. Every
 issue is still created, and nothing is retried more than once or rolled back.
@@ -72,5 +73,37 @@ issue is still created, and nothing is retried more than once or rolled back.
   silently) → read the assignee back from the created issue, however the store returns it. Empty while one was
   configured → report it **once** for the whole run.
 
-**The backend specifics.** Applies to each store. The active `docs/agents/issue-tracker.md`'s own `## Assignee`
-section owns the field name, the identifier format, which rejection shape the backend fails with, and the whoami call.
+**The backend specifics.** Applies to each store. The active store document's own `## Assignee` section owns the
+field name, the identifier format, and which rejection shape the backend fails with. Its `## Claim` section owns the
+whoami call, **Resolve the operator**, which the plan seed's `## Assignee` section and `/superdev:setup` cite.
+
+## Claim
+
+**The claim.** Applies to every reader and writer of a scope anchor's assignees: `/superdev:status` reads it, and
+`/superdev:implement` reads and writes it. An anchor is claimed by someone else when it carries at least one assignee
+and the operator is none of them. An unassigned anchor is unclaimed.
+
+**The operator.** Applies to every claim read. Resolve the operator's identity once per command:
+
+- **`issue-tracker.assignee`** from `.superdev/info.json`, read per **Read it from the main checkout** above → that
+  identifier is the operator.
+- **No file, no key, `"none"`, malformed JSON, an empty value, or a value the store document names as no person (a store document may name none, and only Jira's `"-1"` exists today)** →
+  the store's **Resolve the operator** call answers. `"none"` opts out of assigning, never out of being someone.
+
+**Comparing identities.** Applies to every match of the operator against an assignee. Compare in the store's native
+identifier form: a login case-insensitively, an id exactly.
+
+**The three calls.** Applies to every store document's `## Claim` section, which states each call in its own
+conventions:
+
+- **Resolve the operator** → the token's or CLI login's own identifier, in the form the store assigns by.
+- **Read an issue's assignees** → the identifiers an issue is assigned to, an empty list for an unassigned issue.
+- **Replace an issue's assignees** → set the issue's assignees to exactly the given identifier, then read them back.
+
+**A gap means no check.** Applies to a store document with no `## Claim` section, and to a resolve or read that
+fails. The command checks no claim and writes none, says so once, naming the `/superdev:setup` re-run that offers the
+missing section, and otherwise runs as it would without a claim.
+
+**A replace is best-effort.** Applies to every **Replace an issue's assignees**. A replace the store rejects, or one
+the read-back shows dropped, is reported once for the whole claim, naming each issue it failed on. The caller
+continues.

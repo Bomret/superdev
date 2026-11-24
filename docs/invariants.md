@@ -615,19 +615,19 @@ Paths: plugin/lib/kb-backend.js, plugin/skills/setup/SKILL.md
 
 Class: architecture
 Concepts: Assignee, Operator configuration, Slice store
-Statement: The assignee lives only in the untracked `.superdev/info.json`, resolved against the main working tree from any checkout: that file, else the API token's own identity, with `"none"` opting out. No tracked store document carries an assignee bullet, and the plan-contract slice schema carries no assignee field. Tokens never enter the file. The file's `displayName` is display-only: no issue-tracker call reads it, so it never changes who is assigned.
+Statement: The assignee lives only in the untracked `.superdev/info.json`, resolved against the main working tree from any checkout: that file, else the API token's own identity, with `"none"` opting out of assigning. `/superdev:plan`, `/superdev:status`, and `/superdev:implement` resolve the operator's identity from it alike. No tracked store document carries an assignee bullet, and the plan-contract slice schema carries no assignee field. Tokens never enter the file. The file's `displayName` is display-only: no issue-tracker call reads it, so it never changes who is assigned.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/assignee.md, plugin/references/issue-tracker-*.md, plugin/skills/setup/SKILL.md
+Paths: plugin/references/assignee.md, plugin/references/issue-tracker-*.md, plugin/skills/setup/SKILL.md, plugin/skills/status/SKILL.md, plugin/skills/implement/SKILL.md, plugin/references/run-init.md
 
 ### INV-0075
 
 Class: process
 Concepts: Assignee, Operator configuration
-Statement: A malformed `.superdev/info.json`, or an absent or empty assignee, falls through to the token's identity and is reported once per run. It never stops the plan.
+Statement: A malformed `.superdev/info.json`, or an absent or empty assignee, falls through to the token's identity and is reported once per run. It never stops the command that reads it: `/superdev:plan`, `/superdev:status`, or `/superdev:implement`.
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/references/assignee.md
+Paths: plugin/references/assignee.md, plugin/skills/status/SKILL.md, plugin/references/run-init.md
 
 ### INV-0076
 
@@ -1648,3 +1648,12 @@ Statement: `publish-kb.js` sends a scope's staged pages without `--allow-unmerge
 Breaks: silently
 Check: tests/publish-kb-gate.test.js — a gone run root, `shipped`, and `closed` publish; every other stage, a missing or unreadable ledger, and a ledger with no Stage line refuse; tests/publish-kb-hardening.test.js — an unreadable ledger, a dangling run root or .superdev/scopes symlink refuses past --allow-unmerged
 Paths: plugin/lib/kb-gate.js, plugin/scripts/publish-kb.js
+
+### INV-0208
+
+Class: process
+Concepts: Claim, Scope anchor, Assignee
+Statement: `/superdev:implement` never creates or adopts a run on a scope anchor claimed by someone else without the operator's explicit yes, and under `--unattended` it blocks instead. `/superdev:status` never recommends a move on an anchor claimed by someone else.
+Breaks: silently
+Check: none — the rule lives in skill prose, which no suite executes
+Paths: plugin/skills/implement/SKILL.md, plugin/skills/status/SKILL.md, plugin/references/run-init.md

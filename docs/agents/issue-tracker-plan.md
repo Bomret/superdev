@@ -47,7 +47,8 @@ dependencies endpoint, so the slice-level and feature-level relations never coll
 
 Operator configuration, not a slice field (`assignee.md` → *Assignee*). The identifier is a GitHub
 **login**, read from `.superdev/info.json` under `issue-tracker.assignee`. The create call applies it to
-the **epic and every slice**, never a follow-up pass. The file is untracked, so this repository records no
+the **epic and every slice**. The claim `/superdev:implement` writes later is the one follow-up write
+(`docs/agents/issue-tracker.md` → *Claim*). The file is untracked, so this repository records no
 maintainer's account.
 
 ```json
@@ -58,8 +59,8 @@ maintainer's account.
 
 - `gh issue create --assignee` takes a comma-separated list, so the single configured login is passed as
   `--assignee <login>`.
-- **No file, no `issue-tracker` key, or no `assignee`**: use the authenticated login,
-  `gh api user --jq .login`.
+- **No file, no `issue-tracker` key, or no `assignee`**: use the login `docs/agents/issue-tracker.md` →
+  *Claim* **Resolve the operator** returns.
 - **`"assignee": "none"`**: omit `--assignee` entirely. No warning, no error.
 - **A login `gh` cannot resolve rejects the whole create** before the issue exists. Retry that one create
   with `--assignee` omitted, and report it once per run.

@@ -17,7 +17,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
   | File | Holds |
   |---|---|
   | `issue-tracker.md` | the **slice store**: where slices live and the calls every command makes to read, update, and close them |
-  | `issue-tracker-plan.md` | the slice store's calls only `/superdev:plan` makes: creating issues, the anchor lines, the assignee, the tag rewrite, and append mode |
+  | `issue-tracker-plan.md` | the slice store's calls only `/superdev:plan` makes: creating issues, the anchor lines, the assignee (also what `/superdev:implement`'s claim writes), the tag rewrite, and append mode |
   | `code-management.md` | the **code host**: push, open a PR or MR, and the default posture |
   | `documentation.md` | the in-repo **documentation** convention |
   | `knowledge-base.md` | the optional **knowledge base**: software, local file, or none |
@@ -159,7 +159,7 @@ Applies to the full interview. Scan these before any decision:
 - It sits on the **scope anchor**, the epic or a single-slice feature's lone issue.
 - It **survives the lifecycle moves** `/superdev:implement` makes, so the status map's `ready` label cannot be the signal. Propose a separate label.
 
-**The assignee.** Applies to any issue backend. Capture the account every issue `/superdev:plan` creates is assigned to (`assignee.md` → *Assignee*). Propose the API token's own identity, resolved from the backend's whoami: the matched `tea` login's `user` on Forgejo/Gitea, `GET /user` on GitHub, `GET /rest/api/3/myself` on Jira.
+**The assignee.** Applies to any issue backend. Capture the account every issue `/superdev:plan` creates is assigned to, which is also the account `/superdev:implement`'s claim writes (`assignee.md` → *Assignee* and *Claim*). Propose the API token's own identity, resolved through the chosen store seed's `## Claim` **Resolve the operator** call.
 
 - Accept a different account that can be assigned there (a repo collaborator, an assignable project user).
 - Accept `none` to create issues unassigned.

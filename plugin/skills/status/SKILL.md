@@ -122,8 +122,9 @@ Applies to every open anchor, triage record, intent record, running, stranded, `
 | `awaiting wrap-up` | an open anchor over a `shipped` run, not `deploy resume`, that the shipped-run rule sends to wrap-up; or a `shipped` run root whose anchor is closed, not `deploy resume` | `/superdev:wrap-up <scope-slug>`, naming the hand-sync first where the rule does |
 | `in flight` | a run root short of `shipped`, not `planned`, not `awaiting merge` or `merge unrecorded` | the chain command its stage has not reached |
 | `elsewhere` | an open anchor with no run root whose snapshot stage is past `planned` and short of `shipped` | `elsewhere: <stage>, step <step>` — finish the run on the machine that holds it, or, when none does, `/superdev:implement <feature-label>`, which adopts it |
+| `claimed` | an open anchor with no run root or a matched run root at `planned`, claimed by someone else (`## Claims`) | `claimed by <assignees> — theirs; /superdev:implement asks before taking it over` |
 | `waiting` | an anchor dependency it records is unsatisfied | the anchor it waits on |
-| `absorbed` | a triage record an open anchor's Absorbs line names | the absorbing anchor's own next step, naming that anchor |
+| `absorbed` | a triage record an open anchor's Absorbs line names | the absorbing anchor's own next step, naming that anchor; for a `claimed` absorbing anchor, its claim, with no `/superdev:implement` |
 | `needs planning` | a triage record no open anchor's Absorbs line names, or an anchor that is neither itself a slice nor has slices beneath it | `/superdev:plan` |
 | `intent` | an open intent record | `/superdev:plan` — it offers the record |
 | `unreleased` | an anchor with no release signal (store document's `## Release`) | a release decision |
@@ -140,6 +141,14 @@ Applies to an open anchor over a `shipped` run root or a `shipped` snapshot. Rou
 ## Absorbed records
 
 Applies to every triage record. Read every open anchor's Absorbs line through the store's **Read an anchor's Absorbs line** call once per survey, and reuse it. A record an open anchor names is `absorbed`, and its row names every anchor that names it. A store document describing no Absorbs line absorbs nothing, with no gap line.
+
+## Claims
+
+Applies once the listings answered. Read each open anchor's claim per `${CLAUDE_PLUGIN_ROOT}/references/assignee.md`'s `## Claim`, resolving the operator once per survey and reading the assignees through the store document's **Read an issue's assignees** call.
+
+- **Claimed by someone else** → the anchor's row is `claimed`, naming its assignees, unless an earlier bucket fits it first.
+- **Unassigned, or the operator among its assignees** → the anchor routes as if no claim existed.
+- **A gap** (`assignee.md`'s **A gap means no check**) → its line goes above the table, no row is `claimed`, and every other row routes as if no claim existed.
 
 ## Submitted runs
 
@@ -162,6 +171,7 @@ Applies to the report after the ledger report. Print one line naming the local t
 | #368 | backlog survey | in flight | reviewed → `/superdev:document main..feat/backlog` |
 | #430 | webhook retries | elsewhere | elsewhere: reviewed, step none — finish it where it runs, or `/superdev:implement feat/webhook-retries` |
 | #412 | export formats | ready | `/superdev:implement feat/export-formats` |
+| #384 | quota alerts | claimed | claimed by octo-dev — theirs; `/superdev:implement` asks before taking it over |
 | #377 | rate limiting | waiting | waits on #412 |
 | #390 | audit trail | unreleased | release it: the `released` label on #390 |
 | #398 | slow exports | absorbed | absorbed by #412 → `/superdev:implement feat/export-formats` |
@@ -187,4 +197,4 @@ Rank the eligible rows by these rules:
 - **Stranded.** A stranded run root is the most expensive item in the backlog. It ranks right after `blocked`.
 - **One command away.** Every `awaiting …` row, `merge unrecorded`, and `needs repair` come next after `stranded` and before `in flight`, in the table's order.
 - **Last.** An `untriaged` item ranks last.
-- **Never the move.** A `running`, `elsewhere`, or `absorbed` row is never the move.
+- **Never the move.** A `running`, `elsewhere`, `claimed`, or `absorbed` row is never the move. When every other row is one of these, the line names why no move is recommended, such as every remaining anchor being claimed by someone else.

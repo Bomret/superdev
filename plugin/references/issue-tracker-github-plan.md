@@ -65,7 +65,8 @@ relation, so the slice-level and feature-level relations never collide on one is
 
 Operator configuration, not a slice field (`assignee.md` → *Assignee*). The identifier is a GitHub
 **login**, read from `.superdev/info.json` under `issue-tracker.assignee`, and applied to the **epic and
-every slice** in the create call, never a follow-up pass.
+every slice** in the create call. The claim `/superdev:implement` writes later is the one follow-up write
+(`assignee.md` → *Claim*).
 
 ```json
 {
@@ -74,8 +75,8 @@ every slice** in the create call, never a follow-up pass.
 ```
 
 - `assignees` is an **array**: send the login as `["<assignee>"]`. Never the singular `assignee` field.
-- **No file, no `issue-tracker` key, or no `assignee`** → resolve the token's own identity with
-  `GET /user` and use its `login`.
+- **No file, no `issue-tracker` key, or no `assignee`** → use the login `docs/agents/issue-tracker.md` →
+  *Claim* **Resolve the operator** returns.
 - **`"assignee": "none"`** → omit `assignees` entirely. No warning, no error.
 - **A token without push access silently drops the assignment**, and `labels` and `milestone` with it: the
   create returns `201` with `assignees` empty. Nothing is retried or rolled back.

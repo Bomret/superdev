@@ -117,6 +117,19 @@ is the lone slice.
 - **Ambiguous.** Two or more **open** roots under one feature label. A closed root never makes the shape
   ambiguous by itself. A consumer reports an ambiguous shape instead of choosing.
 
+## Claim
+
+`assignee.md` → *Claim*. The identifier is a GitHub **login**.
+
+- **Resolve the operator:** `GET /user` and take its `login`.
+- **Read an issue's assignees:** the `assignees[].login` values on the issue object **List feature slices**
+  already returns, so the anchor needs no read of its own. An empty `assignees` array is unassigned.
+- **Replace an issue's assignees:** write `{ "assignees": ["<login>"] }` to a file and send it with
+  `PATCH /repos/<owner>/<repo>/issues/<number>` (`gh api -X PATCH repos/<owner>/<repo>/issues/<number> --input
+  "$f"`). The array replaces the whole set. Then read the issue back with **Read a slice**: an `assignees` array
+  that is not exactly that login is a dropped write. GitHub drops an assignee change silently when the token
+  lacks push access, and answers `422` for a login it cannot assign.
+
 ## Release
 
 `plan-contract.md` → *Release*. The signal is the label **`released`** on the scope anchor. It is not the

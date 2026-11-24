@@ -54,7 +54,7 @@ every command makes. The calls only `/superdev:plan` makes live in `docs/agents/
   set. A mismatch is reported to the operator and stops that write. **Close an issue** below reports a
   mismatch and still closes.
 - **List feature slices:** `gh issue list --repo Bomret/superdev --label <type>/<feature> --state all
-  --limit 1000 --json number,state,title,body,labels`. It returns issues only, never pull requests.
+  --limit 1000 --json number,state,title,body,labels,assignees`. It returns issues only, never pull requests.
 - **Read a slice:** `gh issue view <n> --repo Bomret/superdev --json number,state,title,body,labels,assignees`.
 - **Edit an issue's body:** read the current body into a file, build the new body into a file, and edit
   by path only when every step succeeded: `gh issue view <n> --repo Bomret/superdev --json body > "$r" &&
@@ -122,6 +122,19 @@ and on a single-slice feature it is the lone issue carrying that label.
 - **Ambiguous.** No `epic`-labelled open issue and two or more open issues carrying the same feature
   label. A closed candidate never makes the shape ambiguous by itself. A consumer reports an ambiguous
   shape instead of choosing.
+
+## Claim
+
+`assignee.md` → *Claim*. The identifier is a GitHub **login**.
+
+- **Resolve the operator:** `gh api user --jq .login`.
+- **Read an issue's assignees:** the `assignees[].login` values on the issue **List feature slices** already
+  returns, so the anchor needs no read of its own. An empty `assignees` array is unassigned.
+- **Replace an issue's assignees:** write `{"assignees": ["<login>"]}` to a `mktemp` file and send it with
+  `gh api -X PATCH repos/Bomret/superdev/issues/<n> --input "$f"`. The array replaces the whole set. Then read
+  the issue back with **Read a slice**: an `assignees` list that is not exactly that login is a dropped write.
+  GitHub drops an assignee change silently when the login lacks push access, and answers `422` for a login it
+  cannot assign.
 
 ## Release
 

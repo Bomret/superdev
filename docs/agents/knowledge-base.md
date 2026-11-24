@@ -44,8 +44,8 @@ This outline is a living skeleton. `/superdev:document` extends it.
     intent and triage records, the invariant register, and repairs.
   - `The command chain`: the commands, the order they run in, the chain start of the next one, response
     shapes, the operator configuration, and Windows.
-  - `Scope runs`: the scope branch and its worktrees, the run lock, the run root, run state, the guards,
-    and the run trace.
+  - `Scope runs`: the scope branch and its worktrees, the run lock, the run root, who holds a feature (the
+    claim), run state, the guards, and the run trace.
   - `Review`: slice review, the fix loop, Minor findings, ad-hoc review, review models, unresolved
     defects, and triage records.
   - `Tests`: test cost, the fail-to-pass run, where a run runs the suite, suite reuse, and the test audit.

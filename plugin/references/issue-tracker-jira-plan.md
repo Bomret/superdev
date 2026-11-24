@@ -58,7 +58,8 @@ issue's body**, never an issue link.
 
 Operator configuration, not a slice field (`assignee.md` → *Assignee*). The identifier is a Jira
 **`accountId`**, read from `.superdev/info.json` under `issue-tracker.assignee`, and applied to the
-**anchor and every slice** in the create call, never a follow-up pass.
+**anchor and every slice** in the create call. The claim `/superdev:implement` writes later is the one
+follow-up write (`assignee.md` → *Claim*).
 
 ```json
 {
@@ -68,8 +69,8 @@ Operator configuration, not a slice field (`assignee.md` → *Assignee*). The id
 
 - Jira takes **exactly one** assignee, as `{"accountId": "<id>"}`. Two reserved values: `"-1"` assigns the
   project's default assignee, and `null` unassigns.
-- **No file, no `issue-tracker` key, or no `assignee`** → resolve the token's own identity with
-  `GET <base>/rest/api/3/myself` and use its `accountId`.
+- **No file, no `issue-tracker` key, or no `assignee`** → use the `accountId` `docs/agents/issue-tracker.md` →
+  *Claim* **Resolve the operator** returns.
 - **`"assignee": "none"`** → omit the `assignee` field entirely. No warning, no error.
 - **Assignment is a separate permission** (*Assign Issues*, distinct from *Edit Issues*). Jira rejects
   the create outright: a `400` naming `assignee` in `errors` or in `errorMessages`. Retry that one create
