@@ -38,29 +38,18 @@ choice with the Repair route's open-repair line, `/superdev:verify-ship <scope>`
 
 **When it applies.** Applies when no local ledger exists, or the local ledger reads `planned` or `closed`: the create,
 adopt, planned re-init, and closed-rotation paths. A local ledger at `implementing` through `submitted` is the
-operator's own run past planning, so this step reads no assignee and writes none there. The release check and the
-pre-flight scan `/superdev:implement` runs before run init have passed, and so have steps 1 and 2, so a claim written
-here follows every other start check, and a stop here leaves no run root, branch, design-doc commit, or `dod.md`
-behind.
+operator's own run past planning, so this step reads no assignee and writes none there, and neither does step 8.
 
 **Read the claim.** Applies to every run this step covers. Resolve the operator and read the scope anchor's assignees
-per `assignee.md`'s `## Claim`, through `docs/agents/issue-tracker.md`'s `## Claim` calls.
+per `assignee.md`'s `## Claim`, through `docs/agents/issue-tracker.md`'s `## Claim` calls. This step writes nothing:
+step 8 writes the claim once the ledger stands.
 
-- **Claimed by someone else** → stop with no run root and no branch, name the assignees, and ask whether to implement
-  the feature anyway. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`, naming them. An empty
-  argument whose one candidate is claimed reaches the same stop.
-- **The operator among the assignees** → write nothing, and continue.
-- **Unassigned, or a yes to take it over** → write the claim (below), then continue.
-- **No `## Claim` section, or a failed resolve or read** → one line naming the `/superdev:setup` re-run, no check, no
-  claim, and continue.
-
-**Write the claim.** Applies to an unassigned anchor and to a yes. With `"assignee": "none"` configured, the check above
-still runs, and no claim is written. Otherwise run **Replace an issue's assignees** with the operator on the scope
-anchor and on every open slice beneath it, a single-slice anchor written once, and leave a closed slice as it is. Name
-each assignee the write displaced in the report.
-
-- **A replace rejected or dropped**, on any of those issues → one report for the whole claim, naming each issue it
-  failed on. The run continues.
+- **Claimed by someone else** → stop before this run creates a run root or a branch, name the assignees, and ask
+  whether to implement the feature anyway. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`, naming
+  them. An empty argument whose one candidate is claimed reaches the same stop.
+- **The operator among the assignees** → step 8 writes nothing. Continue.
+- **Unassigned, or a yes to take it over** → carry it to step 8, and continue.
+- **A gap** (`assignee.md`'s **A gap means no check**) → step 8 writes nothing. Continue.
 
 ### 4. The run root
 
@@ -182,8 +171,8 @@ read: stop and report it.
   - A trace that cannot go back either stops `init` with the ledger in place, naming the stranded
     `trace-closed-<stamp>.log` to move back to `trace.log` by hand.
 - **`planned` with at least one slice row** → skip `init` and move the stage forward before your playbook's first
-  dispatch: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set implementing --root <run-root>`. Then go to your
-  playbook.
+  dispatch: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set implementing --root <run-root>`. Then continue at
+  step 8.
 - **`planned` with no slice row** → **The empty planned ledger**.
 - **`implementing`, `merged`, `reviewed`, `documented`, `documented-unreviewed`, or `submitted`** → skip `init` and go
   to your playbook. Its **Resume** section reconciles the ledger against `git log`.
@@ -201,14 +190,22 @@ for this feature's slices (`docs/agents/issue-tracker.md`'s own read call).
 `merged`. Every later write goes through a `scope.js` verb (`stage`, `slice`, `degraded add`); the next verb reports a
 write made any other way as a `tamper` line.
 
-### 8. The run kind
+### 8. Write the claim
+
+**Write the claim.** Applies once the ledger stands, to an anchor step 3 found unassigned and to a yes there. With
+`"assignee": "none"` configured, no claim is written. Otherwise run **Replace an issue's assignees** with the operator
+on the scope anchor and on every open slice beneath it, a single-slice anchor written once, and leave a closed slice as
+it is. Name each assignee the write displaced in the report. A failed replace follows `assignee.md`'s **A replace is
+best-effort**.
+
+### 9. The run kind
 
 **Name this run's kind.** Applies once the ledger stands. A ledger you wrote with `init` is **`fresh`**, one written
 after rotating a `closed` ledger aside included. A live ledger, on disk or just adopted, is **`resumed`**, and so is a
 `planned` ledger, an empty one re-inited from the store's slices included. Carry the kind into your playbook's branch
 step, which acts on it per `scope-branch.md`'s `## Cutting the scope branch`.
 
-### 9. Record the implement step
+### 10. Record the implement step
 
 **The implement step.** Applies to every entry whose run continues at the `implementing` stage, a `resumed` run
 included. End run init with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set implement --root <run-root>`, after

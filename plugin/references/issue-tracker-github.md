@@ -119,7 +119,7 @@ is the lone slice.
 
 ## Claim
 
-`assignee.md` → *Claim*. The identifier is a GitHub **login**, compared case-insensitively.
+`assignee.md` → *Claim*. The identifier is a GitHub **login**.
 
 - **Resolve the operator:** `GET /user` and take its `login`.
 - **Read an issue's assignees:** the `assignees[].login` values on the issue object **List feature slices**

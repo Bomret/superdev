@@ -159,7 +159,7 @@ allows is skipped by every listing below.
 
 ## Claim
 
-`assignee.md` → *Claim*. The identifier is a Jira **`accountId`**, compared exactly.
+`assignee.md` → *Claim*. The identifier is a Jira **`accountId`**.
 
 - **Resolve the operator:** `GET <base>/rest/api/3/myself` and take its `accountId`. A configured
   `issue-tracker.assignee` of `"-1"`, Jira's reserved automatic-assignee value, names no person and resolves

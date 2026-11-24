@@ -144,11 +144,11 @@ Applies to every triage record. Read every open anchor's Absorbs line through th
 
 ## Claims
 
-Applies once the listings answered. Resolve the operator once per survey, per `${CLAUDE_PLUGIN_ROOT}/references/assignee.md`'s `## Claim`: the configured `issue-tracker.assignee` first, and the store document's **Resolve the operator** call only where that rule falls through. Read each open anchor's assignees from its listing through the store document's **Read an issue's assignees** call, and compare them with the operator as that section states.
+Applies once the listings answered. Read each open anchor's claim per `${CLAUDE_PLUGIN_ROOT}/references/assignee.md`'s `## Claim`, resolving the operator once per survey and reading the assignees through the store document's **Read an issue's assignees** call.
 
 - **Claimed by someone else** → the anchor's row is `claimed`, naming its assignees, unless an earlier bucket fits it first.
 - **Unassigned, or the operator among its assignees** → the anchor routes as if no claim existed.
-- **A store document without `## Claim`, or a failed resolve or read** → one gap line above the table naming the `/superdev:setup` re-run, no `claimed` row, and every other row as if no claim existed.
+- **A gap** (`assignee.md`'s **A gap means no check**) → its line goes above the table, no row is `claimed`, and every other row routes as if no claim existed.
 
 ## Submitted runs
 

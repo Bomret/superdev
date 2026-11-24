@@ -9,8 +9,8 @@ whoever implements, and an anchor planned with `"assignee": "none"` names nobody
 
 **Decision.** The anchor's assignee is the **Claim**. `/superdev:status` puts an anchor claimed by someone else in a
 `claimed` bucket that is never the recommended move. `/superdev:implement`, before it creates or adopts a run, stops
-on an anchor claimed by someone else and asks, blocking under `--unattended`; otherwise, or on a yes, it replaces
-the assignees of the anchor and every open slice beneath it with the operator. A store document lacking the calls
+on an anchor claimed by someone else and asks, blocking under `--unattended`; otherwise, or on a yes, once the run's ledger stands, it
+replaces the assignees of the anchor and every open slice beneath it with the operator. A store document lacking the calls
 this needs skips the check and the claim with a gap line naming the `/superdev:setup` re-run.
 
 **Considered options.**

@@ -125,7 +125,7 @@ and on a single-slice feature it is the lone issue carrying that label.
 
 ## Claim
 
-`assignee.md` → *Claim*. The identifier is a GitHub **login**, compared case-insensitively.
+`assignee.md` → *Claim*. The identifier is a GitHub **login**.
 
 - **Resolve the operator:** `gh api user --jq .login`.
 - **Read an issue's assignees:** the `assignees[].login` values on the issue **List feature slices** already

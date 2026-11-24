@@ -142,12 +142,12 @@ and on a single-slice feature it is the lone issue carrying that label.
 
 ## Claim
 
-`assignee.md` → *Claim*. The identifier is a Forgejo **login**, compared case-insensitively.
+`assignee.md` → *Claim*. The identifier is a Forgejo **login**.
 
 - **Resolve the operator:** the `user` field of the login entry *tea conventions* resolves from
   `tea login list -o json`.
 - **Read an issue's assignees:** `tea issues <index> -o json` and its `assignees` array of logins, one read per
-  anchor. An empty array is unassigned. **List feature slices** answers no assignees: `tea issues list`'s
+  anchor, so `/superdev:status`'s survey makes one such read per open anchor. An empty array is unassigned. **List feature slices** answers no assignees: `tea issues list`'s
   `assignees` field prints the assignees' display names as one string, never their logins (`tea` 0.16.0).
 - **Replace an issue's assignees:** write `{"assignees": ["<login>"]}` to a `mktemp` file and send it with
   `tea api -i -X PATCH '/repos/{owner}/{repo}/issues/<index>' -d @"$f"`, reading the HTTP status from stderr.
