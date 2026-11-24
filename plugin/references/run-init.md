@@ -207,8 +207,9 @@ write made any other way as a `tamper` line.
 
 ### 8. Write the claim
 
-**Write the claim.** Applies once the ledger stands, to an anchor step 3 found unassigned and to a yes from step 3, as step
-7's **Read the claim again** decides: a yes given at step 7's re-read counts too, and an outcome of step 7's re-read that writes nothing wins. With
+**Write the claim.** Applies once the ledger stands. Step 8 writes for an anchor step 3 found unassigned, for a yes at step 3, and
+for a yes at step 7's **Read the claim again**. It writes nothing when that re-read finds the operator among the
+assignees or fails. With
 `"assignee": "none"` configured, no claim is written. Otherwise run **Replace an issue's assignees** with the operator
 on the scope anchor and on every open slice beneath it, a single-slice anchor written once, and leave a closed slice as
 it is. Name each assignee the write displaced in the report. A failed replace follows `assignee.md`'s **A replace is
