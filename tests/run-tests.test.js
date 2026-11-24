@@ -181,12 +181,12 @@ test('A suite with one passing and one failing `test()` case fails the run, and 
     'tests/a.test.js':
       "const { test, after } = require('node:test');\n" +
       "test('passing case', () => {});\n" +
-      "test('failing case', () => { throw new Error('the failing case error'); });\n",
+      "test('failing case', () => { throw new Error('kaboom'); });\n",
   });
   const r = await go(root, []);
   assert.notStrictEqual(r.status, 0, 'a failing case fails the run');
   assert.match(r.out, /failing case/, 'the output names the failing case');
-  assert.match(r.out, /the failing case error/, 'the output carries its error');
+  assert.match(r.out, /kaboom/, 'the output carries its error');
   assert.match(r.out, /^run-tests: FAILED tests\/a\.test\.js \(exit 1\)$/m);
 });
 
@@ -829,4 +829,13 @@ test('On this repository, the acceptance cases hold.', () => {
   for (const s of ['publish-kb', 'run-tests', 'run-trace', ...topics.map((t) => `scope-${t}`), 'scope-prune', 'slicetree-sweep', 'spawn-verdict']) {
     assert.ok(fixture.includes(s), `fixture-git selects ${s}`);
   }
+});
+
+// Under node:test a suite that registers no case exits 0 and prints nothing, so a suite that lost its cases passes
+// silently. Every suite in tests/ calls `test(`.
+test('Every suite in tests/ registers a node:test case.', () => {
+  const caseless = (dir) => discoverSuites(dir).filter((f) => !/\btest\(/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.basename(f));
+  const root = tree({ 'tests/empty.test.js': "require('node:assert');\n", 'tests/full.test.js': "require('node:test').test('a case', () => {});\n" });
+  assert.deepStrictEqual(caseless(path.join(root, 'tests')), ['empty.test.js'], 'the probe finds a suite with no case');
+  assert.deepStrictEqual(caseless(path.join(repoRoot, 'tests')), [], 'every suite in tests/ calls test(');
 });
