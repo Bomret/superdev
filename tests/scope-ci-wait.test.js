@@ -70,7 +70,12 @@ function wait(args, o = {}) {
     child.stdout.on('data', (c) => (out += c));
     child.stderr.on('data', (c) => (err += c));
     if (o.onStart) o.onStart(child);
-    child.on('close', (code, signal) => resolve({ code, signal, out, err }));
+    // A verb that never exits is killed at this qualitative ceiling, so the case fails instead of hanging the suite.
+    const ceiling = o.killAfterMs ? setTimeout(() => child.kill('SIGKILL'), o.killAfterMs) : null;
+    child.on('close', (code, signal) => {
+      clearTimeout(ceiling);
+      resolve({ code, signal, out, err });
+    });
   });
 }
 const lines = (...pairs) => pairs.map((p) => p.join('\t')).join('\n') + '\n';
@@ -245,7 +250,7 @@ for (const sig of ['SIGTERM', 'SIGHUP']) {
 // Started with stdin left open, `--wait` still runs and exits.
 it('stdin open', async () => {
   const s = readScript([{ out: GREEN }]);
-  const r = await wait(['--sha', named, '--wait', '--read', s.file, '--timeout', '1'], { stdinOpen: true });
+  const r = await wait(['--sha', named, '--wait', '--read', s.file, '--timeout', '1'], { stdinOpen: true, killAfterMs: 120000 });
   assert.equal(r.code, 0, JSON.stringify(r));
 });
 
