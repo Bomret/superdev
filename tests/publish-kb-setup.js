@@ -2,7 +2,8 @@
 
 // Shared setup for the publish-kb suites (tests/publish-kb*.test.js). Not a suite: it builds fixture
 // repositories, stages pages, calls `run()` and captures its output, and measures the healthy spawn
-// a hang bound derives from. Requiring it spawns nothing; a suite that asserts a hang calls
+// a hang bound derives from (`hangBound()`) and the refused CLI spawn a help-case bound derives from (`cliBound()`).
+// Requiring it spawns nothing; a suite that asserts a hang calls
 // `hangBound()` itself, so every suite times its own spawn in its own run (AGENTS.md, ADR 0086).
 //
 // The backend is a real fake command (tests/fixtures/fake-kb-backend.js), never a mocked exec
@@ -106,9 +107,7 @@ function cliSample(i) {
   }
 }
 
-function cliBound() {
-  return boundFromSamples(cliSample);
-}
+const cliBound = () => boundFromSamples(cliSample);
 
 function git(args, cwd) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' });
