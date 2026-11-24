@@ -5,6 +5,7 @@
 // carry. The duration cache's cases, a corrupt, null, or string cache and a cache folder that cannot be created, use that
 // tree's own `node_modules/`, never the repository's.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -14,6 +15,9 @@ const { discoverSuites, runAll, selectSuites, parseArgs } = require('../scripts/
 const repoRoot = path.join(__dirname, '..');
 
 const made = [];
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
 
 function tree(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'run-tests-'));
@@ -46,9 +50,6 @@ async function go(root, tail, related, extra = {}) {
   const status = await runAll({ root, tail, related, out: (line) => lines.push(line), ...extra });
   return { status, out: lines.join('\n') };
 }
-
-// The runner's cases run in order after the synchronous ones.
-const cases = [];
 
 // Fixture steps coordinate through files, never through sleeps: `waitFor` polls for a file and gives up with exit 3
 // only when the contract under test is already broken.
@@ -84,8 +85,7 @@ const waitDead = async (file) => {
   return !alive(file);
 };
 
-// A suite added at tests/<name>.test.js is found, a helper and a fixtures directory are not.
-{
+test('A suite added at tests/<name>.test.js is found, a helper and a fixtures directory are not.', () => {
   const root = tree({
     'tests/b.test.js': '',
     'tests/a.test.js': '',
@@ -101,10 +101,9 @@ const waitDead = async (file) => {
     ['a.test.js', 'b.test.js', 'c.test.js'],
     'a suite added to the tree is picked up with no other edit',
   );
-}
+});
 
-// An absent or empty tests/ directory finds no suite, and the runner says so and exits nonzero.
-cases.push(async () => {
+test('An absent or empty tests/ directory finds no suite, and the runner says so and exits nonzero.', async () => {
   const absent = tree({});
   assert.deepStrictEqual(discoverSuites(path.join(absent, 'tests')), []);
   const r = await go(absent, []);
@@ -114,9 +113,7 @@ cases.push(async () => {
   assert.notStrictEqual((await go(empty, [])).status, 0);
 });
 
-// The suites start longest first by the durations the last run recorded, a suite with no record first of all, and the
-// run records what it measured for the next one.
-cases.push(async () => {
+test('The suites start longest first by the durations the last run recorded, a suite with no record first of all, and the run records what it measured for the next one.', async () => {
   const root = tree({
     'tests/a.test.js': suite('a'),
     'tests/b.test.js': suite('b'),
@@ -136,9 +133,7 @@ cases.push(async () => {
   assert.strictEqual(logOf(root), 'd\nb\nc\na\n', 'unrecorded first, then longest first');
 });
 
-// A duration cache that is corrupt, `null`, or a string reads as empty, and one that cannot be written loses only the
-// ordering: every suite runs and the run exits 0, leaving a valid cache, with no index keys from a string, where it can write one.
-cases.push(async () => {
+test('A duration cache that is corrupt, `null`, or a string reads as empty, and one that cannot be written loses only the ordering: every suite runs and the run exits 0, leaving a valid cache, with no index keys from a string, where it can write one.', async () => {
   const labels = ['tests/a.test.js', 'tests/b.test.js'];
   for (const [label, text] of [['a corrupt cache', '{nope'], ['a null cache', 'null'], ['a string cache', '"abcd"']]) {
     const root = tree({ 'tests/a.test.js': suite('a'), 'tests/b.test.js': suite('b'), 'node_modules/.cache/run-tests.json': text });
@@ -155,9 +150,7 @@ cases.push(async () => {
   assert.strictEqual(fs.readFileSync(path.join(root, 'node_modules', '.cache'), 'utf8'), 'a plain file\n', 'and the file in its place is left as it was');
 });
 
-// Every discovered suite and every tail step runs, each prints one wall-clock line, and a step passes through the
-// whole run (scripts/AGENTS.md, run-tests.js).
-cases.push(async () => {
+test('Every discovered suite and every tail step runs, each prints one wall-clock line, and a step passes through the whole run (scripts/AGENTS.md, run-tests.js).', async () => {
   const root = tree({ 'tests/b.test.js': suite('b'), 'tests/a.test.js': suite('a') });
   const first = await go(root, [tailEntry(root, 'tail1'), tailEntry(root, 'tail2')]);
   assert.strictEqual(first.status, 0);
@@ -167,9 +160,7 @@ cases.push(async () => {
   assert.ok(timed.some((l) => /^run-tests: tests\/a\.test\.js: \d+ ms$/.test(l)), 'the line carries the step label');
 });
 
-// A suite step runs under node:test's dot reporter, the flag before the suite path so the suite's own `process.argv`
-// is unchanged, and no tail step carries the flag.
-cases.push(async () => {
+test('A suite step runs under node:test\'s dot reporter, the flag before the suite path so the suite\'s own `process.argv` is unchanged, and no tail step carries the flag.', async () => {
   const record = (name) =>
     `require('node:fs').writeFileSync(require('node:path').join(${JSON.stringify('ROOT')}, '${name}.argv'), JSON.stringify({ execArgv: process.execArgv, argv: process.argv.slice(1) }));`;
   const root = tree({});
@@ -185,11 +176,10 @@ cases.push(async () => {
   assert.ok(!tailArgs.execArgv.includes('--test-reporter=dot'), 'a tail step carries no flag');
 });
 
-// A suite with one passing and one failing `test()` case fails the run, and the runner output names the failing case.
-cases.push(async () => {
+test('A suite with one passing and one failing `test()` case fails the run, and the runner output names the failing case.', async () => {
   const root = tree({
     'tests/a.test.js':
-      "const { test } = require('node:test');\n" +
+      "const { test, after } = require('node:test');\n" +
       "test('passing case', () => {});\n" +
       "test('failing case', () => { throw new Error('the failing case error'); });\n",
   });
@@ -200,16 +190,14 @@ cases.push(async () => {
   assert.match(r.out, /^run-tests: FAILED tests\/a\.test\.js \(exit 1\)$/m);
 });
 
-// A failing step still reports its wall clock and names itself on the FAILED line.
-cases.push(async () => {
+test('A failing step still reports its wall clock and names itself on the FAILED line.', async () => {
   const root = tree({ 'tests/a.test.js': suite('a', 2) });
   const r = await go(root, []);
   assert.match(r.out, /^run-tests: tests\/a\.test\.js: \d+ ms$/m);
   assert.match(r.out, /^run-tests: FAILED tests\/a\.test\.js \(exit 2\)$/m);
 });
 
-// Steps start at the same time: each of two suites waits for the other's start mark, so a serial runner never ends them.
-cases.push(async () => {
+test('Steps start at the same time: each of two suites waits for the other\'s start mark, so a serial runner never ends them.', async () => {
   const body = (me, other) => step(`mark('${me}.up'); waitFor('${other}.up', () => { note('${me}'); process.exit(0); });`);
   const root = tree({ 'tests/a.test.js': body('a', 'b'), 'tests/b.test.js': body('b', 'a') });
   const r = await go(root, [], undefined, { parallelism: 2 });
@@ -223,8 +211,7 @@ cases.push(async () => {
   }
 });
 
-// One available CPU: the steps run one at a time and reach the same result.
-cases.push(async () => {
+test('One available CPU: the steps run one at a time and reach the same result.', async () => {
   const body = (n) => step(`note('start ${n}'); setTimeout(() => { note('end ${n}'); process.exit(0); }, 20);`);
   const root = tree({ 'tests/a.test.js': body('a'), 'tests/b.test.js': body('b'), 'tests/c.test.js': body('c') });
   const r = await go(root, [], undefined, { parallelism: 1 });
@@ -238,8 +225,7 @@ cases.push(async () => {
   assert.strictEqual(logOf(failing), 'a\n', 'a failure on one CPU starts nothing after it');
 });
 
-// Each step's output prints as one unbroken block between its label and its timing line, though the steps overlap.
-cases.push(async () => {
+test('Each step\'s output prints as one unbroken block between its label and its timing line, though the steps overlap.', async () => {
   const body = (me, other) =>
     step(`console.log('${me}-1'); mark('${me}.up'); waitFor('${other}.up', () => { console.log('${me}-2'); console.error('${me}-3'); });`);
   const root = tree({ 'tests/a.test.js': body('a', 'b'), 'tests/b.test.js': body('b', 'a') });
@@ -254,9 +240,7 @@ cases.push(async () => {
   }
 });
 
-// The first failing step ends the steps still running with every process they started, starts nothing further, exits
-// nonzero, names the failing step, and a cancelled step prints one cancelled line and none of its output.
-cases.push(async () => {
+test('The first failing step ends the steps still running with every process they started, starts nothing further, exits nonzero, names the failing step, and a cancelled step prints one cancelled line and none of its output.', async () => {
   const root = tree({
     'tests/a.test.js': step(`waitFor('b.started', () => { console.log('a-output'); process.exit(1); });`),
     'tests/b.test.js': BLOCKER('b'),
@@ -274,8 +258,7 @@ cases.push(async () => {
   assert.ok(await waitDead(path.join(root, 'b.gc')), 'the process the cancelled step started is gone');
 });
 
-// A tail step that fails ends the suites still running too.
-cases.push(async () => {
+test('A tail step that fails ends the suites still running too.', async () => {
   const root = tree({ 'tests/a.test.js': BLOCKER('a') });
   const tail = [[process.execPath, ['-e', PRELUDE.replace(/__dirname/g, JSON.stringify(path.join(root, 'tests'))) + `waitFor('a.started', () => process.exit(4));`]]];
   const r = await go(root, tail, undefined, { parallelism: 2 });
@@ -283,8 +266,7 @@ cases.push(async () => {
   assert.ok(await waitDead(path.join(root, 'a.gc')), 'the suite process tree ended');
 });
 
-// A step that is killed fails the run and a command that does not exist fails it, neither waits forever (INV-0009).
-cases.push(async () => {
+test('A step that is killed fails the run and a command that does not exist fails it, neither waits forever (INV-0009).', async () => {
   const killed = tree({ 'tests/a.test.js': step(`process.kill(process.pid, 'SIGKILL');`) });
   const k = await go(killed, []);
   assert.notStrictEqual(k.status, 0, 'a killed step fails the run');
@@ -304,9 +286,8 @@ const driveRunner = (root, { stdio, parallelism }) => {
   return require('node:child_process').spawn(process.execPath, [driver], { stdio });
 };
 
-// A SIGINT, SIGTERM, or SIGHUP to the runner ends every running step and its processes before the runner exits.
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-  cases.push(async () => {
+  test(`A SIGINT, SIGTERM, or SIGHUP to the runner ends every running step and its processes before the runner exits. (${signal})`, async () => {
     const root = tree({ 'tests/a.test.js': BLOCKER('a'), 'tests/b.test.js': BLOCKER('b') });
     const child = driveRunner(root, { stdio: 'ignore', parallelism: 2 });
     const exited = new Promise((resolve) => child.on('exit', (code, sig) => resolve({ code, sig })));
@@ -318,8 +299,7 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   });
 }
 
-// A write error on the runner's stdout (the reader closed the pipe) ends every running step, as a signal does.
-cases.push(async () => {
+test('A write error on the runner\'s stdout (the reader closed the pipe) ends every running step, as a signal does.', async () => {
   const root = tree({
     'tests/a.test.js': step(`waitFor('closed', () => process.exit(0));`),
     'tests/b.test.js': BLOCKER('b'),
@@ -352,9 +332,7 @@ cases.push(async () => {
   assert.ok(end.code !== 0 || end.sig, 'a stdout write error ends the runner nonzero');
 });
 
-// A step whose spawn throws synchronously (a command with a NUL byte is refused by Node) fails the run as
-// "did not start" and ends the step still running, though the throw happens inside a close handler.
-cases.push(async () => {
+test('A step whose spawn throws synchronously (a command with a NUL byte is refused by Node) fails the run as "did not start" and ends the step still running, though the throw happens inside a close handler.', async () => {
   const root = tree({
     'tests/a.test.js': BLOCKER('a'),
     'tests/b.test.js': step(`waitFor('a.started', () => process.exit(0));`),
@@ -366,10 +344,9 @@ cases.push(async () => {
   assert.ok(await waitDead(path.join(root, 'a.gc')), 'the process the running step started ended too');
 });
 
-// A step that ended on its own before another step's failure stopped the run is no cancelled step: it prints its own
-// output and result. Step b exits 1 at once, but a grandchild in a process group of its own holds b's pipes open until
-// the runner has printed a's FAILED line, so b's end reaches the runner while it is stopping.
-cases.push(async () => {
+// Step b exits 1 at once, but a grandchild in a process group of its own holds b's pipes open until the runner has
+// printed a's FAILED line, so b's end reaches the runner while it is stopping.
+test('A step that ended on its own before another step\'s failure stopped the run is no cancelled step: it prints its own output and result.', async () => {
   const holder = `const g = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(
     `const fs = require('node:fs'); const i = setInterval(() => { if (fs.existsSync(process.argv[1])) process.exit(0); }, 10); setTimeout(() => process.exit(3), 30000);`,
   )}, path.join(R, 'release')], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] }); g.unref();`;
@@ -390,8 +367,7 @@ cases.push(async () => {
   assert.match(text, /^run-tests: FAILED tests\/b\.test\.js \(exit 1\)$/m, 'a step that failed on its own names its own failure');
 });
 
-// The failing step's output reaches the reader in full when the runner's stdout is a pipe.
-cases.push(async () => {
+test('The failing step\'s output reaches the reader in full when the runner\'s stdout is a pipe.', async () => {
   const root = tree({ 'tests/a.test.js': `process.stdout.write('x'.repeat(2000000) + '\\nEND-MARK\\n'); process.exitCode = 1;` });
   const child = driveRunner(root, { stdio: ['ignore', 'pipe', 'inherit'] });
   const chunks = [];
@@ -425,7 +401,7 @@ const focusedTree = () =>
 const picked = (root, paths) =>
   selectSuites(root, discoverSuites(path.join(root, 'tests')), paths).map((f) => path.basename(f, '.test.js'));
 
-{
+test('A focused selection picks the pinned suite, every suite naming the file, and the suites of the shipped files that require it.', () => {
   const root = focusedTree();
   assert.deepStrictEqual(picked(root, ['plugin/hooks/alpha.js']), ['alpha', 'beta'], 'the pinned suite and every suite naming the file, nothing else');
   assert.deepStrictEqual(
@@ -442,11 +418,10 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['tests/omega.test.js']), ['omega'], 'a suite path selects that suite');
   assert.deepStrictEqual(picked(root, ['plugin/hooks/alpha.js', 'tests/other.test.js']), ['other', 'alpha', 'beta'].sort(), 'paths union, in suite order');
   assert.deepStrictEqual(picked(root, ['plugin/hooks/lonely.js']), ['bare'], 'a bare name between path delimiters names the file');
-}
+});
 
-// A suite split off another (`<stem>-<part>.test.js`, no `<stem>-<part>.js` shipped) pins the file of its longest
-// `-`-delimited prefix: a change to that file, or to a file it requires, selects every part. An exact pin wins.
-{
+// An exact pin wins.
+test('A suite split off another (`<stem>-<part>.test.js`, no `<stem>-<part>.js` shipped) pins the file of its longest `-`-delimited prefix: a change to that file, or to a file it requires, selects every part.', () => {
   const root = tree({
     'plugin/hooks/beta-hook.js': '',
     'plugin/scripts/beta.js': "require('./delta.js');",
@@ -462,11 +437,10 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['plugin/scripts/delta.js']), parts, 'every part takes the requires of the file it pins');
   assert.deepStrictEqual(picked(root, ['tests/beta-verb.test.js']), ['beta-verb'], 'a part path selects that part');
   assert.deepStrictEqual(picked(root, ['plugin/hooks/beta-hook.js']), ['beta-hook'], 'an exact pin wins over a prefix');
-}
+});
 
-// Requires are followed transitively, from the file a suite pins and from the suite itself, including a require made
-// inside a function. A cycle ends the walk, and a require of a path that does not exist adds nothing.
-{
+// A cycle ends the walk, and a require of a path that does not exist adds nothing.
+test('Requires are followed transitively, from the file a suite pins and from the suite itself, including a require made inside a function.', () => {
   const root = tree({
     'plugin/hooks/top.js': "require('../lib/mid');",
     'plugin/lib/mid.js': "function f() { return require('./leaf.js'); }\nrequire('./ghost');",
@@ -490,20 +464,18 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['plugin/lib/orphan.js']), discoverSuites(path.join(root, 'tests')).map((f) => path.basename(f, '.test.js')), 'a module no suite reaches stays unplaced');
   assert.deepStrictEqual(picked(root, ['plugin/lib/leaf.js', 'plugin/lib/mid.js']), ['leaf', 'top'], 'a missing require target selects nothing extra');
   assert.deepStrictEqual(picked(root, ['tests/setup/b.js']), ['user'], 'a shared setup file reaches the suite requiring it through another setup file');
-}
+});
 
-// A suite stem pins to `plugin/lib/<stem>.js` as it does in the hook and script directories.
-{
+test('A suite stem pins to `plugin/lib/<stem>.js` as it does in the hook and script directories.', () => {
   const root = tree({
     'plugin/lib/words.js': '',
     'tests/words.test.js': suite('words'),
     'tests/other.test.js': suite('other'),
   });
   assert.deepStrictEqual(picked(root, ['plugin/lib/words.js']), ['words'], 'the suite named for a plugin/lib module is selected');
-}
+});
 
-// A change set no suite can place runs every suite; prose and drift paths run none, an empty set runs none.
-{
+test('A change set no suite can place runs every suite; prose and drift paths run none, an empty set runs none.', () => {
   const root = focusedTree();
   for (const rel of ['plugin/hooks/nobody.js', 'src/x.js']) {
     fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
@@ -519,12 +491,11 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['scripts/drift/contracts.js']), [], 'a drift path no rule places selects no suite: the drift selftest runs in the tail');
   assert.deepStrictEqual(picked(root, []), [], 'an empty list selects no suite');
   assert.deepStrictEqual(picked(root, ['plugin/hooks/deleted-gone.md']), [], 'a deleted path maps by name like any other');
-}
+});
 
-// A drift path is placed only by a suite that requires it, directly or through the require walk, or whose text holds its
-// full repository-relative path. Its basename and stem are common path segments, so neither places it, and a drift path
-// no rule places selects no suite rather than every suite.
-{
+// Its basename and stem are common path segments, so neither places it, and a drift path no rule places selects no
+// suite rather than every suite.
+test('A drift path is placed only by a suite that requires it, directly or through the require walk, or whose text holds its full repository-relative path.', () => {
   const root = tree({
     'scripts/drift/lib.js': '',
     'scripts/drift/scanners/lonely.js': '',
@@ -536,30 +507,26 @@ const picked = (root, paths) =>
   });
   assert.deepStrictEqual(picked(root, ['scripts/drift/lib.js']).sort(), ['full', 'req'], 'a drift path selects exactly the suites requiring it or naming its full path');
   assert.deepStrictEqual(picked(root, ['scripts/drift/scanners/lonely.js']), [], 'an unreferenced drift path selects no suite and never every suite');
-}
+});
 
-// The require walk continues through a drift file, so a suite reaching a drift file only through another drift file
-// is selected.
-{
+test('The require walk continues through a drift file, so a suite reaching a drift file only through another drift file is selected.', () => {
   const root = tree({
     'scripts/drift/a.js': "require('./b.js');\n",
     'scripts/drift/b.js': '',
     'tests/via.test.js': suite('via') + "\nrequire('../scripts/drift/a.js');\n",
   });
   assert.deepStrictEqual(picked(root, ['scripts/drift/b.js']), ['via'], 'a drift file required through another drift file selects the suite');
-}
+});
 
-// The real repository: a drift module a suite requires reaches that suite.
-{
+test('The real repository: a drift module a suite requires reaches that suite.', () => {
   const real = (rel) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [rel]).map((f) => path.basename(f, '.test.js'));
   assert.ok(real('scripts/drift/contracts.js').includes('scope-section'), 'scripts/drift/contracts.js reaches tests/scope-section.test.js, which requires it');
-}
+});
 
-// A `.md` path reaches the suites whose text names it, the way a code path does, and never the every-suite fallback.
 // The name counts only in a path anchored the way a named directory is: a `./` or `../` string, or a join from
-// `__dirname`, a `./` or `../` literal, `path.dirname(...)`, or a variable the suite assigns one of those. A bare relative
-// string or a join from any other value builds a fixture tree's path.
-{
+// `__dirname`, a `./` or `../` literal, `path.dirname(...)`, or a variable the suite assigns one of those. A bare
+// relative string or a join from any other value builds a fixture tree's path.
+test('A `.md` path reaches the suites whose text names it, the way a code path does, and never the every-suite fallback.', () => {
   const J = `path${'.'}join`;
   const root = tree({
     'tests/doc.test.js': suite('doc') + "\nfs.readFileSync('../docs/x.md');\n",
@@ -575,14 +542,13 @@ const picked = (root, paths) =>
   assert.ok(real('plugin/references/knowledge-base-forgejo.md').includes('publish-kb-templates'), 'publish-kb executes the Forgejo wiki seed templates');
   assert.ok(real('plugin/references/scope-mode.md').includes('scope-ledger'), 'the scope suite pins a sentence of scope-mode.md');
   assert.deepStrictEqual(real(['docs', 'agents', ['verification', 'md'].join('.')].join('/')), ['scope-ci'], 'a fixture verification.md selects no suite; scope-ci reads the repository\'s own');
-}
+});
 
-// A `.md` path under a directory a suite names reaches that suite: a suite that lists or scans a directory reads
-// every document in it. The directory is a `./` or `../` path string, or the literal segments of a join call; a join whose
-// leading directory is computed (`path.dirname(x)`) names its literal tail, which matches any directory ending in it. A
-// bare relative literal names nothing, because a suite builds its fixture trees from such paths.
-// The fixture text builds `path.join` through `${'.'}` so this suite's own text carries no such call.
-{
+// The directory is a `./` or `../` path string, or the literal segments of a join call; a join whose leading
+// directory is computed (`path.dirname(x)`) names its literal tail, which matches any directory ending in it. A bare
+// relative literal names nothing, because a suite builds its fixture trees from such paths. The fixture text builds
+// `path.join` through `${'.'}` so this suite's own text carries no such call.
+test('A `.md` path under a directory a suite names reaches that suite: a suite that lists or scans a directory reads every document in it.', () => {
   const J = `path${'.'}join`;
   const root = tree({
     'tests/scan.test.js': suite('scan') + `\nfs.readdirSync(${J}(__dirname, '..', 'plugin', 'agents'));\n`,
@@ -606,11 +572,9 @@ const picked = (root, paths) =>
   const real = (md) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [md]).map((f) => path.basename(f, '.test.js'));
   assert.ok(real(['plugin', 'agents', 'implementer.md'].join('/')).includes('run-trace-model'), 'run-trace-model lists the agents directory');
   assert.ok(real(['plugin', 'skills', 'plan', 'SKILL.md'].join('/')).includes('invariant-check'), 'invariant-check scans every file under plugin/');
-}
+});
 
-// A `path.dirname(<name>)` join, where the suite assigns `<name>` a `require.resolve` of a relative path, is anchored at
-// that path's directory, so its tail matches no same-named directory elsewhere.
-{
+test('A `path.dirname(<name>)` join, where the suite assigns `<name>` a `require.resolve` of a relative path, is anchored at that path\'s directory, so its tail matches no same-named directory elsewhere.', () => {
   const J = `path${'.'}join`;
   const R = `require${'.'}resolve`;
   const root = tree({
@@ -623,11 +587,9 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['docs/agents/b.md']), [], 'a same-named directory elsewhere is not');
   const real = (md) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [md]).map((f) => path.basename(f, '.test.js'));
   assert.ok(!real(['docs', 'agents', ['toolchain', 'md'].join('.')].join('/')).includes(['run-trace', 'model'].join('-')), 'run-trace-model lists plugin/agents, not docs/agents');
-}
+});
 
-// A join whose leading directory is a variable or another computed value other than `path.dirname(...)` builds a path
-// inside a fixture tree, so it names no directory of the repository.
-{
+test('A join whose leading directory is a variable or another computed value other than `path.dirname(...)` builds a path inside a fixture tree, so it names no directory of the repository.', () => {
   const J = `path${'.'}join`;
   const root = tree({
     'tests/fx.test.js': suite('fx') + `\nfs.mkdirSync(${J}(s.tree, 'docs'));\nfs.mkdirSync(${J}(os.tmpdir(), 'docs', 'adr'));\n`,
@@ -640,12 +602,11 @@ const picked = (root, paths) =>
   assert.ok(!real(['docs', 'invariants.md'].join('/')).includes(f2p), 'a fixture docs directory does not select its suite for the register');
   const toolchain = real(['docs', 'agents', ['toolchain', 'md'].join('.')].join('/'));
   assert.deepStrictEqual(toolchain, [], 'a fixture docs/agents directory selects no suite for a document under the real one');
-}
+});
 
-// A basename more than one file of the repository carries names a file only with a directory part the file's path
-// ends with; a bare mention names the file at the repository root. A unique basename matches bare, as before. A `.md`
-// basename counts only where it ends a string outside a comment: a citation or a fixture sentence is no read.
-{
+// A unique basename matches bare, as before. A `.md` basename counts only where it ends a string outside a comment: a
+// citation or a fixture sentence is no read.
+test('A basename more than one file of the repository carries names a file only with a directory part the file\'s path ends with; a bare mention names the file at the repository root.', () => {
   const G = ['GUIDE', 'md'].join('.');
   const J = `path${'.'}join`;
   const root = tree({
@@ -670,11 +631,11 @@ const picked = (root, paths) =>
   assert.ok(!real(['scripts', ['AGENTS', 'md'].join('.')].join('/')).includes('merge-guard'), 'a citation of the root AGENTS.md does not select a suite for scripts/AGENTS.md');
   assert.deepStrictEqual(real(['AGENTS', 'md'].join('.')), [], 'a comment citation or a fixture sentence naming the root AGENTS.md is no read');
   assert.deepStrictEqual(real(['release', 'config', 'cjs'].join('.')), ['release-config'], 'the semantic-release config selects only its own suite');
-}
+});
 
-// runAll in focused mode runs only the selected suites, then the whole tail.
 const logSet = (root) => logOf(root).split('\n').filter(Boolean).sort().join(',');
-cases.push(async () => {
+
+test('runAll in focused mode runs only the selected suites, then the whole tail.', async () => {
   const root = focusedTree();
   const r = await go(root, [tailEntry(root, 'tail')], ['plugin/hooks/alpha.js']);
   assert.strictEqual(r.status, 0);
@@ -690,9 +651,8 @@ cases.push(async () => {
   assert.strictEqual(logSet(un), 'a,b,tail', 'an unplaceable code path runs every suite');
 });
 
-// A focused run whose paths reach the superdev-view mod runs the mod suite before the tail; a mod path places itself, so
-// it does not fall back to every suite. The full run and a focused run off the mod never run it.
-cases.push(async () => {
+// The full run and a focused run off the mod never run it.
+test('A focused run whose paths reach the superdev-view mod runs the mod suite before the tail; a mod path places itself, so it does not fall back to every suite.', async () => {
   const files = { 'tests/a.test.js': suite('a'), 'tests/b.test.js': suite('b') + '// mods/superdev-view/hooks/x-fixtures.ts' };
   const runMod = async (related) => {
     const root = tree(files);
@@ -708,8 +668,7 @@ cases.push(async () => {
   assert.notStrictEqual(r, 0, 'a failing mod suite fails the run');
 });
 
-// The CLI reads `--related <path>...`; no flag is the full run.
-{
+test('The CLI reads `--related <path>...`; no flag is the full run.', () => {
   assert.strictEqual(parseArgs([]), undefined, 'no flag is the full run');
   assert.deepStrictEqual(parseArgs(['--related']), [], 'a flag with no path is an empty list');
   assert.deepStrictEqual(parseArgs(['--related', 'a.js', 'b/c.md']), ['a.js', 'b/c.md']);
@@ -731,11 +690,11 @@ cases.push(async () => {
   for (const [argv, refused] of refusals) {
     assert.deepStrictEqual(parseArgs(argv), { refused }, `${JSON.stringify(argv)} is refused`);
   }
-}
+});
 
-// #342 F50: `--related` takes repository-relative file paths. An absolute path in any spelling, one leading outside the
-// repository, and one naming an existing folder are refused with their reason; a backslash path is normalized.
-{
+// An absolute path in any spelling, one leading outside the repository, and one naming an existing folder are refused
+// with their reason; a backslash path is normalized.
+test('#342 F50: `--related` takes repository-relative file paths.', () => {
   const root = tree({ 'plugin/lib/x.js': '', 'tests/a.test.js': '' });
   fs.symlinkSync(path.join(root, 'plugin'), path.join(root, 'linked'));
   const at = (paths) => parseArgs(['--related', ...paths], root);
@@ -759,11 +718,10 @@ cases.push(async () => {
   assert.deepStrictEqual(at(['plugin/lib/gone.js']), ['plugin/lib/gone.js'], 'a path that does not exist maps like a deleted file');
   assert.deepStrictEqual(at(['tests/a.test.js', '../x.js']), { refused: '../x.js', reason: 'outside the repository' }, 'one refused path refuses the whole call');
   assert.deepStrictEqual(at([]), [], 'an empty list is still the tail alone');
-}
+});
 
-// The CLI, driven end to end from a copy of the runner in a fixture tree (its root comes from `__dirname`), so a
-// regression starts the fixture's steps, never this repository's suites. Every step appends its name to <root>/log.
-{
+// Every step appends its name to <root>/log.
+test('The CLI, driven end to end from a copy of the runner in a fixture tree (its root comes from `__dirname`), so a regression starts the fixture\'s steps, never this repository\'s suites.', () => {
   const { spawnSync } = require('node:child_process');
   const { assertSpawnDecided, boundFromSamples } = require('./spawn-verdict');
   const note = (name) => `require('node:fs').appendFileSync(require('node:path').join(__dirname, '..', 'log'), '${name}\\n');`;
@@ -844,11 +802,11 @@ cases.push(async () => {
     assert.strictEqual(r.steps, '', `${JSON.stringify(args)} starts no step`);
     assert.strictEqual(r.recorded, false, `${JSON.stringify(args)} records no durations`);
   }
-}
+});
 
-// On this repository, the acceptance cases hold. The file names are joined at run time so this suite's
-// own text does not name them, which would select this suite for a change to them.
-{
+// The file names are joined at run time so this suite's own text does not name them, which would select this suite
+// for a change to them.
+test('On this repository, the acceptance cases hold.', () => {
   const suites = discoverSuites(path.join(repoRoot, 'tests'));
   const of = (paths) => selectSuites(repoRoot, suites, paths).map((f) => path.basename(f, '.test.js'));
   const guard = ['merge', 'guard'].join('-');
@@ -871,16 +829,4 @@ cases.push(async () => {
   for (const s of ['publish-kb', 'run-tests', 'run-trace', ...topics.map((t) => `scope-${t}`), 'scope-prune', 'slicetree-sweep', 'spawn-verdict']) {
     assert.ok(fixture.includes(s), `fixture-git selects ${s}`);
   }
-}
-
-(async () => {
-  try {
-    for (const run of cases) await run();
-    console.log('run-tests.test.js ok');
-  } finally {
-    for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
-  }
-})().catch((e) => {
-  console.error(e);
-  process.exitCode = 1;
 });

@@ -4,6 +4,7 @@
 // against the named checks of the `## CI` section of `docs/agents/verification.md` at that commit (ADR 0255, INV-0191).
 // The verb only reads, so every case shares one repository, built once, with one commit per `verification.md` text.
 
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -13,6 +14,10 @@ const { execFileSync, spawnSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { run, scopePath, verif } = require('./scope-setup');
 const { verificationCommandsOf, namedChecksOf } = require('../plugin/lib/verification.js');
+
+after(() => {
+  fs.rmSync(dir, { recursive: true, force: true });
+});
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-ci-')));
 const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
@@ -62,154 +67,138 @@ const ci = (sha, input, extra = []) => {
 
 const lines = (...pairs) => pairs.map((p) => p.join('\t')).join('\n') + '\n';
 
-try {
-  // Every named check has only success lines: green, exit 0, and nothing named as missing.
-  {
-    const r = ci(named, lines(['lint', 'success'], ['test (ubuntu)', 'success'], ['test (ubuntu)', 'success']));
-    assert.equal(r.code, 0, r.out);
-    assert.match(r.out, /^ci: green /);
-    assert.doesNotMatch(r.out, /pending|missing/);
-  }
+test('Every named check has only success lines: green, exit 0, and nothing named as missing.', () => {
+  const r = ci(named, lines(['lint', 'success'], ['test (ubuntu)', 'success'], ['test (ubuntu)', 'success']));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^ci: green /);
+  assert.doesNotMatch(r.out, /pending|missing/);
+});
 
-  // One success and one failure for a name judge failed (exit 4), naming the check and its state.
-  {
-    const r = ci(named, lines(['lint', 'success'], ['lint', 'failure'], ['test (ubuntu)', 'success']));
-    assert.equal(r.code, 4, r.out);
-    assert.match(r.out, /^ci: failed /);
-    assert.match(r.out, /^failed\tlint\tfailure$/m);
-  }
+test('One success and one failure for a name judge failed (exit 4), naming the check and its state.', () => {
+  const r = ci(named, lines(['lint', 'success'], ['lint', 'failure'], ['test (ubuntu)', 'success']));
+  assert.equal(r.code, 4, r.out);
+  assert.match(r.out, /^ci: failed /);
+  assert.match(r.out, /^failed\tlint\tfailure$/m);
+});
 
-  // Every failing state judges failed.
-  for (const state of ['failure', 'error', 'timed_out', 'cancelled', 'action_required', 'startup_failure']) {
+for (const state of ['failure', 'error', 'timed_out', 'cancelled', 'action_required', 'startup_failure']) {
+  test(`Every failing state judges failed. (${state})`, () => {
     const r = ci(named, lines(['lint', state], ['test (ubuntu)', 'success']));
     assert.equal(r.code, 4, state + ': ' + r.out);
-  }
+  });
+}
 
-  // One success and one in_progress judge pending (exit 3).
-  {
-    const r = ci(named, lines(['lint', 'success'], ['lint', 'in_progress'], ['test (ubuntu)', 'success']));
-    assert.equal(r.code, 3, r.out);
-    assert.match(r.out, /^ci: not-green /);
-    assert.match(r.out, /^pending\tlint\tin_progress$/m);
-  }
+test('One success and one in_progress judge pending (exit 3).', () => {
+  const r = ci(named, lines(['lint', 'success'], ['lint', 'in_progress'], ['test (ubuntu)', 'success']));
+  assert.equal(r.code, 3, r.out);
+  assert.match(r.out, /^ci: not-green /);
+  assert.match(r.out, /^pending\tlint\tin_progress$/m);
+});
 
-  // A named check with no line judges pending, named as missing.
-  {
-    const r = ci(named, lines(['lint', 'success']));
-    assert.equal(r.code, 3, r.out);
-    assert.match(r.out, /^pending\ttest \(ubuntu\)\tmissing$/m);
-  }
+test('A named check with no line judges pending, named as missing.', () => {
+  const r = ci(named, lines(['lint', 'success']));
+  assert.equal(r.code, 3, r.out);
+  assert.match(r.out, /^pending\ttest \(ubuntu\)\tmissing$/m);
+});
 
-  // skipped, neutral, stale, and warning judge finished-not-green, named apart from pending.
-  for (const state of ['skipped', 'neutral', 'stale', 'warning']) {
+for (const state of ['skipped', 'neutral', 'stale', 'warning']) {
+  test(`skipped, neutral, stale, and warning judge finished-not-green, named apart from pending. (${state})`, () => {
     const r = ci(named, lines(['lint', state], ['test (ubuntu)', 'queued']));
     assert.equal(r.code, 3, state + ': ' + r.out);
     assert.match(r.out, new RegExp(`^finished\\tlint\\t${state}$`, 'm'));
     assert.match(r.out, /^pending\ttest \(ubuntu\)\tqueued$/m);
-  }
+  });
+}
 
-  // A link in a third field is printed beside a failed check.
-  {
-    const r = ci(named, 'lint\tfailure\thttps://ci.example/1\ntest (ubuntu)\tsuccess\n');
-    assert.match(r.out, /^failed\tlint\tfailure\thttps:\/\/ci\.example\/1$/m);
-  }
+test('A link in a third field is printed beside a failed check.', () => {
+  const r = ci(named, 'lint\tfailure\thttps://ci.example/1\ntest (ubuntu)\tsuccess\n');
+  assert.match(r.out, /^failed\tlint\tfailure\thttps:\/\/ci\.example\/1$/m);
+});
 
-  // Lines for unlisted names change no verdict; a line without a TAB is no match.
-  {
-    const r = ci(named, lines(['lint', 'success'], ['test (ubuntu)', 'success'], ['deploy', 'failure']) + 'lint failure\n');
-    assert.equal(r.code, 0, r.out);
-  }
+test('Lines for unlisted names change no verdict; a line without a TAB is no match.', () => {
+  const r = ci(named, lines(['lint', 'success'], ['test (ubuntu)', 'success'], ['deploy', 'failure']) + 'lint failure\n');
+  assert.equal(r.code, 0, r.out);
+});
 
-  // A CRLF input and a duplicated name in a CRLF section judge the same as clean input.
-  {
-    const r = ci(twice, 'lint\tsuccess\r\ntest (ubuntu)\tsuccess\r\n');
-    assert.equal(r.code, 0, r.out);
-    const p = ci(twice, 'lint\tsuccess\r\n');
-    assert.equal(p.code, 3, p.out);
-    assert.equal(p.out.split('\n').filter((l) => l.startsWith('pending')).length, 1, p.out);
-  }
+test('A CRLF input and a duplicated name in a CRLF section judge the same as clean input.', () => {
+  const r = ci(twice, 'lint\tsuccess\r\ntest (ubuntu)\tsuccess\r\n');
+  assert.equal(r.code, 0, r.out);
+  const p = ci(twice, 'lint\tsuccess\r\n');
+  assert.equal(p.code, 3, p.out);
+  assert.equal(p.out.split('\n').filter((l) => l.startsWith('pending')).length, 1, p.out);
+});
 
-  // Empty or unparseable stdin with named checks refuses as not green, never green, and its verdict line names that no
-  // check report was read; a report naming only unlisted checks was read.
-  for (const input of ['', 'no tab here\n\n', '\t\n', 'lint\t\n', '\tsuccess\n']) {
+for (const input of ['', 'no tab here\n\n', '\t\n', 'lint\t\n', '\tsuccess\n']) {
+  test(`Empty or unparseable stdin with named checks refuses as not green, never green, and its verdict line names that no check report was read. (${JSON.stringify(input)})`, () => {
     const r = ci(named, input);
     assert.equal(r.code, 3, r.out);
     assert.match(r.out, /^ci: not-green [0-9a-f]{40} \(no check report read\)$/m);
     assert.match(r.out, /^pending\tlint\tmissing$/m);
-  }
-  {
-    const r = ci(named, lines(['deploy', 'success']));
-    assert.doesNotMatch(r.out, /no check report read/);
-  }
+  });
+}
 
-  // Cannot judge (exit 2), never pending or green: an unresolvable SHA, `none` (span or bare word), no section, no file,
-  // and a section holding both `none` and a name.
-  for (const [label, sha] of [['unresolvable', 'deadbeef'.repeat(5)], ['none span', noneSha], ['bare none', bareNone], ['no section', noSection], ['no file', noFile], ['none and a name', both]]) {
+test('A report naming only unlisted checks was read.', () => {
+  const r = ci(named, lines(['deploy', 'success']));
+  assert.doesNotMatch(r.out, /no check report read/);
+});
+
+for (const [label, sha] of [['unresolvable', 'deadbeef'.repeat(5)], ['none span', noneSha], ['bare none', bareNone], ['no section', noSection], ['no file', noFile], ['none and a name', both]]) {
+  test(`Cannot judge (exit 2), never pending or green: an unresolvable SHA, \`none\` (span or bare word), no section, no file, and a section holding both \`none\` and a name. (${label})`, () => {
     const r = ci(sha, lines(['lint', 'success'], ['test (ubuntu)', 'success']));
     assert.equal(r.code, 2, label + ': ' + JSON.stringify(r));
     assert.match(r.out, /^ci: cannot-judge /, label);
-  }
-
-  // A fenced block inside `## CI` leaves the full and focused commands unchanged, and names no check.
-  {
-    const raw = execFileSync('git', ['show', `${fenced}:docs/agents/verification.md`], { cwd: dir, encoding: 'utf8' });
-    assert.deepEqual(verificationCommandsOf(raw), { full: 'node t.js', focused: 'node t.js --related {paths}', whole: null });
-    const first = raw.replace(/```sh\nnode t\.js --related \{paths\}\n```\n/, '');
-    assert.equal(verificationCommandsOf(first).focused, null, 'the CI fence never becomes the focused command');
-    assert.equal(ci(fenced, lines(['lint', 'success'])).code, 0);
-  }
-
-  // A check name holding shell metacharacters is judged as a plain name, and nothing it spells runs.
-  {
-    const r = ci(shelly, lines([SHELLY, 'success']));
-    assert.equal(r.code, 0, JSON.stringify(r));
-    assert.match(r.out, /^ci: green /);
-    assert.ok(!fs.existsSync(path.join(dir, 'x')) && !fs.existsSync(path.join(dir, 'y')));
-  }
-
-  // An option-shaped SHA resolves to no commit: cannot judge (exit 2), and git writes no file it names.
-  {
-    const out = path.join(dir, 'option-shaped-out');
-    const r = ci(`--output=${out}`, lines(['lint', 'success'], ['test (ubuntu)', 'success']));
-    assert.equal(r.code, 2, JSON.stringify(r));
-    assert.match(r.out, /^ci: cannot-judge /);
-    assert.ok(!fs.existsSync(out));
-  }
-
-  // Usage: no --sha refuses.
-  {
-    const r = ci(null, '');
-    assert.equal(r.ok, false);
-    assert.match(r.err, /--sha/);
-  }
-
-  // `--root` names the repository to read.
-  {
-    const r = ci(named, lines(['lint', 'success'], ['test (ubuntu)', 'success']), ['--root', dir]);
-    assert.equal(r.code, 0, r.out);
-  }
-
-  // The verb leaves a run's ledger byte-identical, and through the real CLI reads its stdin and sets its exit status.
-  {
-    const root = path.join(dir, '.superdev', 'scopes', 's');
-    fs.mkdirSync(root, { recursive: true });
-    const ledger = path.join(root, 'ledger.md');
-    fs.writeFileSync(ledger, '# Ledger\n\n**Stage:** implementing\n');
-    const before = fs.readFileSync(ledger);
-    const res = spawnSync(process.execPath, [scopePath, 'ci', '--sha', named, '--root', root], { cwd: dir, encoding: 'utf8', timeout: 30000, input: lines(['lint', 'failure'], ['test (ubuntu)', 'success']) });
-    assertSpawnDecided(res, 'ci');
-    assert.equal(res.status, 4, res.stderr);
-    assert.ok(before.equals(fs.readFileSync(ledger)));
-    assert.ok(!fs.existsSync(path.join(root, 'trace.log')));
-  }
-
-  // This repository's own `## CI` section names the full-suite workflow's one check, never the malformed both-`none`-and-a-name.
-  {
-    const own = fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'verification.md'), 'utf8');
-    assert.deepEqual(namedChecksOf(own), { state: 'named', names: ['full-suite'] });
-  }
-
-  console.log('scope-ci: ok');
-} finally {
-  fs.rmSync(dir, { recursive: true, force: true });
+  });
 }
+
+test('A fenced block inside `## CI` leaves the full and focused commands unchanged, and names no check.', () => {
+  const raw = execFileSync('git', ['show', `${fenced}:docs/agents/verification.md`], { cwd: dir, encoding: 'utf8' });
+  assert.deepEqual(verificationCommandsOf(raw), { full: 'node t.js', focused: 'node t.js --related {paths}', whole: null });
+  const first = raw.replace(/```sh\nnode t\.js --related \{paths\}\n```\n/, '');
+  assert.equal(verificationCommandsOf(first).focused, null, 'the CI fence never becomes the focused command');
+  assert.equal(ci(fenced, lines(['lint', 'success'])).code, 0);
+});
+
+test('A check name holding shell metacharacters is judged as a plain name, and nothing it spells runs.', () => {
+  const r = ci(shelly, lines([SHELLY, 'success']));
+  assert.equal(r.code, 0, JSON.stringify(r));
+  assert.match(r.out, /^ci: green /);
+  assert.ok(!fs.existsSync(path.join(dir, 'x')) && !fs.existsSync(path.join(dir, 'y')));
+});
+
+test('An option-shaped SHA resolves to no commit: cannot judge (exit 2), and git writes no file it names.', () => {
+  const out = path.join(dir, 'option-shaped-out');
+  const r = ci(`--output=${out}`, lines(['lint', 'success'], ['test (ubuntu)', 'success']));
+  assert.equal(r.code, 2, JSON.stringify(r));
+  assert.match(r.out, /^ci: cannot-judge /);
+  assert.ok(!fs.existsSync(out));
+});
+
+test('Usage: no --sha refuses.', () => {
+  const r = ci(null, '');
+  assert.equal(r.ok, false);
+  assert.match(r.err, /--sha/);
+});
+
+test('`--root` names the repository to read.', () => {
+  const r = ci(named, lines(['lint', 'success'], ['test (ubuntu)', 'success']), ['--root', dir]);
+  assert.equal(r.code, 0, r.out);
+});
+
+test('The verb leaves a run\'s ledger byte-identical, and through the real CLI reads its stdin and sets its exit status.', () => {
+  const root = path.join(dir, '.superdev', 'scopes', 's');
+  fs.mkdirSync(root, { recursive: true });
+  const ledger = path.join(root, 'ledger.md');
+  fs.writeFileSync(ledger, '# Ledger\n\n**Stage:** implementing\n');
+  const before = fs.readFileSync(ledger);
+  const res = spawnSync(process.execPath, [scopePath, 'ci', '--sha', named, '--root', root], { cwd: dir, encoding: 'utf8', timeout: 30000, input: lines(['lint', 'failure'], ['test (ubuntu)', 'success']) });
+  assertSpawnDecided(res, 'ci');
+  assert.equal(res.status, 4, res.stderr);
+  assert.ok(before.equals(fs.readFileSync(ledger)));
+  assert.ok(!fs.existsSync(path.join(root, 'trace.log')));
+});
+
+test('This repository\'s own `## CI` section names the full-suite workflow\'s one check, never the malformed both-`none`-and-a-name.', () => {
+  const own = fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'verification.md'), 'utf8');
+  assert.deepEqual(namedChecksOf(own), { state: 'named', names: ['full-suite'] });
+});
+
