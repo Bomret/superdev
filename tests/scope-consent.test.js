@@ -4,14 +4,17 @@
 // trace.log and its digest sidecar. The verb only reads, so every case writes its own run root in one temporary directory and
 // checks that the root holds the same files and bytes afterwards.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
-const { call, scopePath } = require('./scope-setup');
+const { call, scopePath, cleanup } = require('./scope-setup');
+after(() => {
+  cleanup();
+});
 const { assertSpawnDecided } = require('./spawn-verdict');
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-consent-')));

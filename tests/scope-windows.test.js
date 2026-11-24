@@ -4,12 +4,15 @@
 // windows derived from the run trace's recorded order. The traces are written as raw lines, so a case controls every
 // timestamp; the suite runs in a temporary directory of its own.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { call } = require('./scope-setup');
+const { call, cleanup } = require('./scope-setup');
+after(() => {
+  cleanup();
+});
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-windows-')));
 process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));

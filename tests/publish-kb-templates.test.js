@@ -5,7 +5,7 @@
 // `classifyBackend` against stubbed `gh`, `tea`, and `curl` commands and a local wiki repository,
 // pinning which exit code each template produces.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -21,6 +21,9 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
 // run through the same pins.
 // The values file a backend command takes as `$1`, written under a directory this suite removes at its end.
 const valuesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-values-templates-'));
+after(() => {
+  fs.rmSync(valuesDir, { recursive: true, force: true });
+});
 let valuesCount = 0;
 function valuesFile(values) {
   const file = path.join(valuesDir, `values-${valuesCount++}.json`);

@@ -5,7 +5,7 @@
 // writing them in their production shapes, then the run root when that leaves it empty, and refuses a root outside the main
 // working tree's `.superdev/scopes/<scope>/` and a run whose stage is later than `planned`.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -13,7 +13,12 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { run } = require('./scope-setup');
 
+const made = [];
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
 const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-discard-')));
+made.push(repo);
 execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: repo, stdio: 'ignore' });
 const scopes = path.join(repo, '.superdev', 'scopes');
 
@@ -86,6 +91,7 @@ test('Refusals remove nothing.', () => {
   refused(['discard', '--root', path.join(os.tmpdir(), 'elsewhere', '.superdev', 'scopes', 'd')], 'another tree');
   // A symlink inside the scopes directory that points at another tree is judged by its target.
   const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-discard-out-')));
+  made.push(outside);
   fs.writeFileSync(path.join(outside, 'ledger.md'), '**Stage:** planned\n');
   fs.symlinkSync(outside, path.join(scopes, 'link'));
   assert.equal(call(['discard', '--root', path.join(scopes, 'link')]).ok, false, 'a symlinked root leaving the scopes directory is refused');

@@ -4,7 +4,7 @@
 // without --allow-unmerged only when it is `_adhoc`, its run root is gone, or its ledger's Stage reads `shipped` or
 // `closed`. Shared fixtures live in tests/publish-kb-setup.js.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -33,6 +33,11 @@ function gatedRepo(scope) {
   stageByHand(repo, scope);
   return repo;
 }
+
+const made = [];
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
 
 test('a closed ledger publishes with no scope branch', () => {
   withState(() => {
@@ -127,6 +132,7 @@ test('checkGate runs no git and spawns no child: a failing git first on PATH cha
   const repo = makeRepo();
   writeLedger(repo, 'done', '**Stage:** shipped\n');
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-gate-bin-'));
+  made.push(bin);
   fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
   const verbs = ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork'];
   const saved = verbs.map((v) => childProcess[v]);

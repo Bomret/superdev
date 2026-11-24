@@ -4,7 +4,7 @@
 // create, update, the keys `find` forwards, backend failures, partial runs, and cleanup failures.
 // Shared fixtures live in tests/publish-kb-setup.js.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -12,6 +12,11 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { publishKbPath, FAKE_BACKEND, shq, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
 const { classifyBackend, hashBody } = require(publishKbPath);
+
+const made = [];
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
 
 test('end-to-end: upsert creates when find reports absent (exit 3)', () => {
   withState((stateFile) => {
@@ -62,6 +67,7 @@ test('every key find emitted reaches the later verb under `found`', () => {
     stagePage(repo, 'demo', 'keyed.md', `title: Keyed Page\naction: upsert\nlive-hash: ${hashBody('old.\n')}`, 'new.\n');
 
     const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+    made.push(captureDir);
     process.env.FAKE_KB_CAPTURE_DIR = captureDir;
 
     const origWrite = process.stderr.write;
@@ -103,6 +109,7 @@ test('a find-returned title field must never shadow the staged title; controller
     stagePage(repo, 'demo', 'override.md', `title: Staged Title\naction: upsert\nlive-hash: ${hashBody('old.\n')}`, 'body.\n');
 
     const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+    made.push(captureDir);
     process.env.FAKE_KB_CAPTURE_DIR = captureDir;
     try {
       const res = call(['--scope', 'demo'], repo);
@@ -134,6 +141,7 @@ test('a find-returned body_file field must never shadow the staged body_file; co
     stagePage(repo, 'demo', 'override2.md', `title: Staged\naction: upsert\nlive-hash: ${hashBody('old.\n')}`, 'body.\n');
 
     const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+    made.push(captureDir);
     process.env.FAKE_KB_CAPTURE_DIR = captureDir;
     try {
       const res = call(['--scope', 'demo'], repo);
@@ -277,6 +285,7 @@ test('delete for an existing page calls delete, with find\'s keys, and removes i
     stagePage(repo, 'demo', 'live.md', 'title: Live Page\naction: delete');
 
     const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+    made.push(captureDir);
     process.env.FAKE_KB_CAPTURE_DIR = captureDir;
     let res;
     try {
@@ -396,6 +405,7 @@ test('no `sh` on PATH: the reason names the missing `sh` and Git for Windows (AD
     stagePage(repo, 'demo', 'nosh.md', 'title: No Sh Page\naction: upsert');
     // A PATH holding `git` alone: publish-kb.js's own git calls still run, while no `sh` resolves.
     const gitOnly = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-nosh-'));
+    made.push(gitOnly);
     const gitBin = spawnSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
     fs.symlinkSync(gitBin, path.join(gitOnly, 'git'));
     const origPath = process.env.PATH;

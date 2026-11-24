@@ -5,7 +5,7 @@
 // `check(root)` in-process; the cases that pin the CLI contract (exit codes, usage, the summary
 // line) spawn the CLI with --root, the same way the maintainer runs it against another repository.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -16,8 +16,14 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 const CLI = path.join(__dirname, '..', 'scripts', 'invariant-check.js');
 const { check } = require(CLI);
 
+const made = [];
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 function repo(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'invariant-check-'));
+  made.push(root);
   for (const [rel, content] of Object.entries(files)) {
     const file = path.join(root, rel);
     fs.mkdirSync(path.dirname(file), { recursive: true });

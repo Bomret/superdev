@@ -4,13 +4,16 @@
 // (INV-0190), the stage hold, the `docs` filter, and the refusals. The verb only reads, so every case shares one
 // temporary directory of run roots.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { call } = require('./scope-setup');
+const { call, cleanup } = require('./scope-setup');
+after(() => {
+  cleanup();
+});
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-dod-open-')));
 process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));

@@ -6,7 +6,7 @@
 // CLI with a `git` wrapper first on PATH, built in the fixture, that answers one call its own way and hands every other
 // to the real git.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -37,8 +37,14 @@ const template = templateOnce((dir) => {
   assert.strictEqual(r.status, 0, 'fixture init: ' + r.stderr);
 }, 'scope-reviewed-check-');
 
+const made = [];
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 const fresh = () => {
   const repo = copyFixture(template(), 'scope-reviewed-check-case-');
+  made.push(repo, path.join(repo, '..', path.basename(repo) + '-bin'));
   const root = path.join(repo, '.superdev', 'scopes', 'demo');
   const sc = (argv, env) => {
     const r = spawnSync(process.execPath, [scopePath, ...argv], { cwd: repo, encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL', env: env || process.env });

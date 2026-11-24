@@ -3,7 +3,7 @@
 // Suite for plugin/scripts/publish-kb.js and its lib/kb-*.js modules: refusal on an unreadable input file, an unreadable
 // run root or ledger refusing past --allow-unmerged, report sanitizing, the one frontmatter splitter, and a retry marker on a page that cannot be read. Shared fixtures live in tests/publish-kb-setup.js.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -12,6 +12,11 @@ const { parseStagedPage } = require(publishKbPath);
 const { markStagedCreate, restageLiveHash } = require('../plugin/lib/kb-staged-page.js');
 const { renderReport } = require('../plugin/lib/kb-report.js');
 const { merge } = require('../plugin/lib/md-sections.js');
+
+const made = [];
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
 
 test('an unreadable input refuses with one line and publishes nothing', () => {
   for (const name of ['knowledge-base.md']) {
@@ -104,6 +109,7 @@ test('one frontmatter splitter', () => {
 
 test('the marker and the restage use the same closing rule', () => {
   const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'kb-fm-'));
+  made.push(dir);
   const f = path.join(dir, 'p.md');
   fs.writeFileSync(f, '---\ntitle: T\n---x\naction: upsert\n---\nbody\n');
   assert.ok(markStagedCreate(f).ok);
@@ -117,6 +123,7 @@ test('the marker and the restage use the same closing rule', () => {
 
 test('a retry marker on a page that cannot be read reports a failure and writes nothing', () => {
   const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'kb-fm-'));
+  made.push(dir);
   const missing = path.join(dir, 'missing.md');
   const folder = path.join(dir, 'folder.md');
   fs.mkdirSync(folder);
@@ -130,6 +137,7 @@ test('a retry marker on a page that cannot be read reports a failure and writes 
 
 test('a restage whose rename fails leaves the page intact and no temporary file', () => {
   const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'kb-fm-'));
+  made.push(dir);
   const f = path.join(dir, 'p.md');
   const text = '---\ntitle: T\n---\nbody\n';
   fs.writeFileSync(f, text);

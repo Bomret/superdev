@@ -4,7 +4,7 @@
 // `get reviewed`, the ledger's `**Reviewed:**` record of the scope tip a clean scope review judged beside a digest of
 // `dod.md`'s criterion texts and tags. The git repository is built once and copied per case.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -29,8 +29,14 @@ const template = templateOnce((dir) => {
   assert.ok(call(['init', 'feat/demo', 'implementing'], sliceJson, dir).ok, 'fixture init');
 }, 'scope-reviewed-');
 
+const made = [];
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 const fresh = () => {
   const repo = copyFixture(template(), 'scope-reviewed-case-');
+  made.push(repo);
   const root = path.join(repo, '.superdev', 'scopes', 'demo');
   return { repo, root, R: ['--root', root], at: (cwdArgs) => call(cwdArgs, '', repo) };
 };

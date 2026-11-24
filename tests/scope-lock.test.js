@@ -3,12 +3,15 @@
 // Suite for plugin/scripts/scope.js's `lock` verb (INV-0196, INV-0013): implement's entry liveness verdict from the ledger's
 // stage and the run lock's age. The verb only reads, so each case builds its own run root in a temporary directory.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { call } = require('./scope-setup');
+const { call, cleanup } = require('./scope-setup');
+after(() => {
+  cleanup();
+});
 
 const HOUR = 60 * 60 * 1000;
 const dirs = [];
