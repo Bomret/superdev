@@ -540,7 +540,7 @@ The focused command selects every test a changed path can affect.
 
 **A gap with a repository value.** Applies to a gap whose seed text carries a repository-specific value. Ask the question §2 asks for it, and write the answer, never the seed's placeholder.
 
-- Where §2 asks none, the seed section names the fill-in: the triage label, a repository filter for a store shared across repositories, a `(fill in at setup)` section such as `## Run state` or the status workflow.
+- Where §2 asks none, the seed section names the fill-in: the triage label, a repository filter for a store shared across repositories, a `(fill in at setup)` section such as `## Definition of Done ticks` or the status workflow.
 - Applying a knowledge-base gap writes `## Commands` only after §2's **The probes** pass.
 - Applying a seed's `## Assignee` writes no assignee into a tracked document; the answer goes to the operator file.
 

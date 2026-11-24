@@ -1,3 +1,23 @@
+## [0.119.1](https://github.com/Bomret/superdev/compare/v0.119.0...v0.119.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* keep a lone quote and CRLF in staged pages, and make the Jira seed ADF-only ([#493](https://github.com/Bomret/superdev/issues/493)) ([36dd454](https://github.com/Bomret/superdev/commit/36dd454df0622a45dd74b0bb8182d9915f14d02a))
+
+# [0.119.0](https://github.com/Bomret/superdev/compare/v0.118.0...v0.119.0) (2026-11-23)
+
+
+### Bug Fixes
+
+* **publish-kb:** gate on the ledger stage, not git containment ([#473](https://github.com/Bomret/superdev/issues/473)) ([aadf4f1](https://github.com/Bomret/superdev/commit/aadf4f1edf4a475f040be50ff9159b9cadd22a24)), closes [#463](https://github.com/Bomret/superdev/issues/463) [#464](https://github.com/Bomret/superdev/issues/464)
+
+
+### Features
+
+* **implement:** fix dispatches follow the verify skill, and its Stop runs before its Start ([#472](https://github.com/Bomret/superdev/issues/472)) ([fd96670](https://github.com/Bomret/superdev/commit/fd96670597a6eb49e326ba637779c8f5b3af2840)), closes [#468](https://github.com/Bomret/superdev/issues/468) [#469](https://github.com/Bomret/superdev/issues/469) [#470](https://github.com/Bomret/superdev/issues/470)
+* **implement:** observe behavior slices through a repo-local verify skill, and forbid gaming flaky tests ([#461](https://github.com/Bomret/superdev/issues/461)) ([4adbd53](https://github.com/Bomret/superdev/commit/4adbd535bd38d103fdf0357fe57b4d2ffe2ad753)), closes [#457](https://github.com/Bomret/superdev/issues/457) [#455](https://github.com/Bomret/superdev/issues/455) [#458](https://github.com/Bomret/superdev/issues/458) [#454](https://github.com/Bomret/superdev/issues/454) [#456](https://github.com/Bomret/superdev/issues/456)
+
 # [0.118.0](https://github.com/Bomret/superdev/compare/v0.117.0...v0.118.0) (2026-11-23)
 
 
