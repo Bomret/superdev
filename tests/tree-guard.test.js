@@ -15,6 +15,7 @@
 // Reproductions: the case "the reproduction for the child process" holds the hook child's first git call past the bound; the case "a git shim holds one designated call past the bound before it does anything" (the `hold-shim` block)
 // deterministically produces the killed-before-first-line call; the base suite's start/end bookkeeping took it for a verdict.
 
+const { test } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const cp = require('node:child_process');
@@ -125,30 +126,32 @@ function registeredHooksDeny(tool, input, extraEnv) {
 
 const fx = fixture();
 
-// The reproduction (triage #566): an implementer Write into the main checkout passed every registered PreToolUse hook.
-assert.equal(
-  registeredHooksDeny('Write', implementerWrite(path.join(fx.main, 'a.txt'), fx.main)),
-  true,
-  'an implementer Write into the main checkout is denied by the registered hooks',
-);
+test('The reproduction (triage #566): an implementer Write into the main checkout passed every registered PreToolUse hook.', () => {
+  assert.equal(
+    registeredHooksDeny('Write', implementerWrite(path.join(fx.main, 'a.txt'), fx.main)),
+    true,
+    'an implementer Write into the main checkout is denied by the registered hooks',
+  );
+});
 
-// NotebookEdit carries its target in `notebook_path`.
-assert.equal(
-  registeredHooksDeny('NotebookEdit', { ...implementerWrite(undefined, fx.main), tool_name: 'NotebookEdit', tool_input: { notebook_path: path.join(fx.main, 'n.ipynb'), new_source: 'x' } }),
-  true,
-  'an implementer NotebookEdit into the main checkout is denied by the registered hooks',
-);
-assert.equal(registeredHooksDeny('Edit', { ...implementerWrite(path.join(fx.main, 'a.txt'), fx.main), tool_name: 'Edit' }), true, 'an implementer Edit into the main checkout is denied by the registered hooks');
+test('NotebookEdit carries its target in `notebook_path`.', () => {
+  assert.equal(
+    registeredHooksDeny('NotebookEdit', { ...implementerWrite(undefined, fx.main), tool_name: 'NotebookEdit', tool_input: { notebook_path: path.join(fx.main, 'n.ipynb'), new_source: 'x' } }),
+    true,
+    'an implementer NotebookEdit into the main checkout is denied by the registered hooks',
+  );
+  assert.equal(registeredHooksDeny('Edit', { ...implementerWrite(path.join(fx.main, 'a.txt'), fx.main), tool_name: 'Edit' }), true, 'an implementer Edit into the main checkout is denied by the registered hooks');
+});
 
-// The reproduction for the child process: a git shim holds the hook's first git call past its bound, so the child fails open and
-// exits 0 although the write is denied. That reads as no verdict, and the registered-hooks check measures it again. POSIX-only:
-// the shim is `holdShim`'s.
-if (process.platform !== 'win32') {
-  const { shim, flag } = holdShim('child-hold');
-  const denied = registeredHooksDeny('Write', implementerWrite(path.join(fx.main, 'a.txt'), fx.main), { PATH: `${shim}${path.delimiter}${process.env.PATH}` });
-  assert.ok(fs.existsSync(flag), 'the shim held the hook child\'s first git call');
-  assert.equal(denied, true, 'a hook child whose first git call the bound killed is measured again and denies the write');
-}
+// That reads as no verdict, and the registered-hooks check measures it again. POSIX-only: the shim is `holdShim`'s.
+test('The reproduction for the child process: a git shim holds the hook\'s first git call past its bound, so the child fails open and exits 0 although the write is denied.', () => {
+  if (process.platform !== 'win32') {
+    const { shim, flag } = holdShim('child-hold');
+    const denied = registeredHooksDeny('Write', implementerWrite(path.join(fx.main, 'a.txt'), fx.main), { PATH: `${shim}${path.delimiter}${process.env.PATH}` });
+    assert.ok(fs.existsSync(flag), 'the shim held the hook child\'s first git call');
+    assert.equal(denied, true, 'a hook child whose first git call the bound killed is measured again and denies the write');
+  }
+});
 
 // The hook and its git helper destructure `spawnSync` when they load, so the wrapper goes in before the require.
 const gitCalls = [];
@@ -171,8 +174,7 @@ function measure(input) {
 }
 const decideM = (input) => measure(input).r;
 
-// The refusal names the refused path, the slicetree rule, and the path to reuse under the slicetree.
-{
+test('The refusal names the refused path, the slicetree rule, and the path to reuse under the slicetree.', () => {
   const target = path.join(fx.main, 'plugin', 'x.md');
   fs.mkdirSync(path.dirname(target));
   const r = decideM(implementerWrite(target, fx.main));
@@ -180,10 +182,9 @@ const decideM = (input) => measure(input).r;
   assert.ok(r.reason.includes(target), 'the refusal names the refused path: ' + r.reason);
   assert.ok(/only inside the slicetree/.test(r.reason), 'the refusal states the slicetree rule: ' + r.reason);
   assert.ok(r.reason.includes(`\`${path.join('plugin', 'x.md')}\``), 'the refusal gives the path relative to its working tree: ' + r.reason);
-}
+});
 
-// Allowed: the slicetree, the run root (its progress log and reports), a repository holding no run, and a path in no repository.
-{
+test('Allowed: the slicetree, the run root (its progress log and reports), a repository holding no run, and a path in no repository.', () => {
   assert.equal(decide(implementerWrite(path.join(fx.slicetree, 'a.txt'), fx.slicetree)).block, false, 'a write into the slicetree passes');
   fs.mkdirSync(path.join(fx.runRoot, 'reports', '01'), { recursive: true });
   assert.equal(decide(implementerWrite(path.join(fx.runRoot, 'reports', '01', 'progress.md'), fx.main)).block, false, 'a write into the run root passes');
@@ -194,18 +195,16 @@ const decideM = (input) => measure(input).r;
   const bare = path.join(fx.base, 'no-repo');
   fs.mkdirSync(bare);
   assert.equal(decide(implementerWrite(path.join(bare, 'f.txt'), bare)).block, false, 'a write in no repository passes');
-}
+});
 
-// Denied: another linked working tree of the repository, outside `.superdev/`.
-{
+test('Denied: another linked working tree of the repository, outside `.superdev/`.', () => {
   const linked = path.join(fx.base, 'linked');
   git(['worktree', 'add', '-q', '-b', 'linked', linked], fx.main);
   assert.equal(decideM(implementerWrite(path.join(linked, 'a.txt'), linked)).block, true, 'a write into another linked working tree is denied');
-}
+});
 
-// Denied: the git directory of a repository holding a run, the main `.git/` and a linked working tree's own gitdir. `git status`
-// never shows such a write. Control: the same path in a repository holding no run passes.
-{
+// `git status` never shows such a write. Control: the same path in a repository holding no run passes.
+test('Denied: the git directory of a repository holding a run, the main `.git/` and a linked working tree\'s own gitdir.', () => {
   const config = path.join(fx.main, '.git', 'config');
   const r = decideM(implementerWrite(config, fx.main));
   assert.equal(r.block, true, 'a write to the main .git/config is denied');
@@ -217,11 +216,11 @@ const decideM = (input) => measure(input).r;
   assert.equal(decideM(implementerWrite(path.join(gitdir, 'HEAD'), fx.slicetree)).block, true, "a write into a linked working tree's gitdir is denied");
   const other = path.join(fx.base, 'fixture-repo');
   assert.equal(decide(implementerWrite(path.join(other, '.git', 'config'), other)).block, false, "a write to the .git/config of a repository holding no run passes");
-}
+});
 
-// Denied: a main `.git` that is a symlink to a directory with another name. The real path holds no `.git` segment, so the path
-// as spelled places the write. Control: a write into that repository's checkout is denied too.
-{
+// The real path holds no `.git` segment, so the path as spelled places the write. Control: a write into that
+// repository's checkout is denied too.
+test('Denied: a main `.git` that is a symlink to a directory with another name.', () => {
   const repo = path.join(fx.base, 'm3');
   fs.mkdirSync(repo);
   git(['init', '-q', '-b', 'main'], repo);
@@ -231,19 +230,18 @@ const decideM = (input) => measure(input).r;
   fs.writeFileSync(path.join(repo, '.superdev', 'scopes', 'x', 'ledger.md'), '# Scope\n');
   assert.equal(decideM(implementerWrite(path.join(repo, 'x.txt'), repo)).block, true, 'a write into a checkout whose .git is a symlink is denied');
   assert.equal(decideM(implementerWrite(path.join(repo, '.git', 'config'), repo)).block, true, 'a write to .git/config through a symlinked .git is denied');
-}
+});
 
-// Allowed: a bare repository inside the main checkout holds no run, and git places a path in it inside that bare repository, in
-// no working tree. Like any nested repository holding no run, a write there passes.
-{
+// Like any nested repository holding no run, a write there passes.
+test('Allowed: a bare repository inside the main checkout holds no run, and git places a path in it inside that bare repository, in no working tree.', () => {
   const bare = path.join(fx.main, 'bare.git');
   git(['init', '-q', '--bare', bare], fx.main);
   assert.equal(decide(implementerWrite(path.join(bare, 'config'), fx.main)).block, false, 'a write into a bare repository holding no run passes');
-}
+});
 
-// Denied: a submodule's gitdir under the main `.git/modules/`. Run there, git resolves the submodule's own repository, which
-// holds no run, so only the `.git` the path lies under places it.
-{
+// Run there, git resolves the submodule's own repository, which holds no run, so only the `.git` the path lies under
+// places it.
+test('Denied: a submodule\'s gitdir under the main `.git/modules/`.', () => {
   const src = path.join(fx.base, 'sub-src');
   fs.mkdirSync(src);
   git(['init', '-q', '-b', 'main'], src);
@@ -252,7 +250,7 @@ const decideM = (input) => measure(input).r;
   const modules = path.join(fx.main, '.git', 'modules', 'sub');
   assert.equal(decideM(implementerWrite(path.join(modules, 'config'), fx.main)).block, true, "a write to a submodule's gitdir config is denied");
   assert.equal(decideM(implementerWrite(path.join(modules, 'hooks', 'pre-commit'), fx.main)).block, true, "a write to a submodule's gitdir hooks is denied");
-}
+});
 
 // Every spelling of the implementer's agent type that run-trace's `OURS` accepts for superdev's agents is fenced: `implementer`
 // bare or after a `superdev:`, `superdev_`, or `superdev-` prefix (INV-0152). Another plugin's implementer, a prefix or suffix
@@ -274,72 +272,72 @@ const REJECTED = ['other:implementer', 'xsuperdev:implementer', 'superdev:implem
   }
 }
 
-// tree-guard and run-trace agree on which implementer spellings are superdev's: a spelling `OURS` accepts is fenced, and one it
-// rejects passes (INV-0152).
-{
+test('tree-guard and run-trace agree on which implementer spellings are superdev\'s: a spelling `OURS` accepts is fenced, and one it rejects passes (INV-0152).', () => {
   const { OURS } = require(path.join(pluginRoot, 'hooks', 'run-trace.js'));
   const target = path.join(fx.main, 'a.txt');
   for (const agentType of [...ACCEPTED, 'other:implementer', 'xsuperdev:implementer', 'superdev:implementerx']) {
     assert.equal(decideM({ ...implementerWrite(target, fx.main), agent_type: agentType }).block, OURS.test(agentType), `tree-guard and run-trace's OURS agree on ${agentType}`);
   }
-}
+});
 
-// The controller, every other agent type, and a subagent call naming no agent type pass, and the guard runs no git to decide them.
-// POSIX-only: the `#!/bin/sh` shim named `git` never runs on Windows, so the no-git assertion would pass vacuously there.
-if (process.platform !== 'win32') {
-  const shim = path.join(fx.base, 'shim');
-  const marker = path.join(fx.base, 'git-ran');
-  fs.mkdirSync(shim);
-  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\ntouch '${marker}'\nexit 1\n`, { mode: 0o755 });
-  const savedPath = process.env.PATH;
-  process.env.PATH = `${shim}${path.delimiter}${savedPath}`;
-  try {
-    const target = path.join(fx.main, 'a.txt');
-    const callers = [
-      { label: 'the controller', input: { ...implementerWrite(target, fx.main), agent_id: undefined, agent_type: undefined } },
-      { label: 'the doc-writer', input: { ...implementerWrite(target, fx.main), agent_type: 'superdev:doc-writer' } },
-      { label: 'a general-purpose subagent', input: { ...implementerWrite(target, fx.main), agent_type: 'general-purpose' } },
-      { label: 'a subagent naming no agent type', input: { ...implementerWrite(target, fx.main), agent_type: undefined } },
-      { label: 'a non-string agent type', input: { ...implementerWrite(target, fx.main), agent_type: ['superdev:implementer'] } },
-      ...REJECTED.map((t) => ({ label: `agent type ${t}`, input: { ...implementerWrite(target, fx.main), agent_type: t } })),
-    ];
-    for (const { label, input } of callers) assert.equal(decide(input).block, false, `${label} passes`);
-    assert.equal(fs.existsSync(marker), false, 'the guard ran no git for a caller other than the implementer');
-  } finally {
-    process.env.PATH = savedPath;
-  }
-}
-
-// An implementer decision costs at most three git calls (ADR 0148), counted through the `spawnSync` wrapper. A count, never a
-// duration (ADR 0086).
-for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'config')]) {
-  const { r, git: ran } = measure(implementerWrite(target, fx.main));
-  assert.equal(r.block, true, `control: the counted write to ${target} is denied`);
-  assert.ok(ran >= 1 && ran <= 3, `an implementer decision runs at most three git calls, ran ${ran} for ${target}`);
-}
-
-// The reproduction of the intermittent failure, made deterministic: a git shim that holds one designated call past the hook's
-// bound before it does anything (the call a starved spawn leaves killed before its first line ran). The hook fails open on that
-// call, so the decision carries no verdict and is measured again. Each target is a denial the suite asserts. POSIX-only: the
-// shim is `holdShim`'s.
-if (process.platform !== 'win32') {
-  const { shim, flag } = holdShim('hold');
-  const savedPath = process.env.PATH;
-  process.env.PATH = `${shim}${path.delimiter}${savedPath}`;
-  try {
-    for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'hooks', 'pre-commit')]) {
-      fs.rmSync(flag, { recursive: true, force: true });
-      const held = measure(implementerWrite(target, fx.main));
-      assert.equal(held.r.block, true, `a decision whose first git call was held past the bound is measured again and denies ${target}`);
-      assert.ok(fs.existsSync(flag) && held.attempts >= 2, `the held call made an earlier attempt carry no verdict for ${target}`);
+// POSIX-only: the `#!/bin/sh` shim named `git` never runs on Windows, so the no-git assertion would pass vacuously
+// there.
+test('The controller, every other agent type, and a subagent call naming no agent type pass, and the guard runs no git to decide them.', () => {
+  if (process.platform !== 'win32') {
+    const shim = path.join(fx.base, 'shim');
+    const marker = path.join(fx.base, 'git-ran');
+    fs.mkdirSync(shim);
+    fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\ntouch '${marker}'\nexit 1\n`, { mode: 0o755 });
+    const savedPath = process.env.PATH;
+    process.env.PATH = `${shim}${path.delimiter}${savedPath}`;
+    try {
+      const target = path.join(fx.main, 'a.txt');
+      const callers = [
+        { label: 'the controller', input: { ...implementerWrite(target, fx.main), agent_id: undefined, agent_type: undefined } },
+        { label: 'the doc-writer', input: { ...implementerWrite(target, fx.main), agent_type: 'superdev:doc-writer' } },
+        { label: 'a general-purpose subagent', input: { ...implementerWrite(target, fx.main), agent_type: 'general-purpose' } },
+        { label: 'a subagent naming no agent type', input: { ...implementerWrite(target, fx.main), agent_type: undefined } },
+        { label: 'a non-string agent type', input: { ...implementerWrite(target, fx.main), agent_type: ['superdev:implementer'] } },
+        ...REJECTED.map((t) => ({ label: `agent type ${t}`, input: { ...implementerWrite(target, fx.main), agent_type: t } })),
+      ];
+      for (const { label, input } of callers) assert.equal(decide(input).block, false, `${label} passes`);
+      assert.equal(fs.existsSync(marker), false, 'the guard ran no git for a caller other than the implementer');
+    } finally {
+      process.env.PATH = savedPath;
     }
-  } finally {
-    process.env.PATH = savedPath;
   }
+});
+
+// A count, never a duration (ADR 0086).
+for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'config')]) {
+  test(`An implementer decision costs at most three git calls (ADR 0148), counted through the \`spawnSync\` wrapper. (${target})`, () => {
+    const { r, git: ran } = measure(implementerWrite(target, fx.main));
+    assert.equal(r.block, true, `control: the counted write to ${target} is denied`);
+    assert.ok(ran >= 1 && ran <= 3, `an implementer decision runs at most three git calls, ran ${ran} for ${target}`);
+  });
 }
 
-// A call the guard cannot judge passes (ADR 0148): the hook exits 0 and denies nothing.
-{
+// The hook fails open on that call, so the decision carries no verdict and is measured again. Each target is a denial
+// the suite asserts. POSIX-only: the shim is `holdShim`'s.
+test('The reproduction of the intermittent failure, made deterministic: a git shim that holds one designated call past the hook\'s bound before it does anything (the call a starved spawn leaves killed before its first line ran).', () => {
+  if (process.platform !== 'win32') {
+    const { shim, flag } = holdShim('hold');
+    const savedPath = process.env.PATH;
+    process.env.PATH = `${shim}${path.delimiter}${savedPath}`;
+    try {
+      for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'hooks', 'pre-commit')]) {
+        fs.rmSync(flag, { recursive: true, force: true });
+        const held = measure(implementerWrite(target, fx.main));
+        assert.equal(held.r.block, true, `a decision whose first git call was held past the bound is measured again and denies ${target}`);
+        assert.ok(fs.existsSync(flag) && held.attempts >= 2, `the held call made an earlier attempt carry no verdict for ${target}`);
+      }
+    } finally {
+      process.env.PATH = savedPath;
+    }
+  }
+});
+
+test('A call the guard cannot judge passes (ADR 0148): the hook exits 0 and denies nothing.', () => {
   const hook = path.join(pluginRoot, 'hooks', 'tree-guard.js');
   const run = (hookPath, input, env) => {
     const r = cp.spawnSync(process.execPath, [hookPath], { input, encoding: 'utf8', timeout: 30000, env: { ...process.env, ...env } });
@@ -396,10 +394,9 @@ if (process.platform !== 'win32') {
   fs.writeFileSync(path.join(stubbed, 'lib', 'main-work-tree.js'), `require('fs').writeFileSync(${JSON.stringify(stubMarker)}, 'x'); module.exports = { mainWorkTree() { throw new Error('boom'); } };`);
   assert.equal(run(path.join(stubbed, 'hooks', 'tree-guard.js'), write), 0, 'a mainWorkTree that throws passes');
   assert.ok(fs.existsSync(stubMarker), 'the stub with a throwing mainWorkTree loaded');
-}
+});
 
-// A target is judged by where its bytes would land, whatever its spelling.
-{
+test('A target is judged by where its bytes would land, whatever its spelling.', () => {
   const denied = (file, cwd = fx.slicetree) => decideM(implementerWrite(file, cwd)).block;
   assert.equal(denied('../../../../../a.txt', fx.slicetree), true, 'a relative path that resolves into the main checkout is denied');
   assert.equal(denied('a.txt', fx.slicetree), false, 'a relative path inside the slicetree passes');
@@ -443,69 +440,69 @@ if (process.platform !== 'win32') {
   } else {
     console.log(`skipped: the filesystem distinguishes letter case at ${upper}`);
   }
-}
+});
 
-// Windows spellings of a target (INV-0152): the cases below run on win32 only, and the suite asserts there that every one ran, so
-// no platform guard skips them silently. Each is a write by the implementer; a denied one is measured through `decideM`.
-if (process.platform === 'win32') {
-  let ran = 0;
-  const target = (file) => implementerWrite(file, fx.slicetree);
-  // `ran` counts a case only after its assertion held, so a case that never reached it leaves the count short.
-  const deniedWin = (file, label) => {
-    assert.equal(decideM(target(file)).block, true, `${label}: a write into the main checkout is denied: ${file}`);
-    ran++;
-  };
-  const main = fx.main;
-  deniedWin(main.replace(/\//g, '\\') + '\\a.txt', 'backslash');
-  deniedWin(main.replace(/\\/g, '/') + '/a.txt', 'forward slash');
-  deniedWin(main[0].toLowerCase() + main.slice(1) + '\\a.txt', 'lower-case drive');
-  deniedWin(main.replace(/\\/g, '/') + '/sub/../a.txt', 'forward slash with `..`');
-  // An 8.3 spelling of the main checkout, derived through `cmd`'s `%~s` expansion; the fixture's real path is the long one. The
-  // command line goes to cmd verbatim, wrapped in one outer quote pair that `/s` strips: without `windowsVerbatimArguments`
-  // libuv escapes every inner `"` as `\"`, and `%~sI` then expands a garbled literal. A volume without 8.3 names yields no
-  // distinct spelling, and a garbled derivation names a path that does not exist or resolves elsewhere; each fails here with its
-  // own message instead of as a false "not denied".
-  const short = cp.execFileSync('cmd', ['/d', '/s', '/c', `"for %I in ("${main}") do @echo %~sI"`], { encoding: 'utf8', windowsVerbatimArguments: true }).trim();
-  assert.notEqual(short.toLowerCase(), main.toLowerCase(), `the volume gives the main checkout a distinct 8.3 spelling: ${short}`);
-  assert.ok(fs.existsSync(short), `the derived 8.3 spelling exists: ${short}`);
-  assert.equal(fs.realpathSync.native(short).toLowerCase(), fs.realpathSync.native(main).toLowerCase(), `the derived 8.3 spelling names the main checkout: ${short}`);
-  deniedWin(path.join(short, 'a.txt'), `8.3 name (${short})`);
-  // A junction whose target is an absolute Windows path.
-  fs.symlinkSync(main, path.join(fx.slicetree, 'junction'), 'junction');
-  deniedWin(path.join(fx.slicetree, 'junction', 'a.txt'), 'junction');
-  deniedWin(path.join(fx.slicetree, 'junction', 'new', 'f.txt'), 'new file behind a junction');
-  // A UNC admin share. A runner may offer none, so the case counts where the share exists and prints its skip to the job log
-  // where it does not: the log shows which happened, and the expected count follows it.
-  let expected = 9;
-  const share = `\\\\localhost\\${main[0]}$\\${main.slice(3)}`;
-  if (fs.existsSync(path.join(share, 'a.txt'))) {
-    expected++;
-    deniedWin(path.join(share, 'a.txt'), 'UNC admin share');
-  } else {
-    console.log(`skipped: no admin share at ${share}`);
+// Each is a write by the implementer; a denied one is measured through `decideM`.
+test('Windows spellings of a target (INV-0152): the cases below run on win32 only, and the suite asserts there that every one ran, so no platform guard skips them silently.', () => {
+  if (process.platform === 'win32') {
+    let ran = 0;
+    const target = (file) => implementerWrite(file, fx.slicetree);
+    // `ran` counts a case only after its assertion held, so a case that never reached it leaves the count short.
+    const deniedWin = (file, label) => {
+      assert.equal(decideM(target(file)).block, true, `${label}: a write into the main checkout is denied: ${file}`);
+      ran++;
+    };
+    const main = fx.main;
+    deniedWin(main.replace(/\//g, '\\') + '\\a.txt', 'backslash');
+    deniedWin(main.replace(/\\/g, '/') + '/a.txt', 'forward slash');
+    deniedWin(main[0].toLowerCase() + main.slice(1) + '\\a.txt', 'lower-case drive');
+    deniedWin(main.replace(/\\/g, '/') + '/sub/../a.txt', 'forward slash with `..`');
+    // An 8.3 spelling of the main checkout, derived through `cmd`'s `%~s` expansion; the fixture's real path is the long one. The
+    // command line goes to cmd verbatim, wrapped in one outer quote pair that `/s` strips: without `windowsVerbatimArguments`
+    // libuv escapes every inner `"` as `\"`, and `%~sI` then expands a garbled literal. A volume without 8.3 names yields no
+    // distinct spelling, and a garbled derivation names a path that does not exist or resolves elsewhere; each fails here with its
+    // own message instead of as a false "not denied".
+    const short = cp.execFileSync('cmd', ['/d', '/s', '/c', `"for %I in ("${main}") do @echo %~sI"`], { encoding: 'utf8', windowsVerbatimArguments: true }).trim();
+    assert.notEqual(short.toLowerCase(), main.toLowerCase(), `the volume gives the main checkout a distinct 8.3 spelling: ${short}`);
+    assert.ok(fs.existsSync(short), `the derived 8.3 spelling exists: ${short}`);
+    assert.equal(fs.realpathSync.native(short).toLowerCase(), fs.realpathSync.native(main).toLowerCase(), `the derived 8.3 spelling names the main checkout: ${short}`);
+    deniedWin(path.join(short, 'a.txt'), `8.3 name (${short})`);
+    // A junction whose target is an absolute Windows path.
+    fs.symlinkSync(main, path.join(fx.slicetree, 'junction'), 'junction');
+    deniedWin(path.join(fx.slicetree, 'junction', 'a.txt'), 'junction');
+    deniedWin(path.join(fx.slicetree, 'junction', 'new', 'f.txt'), 'new file behind a junction');
+    // A UNC admin share. A runner may offer none, so the case counts where the share exists and prints its skip to the job log
+    // where it does not: the log shows which happened, and the expected count follows it.
+    let expected = 9;
+    const share = `\\\\localhost\\${main[0]}$\\${main.slice(3)}`;
+    if (fs.existsSync(path.join(share, 'a.txt'))) {
+      expected++;
+      deniedWin(path.join(share, 'a.txt'), 'UNC admin share');
+    } else {
+      console.log(`skipped: no admin share at ${share}`);
+    }
+    // A write to a drive or share that does not exist passes, and the hook child finishes on its own: it runs under a bound far
+    // above its own 5 s exit, and a child stuck in the ancestor walk is killed by that bound and fails here (INV-0009). Only that
+    // termination is asserted. The hook ends itself with `process.exit(0)` at its own bound, so a lookup the exit timer cut short
+    // and one that fell open on its own read the same, and no absolute elapsed ceiling holds (ADR 0086, the root `AGENTS.md`).
+    const free = 'ZYXWVUTSRQPONMLKJIHGFED'.split('').find((l) => !fs.existsSync(`${l}:\\`));
+    const hook = path.join(pluginRoot, 'hooks', 'tree-guard.js');
+    for (const [label, file] of [
+      ['an unmapped drive', `${free}:\\x\\a.txt`],
+      ['a UNC root on a host with no DNS entry', '\\\\superdev-no-such-host.invalid\\share\\x\\a.txt'],
+    ]) {
+      const r = cp.spawnSync(process.execPath, [hook], { input: JSON.stringify(target(file)), encoding: 'utf8', timeout: 60000 });
+      assertSpawnDecided(r, label);
+      assert.equal(r.status, 0, `${label}: the write passes: ${file}`);
+      assert.equal(decide(target(file)).block, false, `${label}: the decision passes in process: ${file}`);
+      ran++;
+    }
+    assert.equal(ran, expected, `every native-path case ran (${ran} of ${expected})`);
   }
-  // A write to a drive or share that does not exist passes, and the hook child finishes on its own: it runs under a bound far
-  // above its own 5 s exit, and a child stuck in the ancestor walk is killed by that bound and fails here (INV-0009). Only that
-  // termination is asserted. The hook ends itself with `process.exit(0)` at its own bound, so a lookup the exit timer cut short
-  // and one that fell open on its own read the same, and no absolute elapsed ceiling holds (ADR 0086, the root `AGENTS.md`).
-  const free = 'ZYXWVUTSRQPONMLKJIHGFED'.split('').find((l) => !fs.existsSync(`${l}:\\`));
-  const hook = path.join(pluginRoot, 'hooks', 'tree-guard.js');
-  for (const [label, file] of [
-    ['an unmapped drive', `${free}:\\x\\a.txt`],
-    ['a UNC root on a host with no DNS entry', '\\\\superdev-no-such-host.invalid\\share\\x\\a.txt'],
-  ]) {
-    const r = cp.spawnSync(process.execPath, [hook], { input: JSON.stringify(target(file)), encoding: 'utf8', timeout: 60000 });
-    assertSpawnDecided(r, label);
-    assert.equal(r.status, 0, `${label}: the write passes: ${file}`);
-    assert.equal(decide(target(file)).block, false, `${label}: the decision passes in process: ${file}`);
-    ran++;
-  }
-  assert.equal(ran, expected, `every native-path case ran (${ran} of ${expected})`);
-}
+});
 
-// A `.superdev` that is a symlink to a directory outside the main checkout still holds the run and its slicetrees.
-{
+test('A `.superdev` that is a symlink to a directory outside the main checkout still holds the run and its slicetrees.', () => {
   const lx = fixture({ linked: true });
   assert.equal(decide(implementerWrite(path.join(lx.slicetree, 'a.txt'), lx.slicetree)).block, false, 'a write into a slicetree under a symlinked `.superdev` passes');
   assert.equal(decideM(implementerWrite(path.join(lx.main, 'a.txt'), lx.main)).block, true, 'control: a write into that main checkout is denied');
-}
+});

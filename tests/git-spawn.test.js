@@ -4,6 +4,7 @@
 // path reads at a commit, `existsAt` and `fileAt`, and the working-tree listing `listWorktrees`, its `-z` fallback included, and its
 // failure when git cannot start or is ended by a signal on the first listing or on its fallback.
 
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -11,6 +12,10 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { gitSpawn, gitThrow, parseBranchList } = require('../plugin/lib/git-spawn.js');
+
+after(() => {
+  fs.rmSync(dir, { recursive: true, force: true });
+});
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-'));
 gitThrow(['init', '-q', '-b', 'main'], dir);
@@ -20,23 +25,26 @@ fs.writeFileSync(path.join(dir, 'a.txt'), 'x\n');
 gitThrow(['add', '.'], dir);
 gitThrow(['commit', '-q', '-m', 'init'], dir);
 
-assert.equal(gitThrow(['symbolic-ref', '--short', 'HEAD'], dir), 'main', 'gitThrow returns the trimmed stdout');
-assert.throws(() => gitThrow(['rev-parse', '--verify', '--quiet', 'no-such-ref'], dir), 'gitThrow throws on a nonzero exit');
-assert.throws(() => gitThrow(['status'], path.join(dir, 'no-such-dir')), 'gitThrow throws when git cannot run in the directory');
-assert.equal(gitSpawn(['rev-parse', '--verify', '--quiet', 'no-such-ref'], dir).status, 1, 'gitSpawn reports the status instead of throwing');
+test('gitThrow returns trimmed stdout and throws on failure; gitSpawn reports the status', () => {
+  assert.equal(gitThrow(['symbolic-ref', '--short', 'HEAD'], dir), 'main', 'gitThrow returns the trimmed stdout');
+  assert.throws(() => gitThrow(['rev-parse', '--verify', '--quiet', 'no-such-ref'], dir), 'gitThrow throws on a nonzero exit');
+  assert.throws(() => gitThrow(['status'], path.join(dir, 'no-such-dir')), 'gitThrow throws when git cannot run in the directory');
+  assert.equal(gitSpawn(['rev-parse', '--verify', '--quiet', 'no-such-ref'], dir).status, 1, 'gitSpawn reports the status instead of throwing');
+});
 
-assert.deepEqual(
-  [...parseBranchList('* main\n+ fix/in-worktree\n  feat/plain\n\n')],
-  ['main', 'fix/in-worktree', 'feat/plain'],
-  'parseBranchList drops the current and worktree markers, the indentation, and blank lines'
-);
-assert.deepEqual([...parseBranchList('')], [], 'an empty listing parses to an empty set');
-assert.equal(parseBranchList('a\na\n').size, 1, 'the parse is a set of names');
+test('parseBranchList parses a branch listing into a set of names', () => {
+  assert.deepEqual(
+    [...parseBranchList('* main\n+ fix/in-worktree\n  feat/plain\n\n')],
+    ['main', 'fix/in-worktree', 'feat/plain'],
+    'parseBranchList drops the current and worktree markers, the indentation, and blank lines'
+  );
+  assert.deepEqual([...parseBranchList('')], [], 'an empty listing parses to an empty set');
+  assert.equal(parseBranchList('a\na\n').size, 1, 'the parse is a set of names');
+});
 
-// `fileAt` and `existsAt` read a path literally: a path shaped like pathspec magic, or holding a glob character, a space, or a
-// newline, answers for exactly that path. Commit `bare` holds `foo`, `ab`, an empty file, and `sub/x`; commit `full` adds every
-// special path, each holding its own name.
-{
+// Commit `bare` holds `foo`, `ab`, an empty file, and `sub/x`; commit `full` adds every special path, each holding
+// its own name.
+test('`fileAt` and `existsAt` read a path literally: a path shaped like pathspec magic, or holding a glob character, a space, or a newline, answers for exactly that path.', () => {
   const { fileAt, existsAt } = require('../plugin/lib/git-spawn.js');
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-paths-')));
   const put = (rel, body) => {
@@ -87,11 +95,9 @@ assert.equal(parseBranchList('a\na\n').size, 1, 'the parse is a set of names');
     }
   }
   fs.rmSync(repo, { recursive: true, force: true });
-}
+});
 
-// `listWorktrees` reads each registered working tree as one `{ path, branch, detached }` entry: a locked tree and a prunable one
-// each stay one entry, and a git that refuses `-z` falls back to the newline-split listing with the same entries.
-{
+test('`listWorktrees` reads each registered working tree as one `{ path, branch, detached }` entry: a locked tree and a prunable one each stay one entry, and a git that refuses `-z` falls back to the newline-split listing with the same entries.', () => {
   const { listWorktrees } = require('../plugin/lib/git-spawn.js');
   const { execFileSync } = require('node:child_process');
   const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-trees-')));
@@ -177,8 +183,6 @@ assert.equal(parseBranchList('a\na\n').size, 1, 'the parse is a set of names');
     fs.rmSync(d, { recursive: true, force: true });
   }
   fs.rmSync(base, { recursive: true, force: true });
-}
+});
 
-fs.rmSync(dir, { recursive: true, force: true });
 
-console.log('git-spawn tests ok');

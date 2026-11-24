@@ -4,6 +4,7 @@
 // plugin/hooks/ and plugin/scripts/ exports exactly the names a requirer uses, and a name it
 // re-exports from a module is that module's own.
 
+const { test } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const cp = require('node:child_process');
@@ -16,10 +17,8 @@ const plugin = path.join(__dirname, '..', 'plugin');
 const libFiles = fs.readdirSync(path.join(plugin, 'lib'), { recursive: true }).filter((n) => n.endsWith('.js'));
 const hookFiles = fs.readdirSync(path.join(plugin, 'hooks')).filter((n) => n.endsWith('.js'));
 
-// The CommonJS anchor covers plugin/lib/: the nearest package.json above it is plugin/package.json, which carries
-// `"type": "commonjs"`, and plugin/lib/ holds no `.mjs` file and no ESM syntax. Checked first, before anything under
-// plugin/ loads, so a broken anchor fails here.
-{
+// Checked first, before anything under plugin/ loads, so a broken anchor fails here.
+test('The CommonJS anchor covers plugin/lib/: the nearest package.json above it is plugin/package.json, which carries `"type": "commonjs"`, and plugin/lib/ holds no `.mjs` file and no ESM syntax.', () => {
   const lib = path.join(plugin, 'lib');
   let dir = lib;
   while (!fs.existsSync(path.join(dir, 'package.json'))) dir = path.dirname(dir);
@@ -31,65 +30,69 @@ const hookFiles = fs.readdirSync(path.join(plugin, 'hooks')).filter((n) => n.end
     const src = fs.readFileSync(path.join(lib, name), 'utf8');
     assert.doesNotMatch(src, /^\s*(?:import\s[\s\S]*?\sfrom\s|import\s*['"]|export\s)|\bimport\.meta\b/m, `plugin/lib/${name} carries no ESM syntax`);
   }
-}
+});
 
-// No hook refuses an implementer's full-suite run, and no module classifies a test command (ADR 0227).
-assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'test-guard.js')), 'no test-guard hook');
-assert.ok(!fs.existsSync(path.join(plugin, 'lib', 'test-runs.js')), 'no test-runs module');
-assert.ok(!/test-guard/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no test-guard');
+test('No hook refuses an implementer\'s full-suite run, and no module classifies a test command (ADR 0227).', () => {
+  assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'test-guard.js')), 'no test-guard hook');
+  assert.ok(!fs.existsSync(path.join(plugin, 'lib', 'test-runs.js')), 'no test-runs module');
+  assert.ok(!/test-guard/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no test-guard');
+});
 
-// No hook refuses a scopetree's creation: a run recreates its own absent scopetree with a plain `git worktree add` (ADR 0227).
-assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'run-lock.js')), 'no run-lock hook');
-assert.ok(!/run-lock/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no run-lock');
+test('No hook refuses a scopetree\'s creation: a run recreates its own absent scopetree with a plain `git worktree add` (ADR 0227).', () => {
+  assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'run-lock.js')), 'no run-lock hook');
+  assert.ok(!/run-lock/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no run-lock');
+});
 
-// superdev sends no operator alert: no hook denies an AskUserQuestion or blocks a Stop to prompt a PushNotification (ADR 0275).
-assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'operator-alert.js')), 'no operator-alert hook');
-assert.ok(!/operator-alert/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no operator-alert');
+test('superdev sends no operator alert: no hook denies an AskUserQuestion or blocks a Stop to prompt a PushNotification (ADR 0275).', () => {
+  assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'operator-alert.js')), 'no operator-alert hook');
+  assert.ok(!/operator-alert/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no operator-alert');
+});
 
-// The export names of each entry point, sorted. A dropped or added export fails here.
-const EXPORTS = {
-  'hooks/merge-guard.js': ['decide'],
-  'hooks/run-trace.js': ['OURS', 'decide', 'record'],
-  'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable'],
-  'hooks/slicetree-sweep.js': ['git', 'main', 'selectRemovable'],
-  'hooks/tree-guard.js': ['decide'],
-  'hooks/update-check.js': [],
-  'scripts/kb-patch.js': ['merge'],
-  'scripts/publish-kb.js': ['addParentLink', 'classifyBackend', 'hashBody',
-    'parseCommandsTemplates', 'parseStagedPage', 'removeParentLink', 'resolveMainCheckout', 'run', 'runFind',
-    'timeoutMs'],
-  'scripts/scope.js': ['SLUG_RE', 'appendTrace', 'baseHistoryHasPatch', 'endRun', 'findCollisions', 'inProgressSlices',
-    'isTestPath', 'publishText', 'readLedgerHeader', 'readTrace', 'run', 'testContainment',
-    'verificationCommandsOf', 'watchMain'],
-};
-for (const [rel, names] of Object.entries(EXPORTS)) {
-  assert.deepStrictEqual(Object.keys(require(path.join(plugin, rel))).sort(), names, `${rel} exports exactly the names a requirer uses`);
-}
-
-// Each entry point re-exports names from the modules that hold them: each name is the module's own value, so a
-// divergent local copy fails here.
-const RE_EXPORTS = {
-  'scripts/kb-patch.js': { 'md-sections': ['merge'] },
-  'scripts/publish-kb.js': { 'kb-staging': ['resolveMainCheckout'],
-    'kb-backend-config': ['classifyBackend', 'parseCommandsTemplates'], 'kb-staged-page': ['parseStagedPage'],
-    'kb-backend': ['runFind', 'timeoutMs', 'hashBody'],
-    'kb-parent-link': ['addParentLink', 'removeParentLink'] },
-  'scripts/scope.js': { 'run-supervision': ['endRun', 'watchMain'], verification: ['verificationCommandsOf', 'isTestPath'],
-    'trace-log': ['appendTrace', 'readTrace'], ledger: ['readLedgerHeader', 'inProgressSlices', 'SLUG_RE'],
-    'run-state': ['publishText'], containment: ['testContainment', 'baseHistoryHasPatch'], collisions: ['findCollisions'] },
-};
-for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
-  const entry = require(path.join(plugin, rel));
-  for (const [mod, names] of Object.entries(mods)) {
-    const own = require(path.join(plugin, 'lib', `${mod}.js`));
-    for (const name of names) assert.strictEqual(entry[name], own[name], `${path.basename(rel)}'s ${name} is ${mod}.js's`);
+// A dropped or added export fails here.
+test('The export names of each entry point, sorted.', () => {
+  const EXPORTS = {
+    'hooks/merge-guard.js': ['decide'],
+    'hooks/run-trace.js': ['OURS', 'decide', 'record'],
+    'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable'],
+    'hooks/slicetree-sweep.js': ['git', 'main', 'selectRemovable'],
+    'hooks/tree-guard.js': ['decide'],
+    'hooks/update-check.js': [],
+    'scripts/kb-patch.js': ['merge'],
+    'scripts/publish-kb.js': ['addParentLink', 'classifyBackend', 'hashBody',
+      'parseCommandsTemplates', 'parseStagedPage', 'removeParentLink', 'resolveMainCheckout', 'run', 'runFind',
+      'timeoutMs'],
+    'scripts/scope.js': ['SLUG_RE', 'appendTrace', 'baseHistoryHasPatch', 'endRun', 'findCollisions', 'inProgressSlices',
+      'isTestPath', 'publishText', 'readLedgerHeader', 'readTrace', 'run', 'testContainment',
+      'verificationCommandsOf', 'watchMain'],
+  };
+  for (const [rel, names] of Object.entries(EXPORTS)) {
+    assert.deepStrictEqual(Object.keys(require(path.join(plugin, rel))).sort(), names, `${rel} exports exactly the names a requirer uses`);
   }
-}
+});
 
-// INV-0068: requiring a lib module or a hook prints nothing, spawns nothing, and exits nothing. One process requires every file of
-// both listings, so a module or hook added later is covered without an edit here. stdin is an empty pipe, so a hook missing its
-// require.main guard would dispatch and write.
-{
+test('Each entry point re-exports names from the modules that hold them: each name is the module\'s own value, so a divergent local copy fails here.', () => {
+  const RE_EXPORTS = {
+    'scripts/kb-patch.js': { 'md-sections': ['merge'] },
+    'scripts/publish-kb.js': { 'kb-staging': ['resolveMainCheckout'],
+      'kb-backend-config': ['classifyBackend', 'parseCommandsTemplates'], 'kb-staged-page': ['parseStagedPage'],
+      'kb-backend': ['runFind', 'timeoutMs', 'hashBody'],
+      'kb-parent-link': ['addParentLink', 'removeParentLink'] },
+    'scripts/scope.js': { 'run-supervision': ['endRun', 'watchMain'], verification: ['verificationCommandsOf', 'isTestPath'],
+      'trace-log': ['appendTrace', 'readTrace'], ledger: ['readLedgerHeader', 'inProgressSlices', 'SLUG_RE'],
+      'run-state': ['publishText'], containment: ['testContainment', 'baseHistoryHasPatch'], collisions: ['findCollisions'] },
+  };
+  for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
+    const entry = require(path.join(plugin, rel));
+    for (const [mod, names] of Object.entries(mods)) {
+      const own = require(path.join(plugin, 'lib', `${mod}.js`));
+      for (const name of names) assert.strictEqual(entry[name], own[name], `${path.basename(rel)}'s ${name} is ${mod}.js's`);
+    }
+  }
+});
+
+// One process requires every file of both listings, so a module or hook added later is covered without an edit here.
+// stdin is an empty pipe, so a hook missing its require.main guard would dispatch and write.
+test('INV-0068: requiring a lib module or a hook prints nothing, spawns nothing, and exits nothing.', () => {
   const files = [...libFiles.map((n) => path.join('lib', n)), ...hookFiles.map((n) => path.join('hooks', n))];
   const child = `
     const cp = require('node:child_process');
@@ -117,10 +120,10 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
   for (const n of libFiles) {
     assert.doesNotMatch(fs.readFileSync(path.join(plugin, 'lib', n), 'utf8'), /require\(['"]\.\.\/(?:scripts|hooks)\//, `lib/${n} requires no entry point`);
   }
-}
+});
 
-// INV-0068: each hook run as a process acts. DIRECT holds one payload that the hook decides on, and a hook without an entry fails.
-{
+// DIRECT holds one payload that the hook decides on, and a hook without an entry fails.
+test('INV-0068: each hook run as a process acts.', () => {
   const git = (args, cwd) => cp.execFileSync('git', args, { cwd, stdio: 'ignore' });
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-layout-')));
   process.on('exit', () => fs.rmSync(tmp, { recursive: true, force: true }));
@@ -196,11 +199,10 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
     assertSpawnDecided(r, `spawning ${name} directly`);
     try { check(r); } catch (e) { e.message = `${name} run directly: ${e.message}\nstderr: ${r.stderr}`; throw e; }
   }
-}
+});
 
-// INV-0187: no shipped file but merge-guard's raw-text check reads a Bash call's `tool_input.command` (ADR 0227). The scan takes
-// a root, so the fixture is a temporary tree outside plugin/.
-{
+// The scan takes a root, so the fixture is a temporary tree outside plugin/.
+test('INV-0187: no shipped file but merge-guard\'s raw-text check reads a Bash call\'s `tool_input.command` (ADR 0227).', () => {
   const READS = /\b(?:ti|tool_input|toolInput)\s*(?:\??\.\s*command\b|\[\s*['"]command['"]\s*\])|\{[^}]*\bcommand\b[^}]*\}\s*=\s*(?:input\.)?(?:ti|tool_input)\b/;
   const readers = (root) => fs.readdirSync(root, { recursive: true })
     .filter((f) => f.endsWith('.js') && READS.test(fs.readFileSync(path.join(root, f), 'utf8')))
@@ -214,4 +216,4 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
   } finally {
     fs.rmSync(T, { recursive: true, force: true });
   }
-}
+});

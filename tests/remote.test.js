@@ -3,6 +3,7 @@
 // Suite for plugin/lib/remote.js: `parseRemote` reads the first token of the `Remote:` bullet of
 // `docs/agents/code-management.md`, and `resolveRemote` reads that bullet at the repository's top level (INV-0203).
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -10,8 +11,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { parseRemote, resolveRemote } = require('../plugin/lib/remote.js');
 
-// --- parseRemote takes the first token of the `- **Remote:**` bullet: every shipped bullet carries a trailing sentence ---
-{
+test('parseRemote takes the first token of the `- **Remote:**` bullet: every shipped bullet carries a trailing sentence', () => {
   assert.equal(parseRemote('# Code host\n\n- **Remote:** `upstream`.\n'), 'upstream');
   assert.equal(parseRemote('# Code host\n\n- **Remote**: `upstream`.\n'), 'upstream', 'the colon-outside-bold spelling too');
   assert.equal(parseRemote('# Code host\n\nno remote bullet here.\n'), null, 'absent bullet -> null, not a refusal');
@@ -21,10 +21,9 @@ const { parseRemote, resolveRemote } = require('../plugin/lib/remote.js');
     'the real shipped bullet shape (docs/agents/code-management.md and both seeds) carries a trailing sentence',
   );
   assert.equal(parseRemote(null), null);
-}
+});
 
-// --- resolveRemote reads the top-level document from a subdirectory, and answers null with no Remote: value -----------
-{
+test('resolveRemote reads the top-level document from a subdirectory, and answers null with no Remote: value', () => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'remote-'));
   execFileSync('git', ['init', '-q'], { cwd: repo });
   const doc = path.join(repo, 'docs', 'agents', 'code-management.md');
@@ -37,6 +36,5 @@ const { parseRemote, resolveRemote } = require('../plugin/lib/remote.js');
   fs.writeFileSync(doc, '# Code host\n\n- **Base branch:** `main`.\n');
   assert.equal(resolveRemote(repo, undefined), null, 'no Remote: value -> null, never origin');
   fs.rmSync(repo, { recursive: true, force: true });
-}
+});
 
-console.log('remote.test.js: all assertions passed');
