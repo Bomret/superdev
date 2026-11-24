@@ -4,17 +4,13 @@
 // (ADR 0042), its markers, the refusals, and the real fold through kb-patch.js. The shared directory, `call`,
 // and the init payload come from tests/scope-setup.js.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { tmp, call, sliceJson, scopePath, run, cleanup, writeDod } = require('./scope-setup');
+const { tmp, call, sliceJson, scopePath, run, writeDod } = require('./scope-setup');
 const { publishText } = require(scopePath);
-
-after(() => {
-  cleanup();
-});
 
 let r;
 

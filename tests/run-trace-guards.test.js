@@ -3,18 +3,14 @@
 // Suite for the run-trace hook's failure posture (INV-0159): with any module it loads unloadable, or a function of a loaded
 // module throwing, the hook records nothing. Each case confirms its stub loaded.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { readTrace, appendTrace } = require('../plugin/scripts/scope.js');
-const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, cleanup } = require('./run-trace-setup');
-
-after(() => {
-  cleanup();
-});
+const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre } = require('./run-trace-setup');
 
 test('With trace-log.js unloadable, or a function of it throwing, the hook records nothing; a control run records.', () => {
   const preload = path.join(tmp, 'preload.js');

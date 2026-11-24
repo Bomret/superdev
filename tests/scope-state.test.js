@@ -11,11 +11,10 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { tmp, call, sliceJson, scopePath, cleanup, writeDod, scopeRoot } = require('./scope-setup');
+const { tmp, call, sliceJson, scopePath, writeDod, scopeRoot } = require('./scope-setup');
 
 const made = [];
 after(() => {
-  cleanup();
   for (const d of made) fs.rmSync(d, { recursive: true, force: true });
 });
 

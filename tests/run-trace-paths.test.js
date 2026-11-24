@@ -2,16 +2,12 @@
 
 // Suite for the test-path classification of the run trace (ADR 0128): which recorded edits are `test` and which `impl`.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const { isTestPath } = require('../plugin/scripts/scope.js');
-const { A, S3, trace, reset, run, edit, cleanup } = require('./run-trace-setup');
-
-after(() => {
-  cleanup();
-});
+const { A, S3, trace, reset, run, edit } = require('./run-trace-setup');
 
 const vf = path.join(S3, 'docs', 'agents', 'verification.md');
 test('Test paths: defaults without a section; a configured section overrides; a malformed entry is skipped.', () => {

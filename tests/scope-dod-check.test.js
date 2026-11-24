@@ -4,13 +4,9 @@
 // `(triage <ref>)` citations, its `Reachable:` criterion, and its `Release risk:` categories (ADR 0233,
 // INV-0189, INV-0137). The shared directory and `call` come from tests/scope-setup.js.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
-const { call, cleanup } = require('./scope-setup');
-
-after(() => {
-  cleanup();
-});
+const { call } = require('./scope-setup');
 
 // A well-formed Definition of Done: one Reachable criterion and the shared release-risk form.
 const REACHABLE = '- [ ] Reachable: `/superdev:plan` runs it — 01';

@@ -13,12 +13,11 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { tmp, call, sliceJson, scopePath, run, cleanup, writeDod, scopeRoot } = require('./scope-setup');
+const { tmp, call, sliceJson, scopePath, run, writeDod, scopeRoot } = require('./scope-setup');
 const { publishText, SLUG_RE, readLedgerHeader } = require(scopePath);
 
 const made = [];
 afterAll(() => {
-  cleanup();
   for (const d of made) fs.rmSync(d, { recursive: true, force: true });
 });
 

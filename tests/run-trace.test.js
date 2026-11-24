@@ -3,16 +3,12 @@
 // Suite for plugin/hooks/run-trace.js (ADR 0117): the stdin-to-line contract of the hook. Edit attribution and the Bash calls that add no line call the exported
 // `record` in-process; the spawned hook covers exit 0, empty stderr, and empty stdout.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const { inProgressSlices } = require('../plugin/scripts/scope.js');
-const { tmp, ledger, A, B, S3, trace, reset, run, spawnOut, edit, bash, cleanup } = require('./run-trace-setup');
-
-after(() => {
-  cleanup();
-});
+const { tmp, ledger, A, B, S3, trace, reset, run, spawnOut, edit, bash } = require('./run-trace-setup');
 
 test('inProgressSlices: ids at in-progress, table order.', () => {
   assert.deepEqual(inProgressSlices(ledger([['01', 'merged'], ['02', 'in-progress'], ['03', 'in-progress']])), ['02', '03']);

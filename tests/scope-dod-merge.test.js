@@ -4,15 +4,11 @@
 // keeping the verdicts a local copy already carries (references/dod-ticks.md, ADR 0206). The shared directory
 // and `call` come from tests/scope-setup.js.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { call, cleanup, tmp } = require('./scope-setup');
-
-after(() => {
-  cleanup();
-});
+const { call, tmp } = require('./scope-setup');
 
 const root = path.join(tmp, '.superdev', 'scopes', 'merge-scope');
 const dod = path.join(root, 'dod.md');

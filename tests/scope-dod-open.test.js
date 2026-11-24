@@ -10,10 +10,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { call, cleanup } = require('./scope-setup');
-after(() => {
-  cleanup();
-});
+const { call } = require('./scope-setup');
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-dod-open-')));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));

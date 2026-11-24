@@ -12,11 +12,10 @@ const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { appendTrace } = require('../plugin/scripts/scope.js');
 const { encodePaths } =require('../plugin/lib/trace-log.js');
-const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agentPost, cleanup, GIT_SPAWN_BOUND_MS } = require('./run-trace-setup');
+const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agentPost, GIT_SPAWN_BOUND_MS } = require('./run-trace-setup');
 
 const made = [];
 after(() => {
-  cleanup();
   for (const d of made) fs.rmSync(d, { recursive: true, force: true });
 });
 

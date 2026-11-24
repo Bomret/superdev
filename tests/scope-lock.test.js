@@ -8,10 +8,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { call, cleanup } = require('./scope-setup');
-after(() => {
-  cleanup();
-});
+const { call } = require('./scope-setup');
 
 const HOUR = 60 * 60 * 1000;
 const dirs = [];
