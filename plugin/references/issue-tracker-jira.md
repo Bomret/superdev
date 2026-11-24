@@ -91,7 +91,8 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
   .fields.description < "$r" > "$b" && <producer> < "$b" > "$f" && [ -s "$f" ] && jq '{fields:
   {description: .}}' < "$f" > "$p" && curl -s --fail-with-body <auth> -X PUT --data-binary @-
   "<base>/rest/api/3/issue/<key>" < "$p" > "$o"`. `<producer>` builds the new description from `"$b"`:
-  the tick or a line append. Name each file with `mktemp`. A failed step, a response
+  the tick, the criterion-tag rewrite, an anchor line's append, revision, or removal, or append mode's fold
+  of new criteria and parked-question delete. Name each file with `mktemp`. A failed step, a response
   without a description, or an empty result stops the chain before the edit. Every description edit goes
   through this rule, and a producer's stdout is never spliced into the payload inline.
 - **Update status**: the transition ids of *Status workflow* below.
