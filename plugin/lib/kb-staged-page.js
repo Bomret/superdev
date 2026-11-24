@@ -60,9 +60,8 @@ function lineEnding(raw) {
 }
 
 // Writes the `created-by-publish` marker into a staged file's frontmatter, ahead of the `create`
-// call it precedes. The marker line takes the file's own line ending (`lineEnding`), so the staged
-// file still holds every previous byte, and now also names the
-// moment this run sent it as a create. A create killed before it returns leaves the marker on
+// call it precedes. The marker line takes the file's own line ending, so the staged file still holds
+// every previous byte, and now also names the moment this run sent it as a create. A create killed before it returns leaves the marker on
 // disk, so a later run's `find` seeing the page land reads it as this run's own retry (ADR 0130)
 // rather than someone else's page (INV-0091), with no `read` call needed to tell the two apart.
 //
