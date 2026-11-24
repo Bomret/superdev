@@ -1034,7 +1034,7 @@ run at all. `action: delete` and `action: patch` are untouched by the guard.
 Before a hashless `upsert` finds the page absent and sends `create`, `markStagedCreate` writes a
 `created-by-publish: <ISO-8601 time>` line into the staged file's own frontmatter, ahead of the
 `create` call — a call this same run then sends. The line takes the line ending of the file's opening
-line, as `restageLiveHash`'s `live-hash` line does, and every other byte of the file stays as it was. A create killed after it lands leaves that marker
+line, as `restageLiveHash`'s `live-hash` line does. Every other byte of the file stays as it was. A create killed after it lands leaves that marker
 on the staged file that survives it, so a later run whose `find` locates the page reads the marker
 and sends `update` directly (ADR 0130), never the hash guard and never a `read` call. A hashless
 `upsert` `find` reports existing, carrying no marker, is refused exactly as before: only a page this
