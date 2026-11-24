@@ -50,6 +50,19 @@ assert.equal(parseStagedPage("---\ntitle: '\n---\nbody\n").title, "'", 'a lone s
     assert.equal(fs.readFileSync(f, 'utf8'), once, `${label}: a second mark keeps the file byte-identical`);
   }
 
+  // Mixed line endings: the marker takes the opening line's ending, whatever the later lines end in.
+  for (const [label, head, tail, eol] of [
+    ['LF opening, CRLF after', '---\ntitle: T\r\n', '---\r\nbody\r\n', '\n'],
+    ['CRLF opening, LF after', '---\r\ntitle: T\n', '---\nbody\n', '\r\n'],
+  ]) {
+    const f = path.join(dir, `${label}.md`);
+    fs.writeFileSync(f, head + tail);
+    assert.ok(markStagedCreate(f).ok, `${label}: the mark succeeds`);
+    const once = fs.readFileSync(f, 'utf8');
+    assert.ok(once.startsWith(head) && once.endsWith(tail), `${label}: every other byte is unchanged`);
+    assert.match(once.slice(head.length, once.length - tail.length), marker(eol), `${label}: the marker line ends as the opening line does`);
+  }
+
   // A CRLF file marked and then restaged keeps CRLF on every line, and still reads both the marker and the hash.
   const g = path.join(dir, 'restaged.md');
   fs.writeFileSync(g, '---\r\ntitle: T\r\naction: upsert\r\n---\r\nbody\r\n');
@@ -60,6 +73,7 @@ assert.equal(parseStagedPage("---\ntitle: '\n---\nbody\n").title, "'", 'a lone s
   const read = parseStagedPage(restaged);
   assert.ok(read.createdByPublish, 'the marker reads back');
   assert.equal(read.liveHash, 'abc', 'the hash reads back');
+  fs.rmSync(dir, { recursive: true, force: true });
 }
 
 console.log('kb-staged-page.test.js: all assertions passed');
