@@ -2,7 +2,8 @@
 
 // Shared setup for the publish-kb suites (tests/publish-kb*.test.js). Not a suite: it builds fixture
 // repositories, stages pages, calls `run()` and captures its output, and measures the healthy spawn
-// a hang bound derives from. Requiring it spawns nothing; a suite that asserts a hang calls
+// a hang bound derives from (`hangBound()`) and the refused CLI spawn a help-case bound derives from (`cliBound()`).
+// Requiring it spawns nothing; a suite that asserts a hang calls
 // `hangBound()` itself, so every suite times its own spawn in its own run (AGENTS.md, ADR 0086).
 //
 // The backend is a real fake command (tests/fixtures/fake-kb-backend.js), never a mocked exec
@@ -85,6 +86,28 @@ function hangBound() {
   }
   return hangMs;
 }
+
+// The bound every publish-kb CLI spawn of the help cases runs under, taken from this run rather than fixed (AGENTS.md,
+// ADR 0086). `cliBound()` times a refused `--scope -h` outside any repository through tests/spawn-verdict.js's
+// `boundFromSamples`: three times, bounding each help-case spawn at ten times the slowest, never below 1000ms. The
+// refusal is the costliest healthy call those cases make, because it runs the repository lookup a help request skips,
+// so its bound covers the help requests as well. A sample that fails to start, hits its own 60s bound, or answers other
+// than a refusal with empty stdout timed nothing healthy, so it stops the case with its reason (INV-0009).
+function cliSample(i) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-cli-sample-'));
+  let sample;
+  try {
+    sample = spawnSync(process.execPath, [publishKbPath, '--scope', '-h'], { cwd: dir, encoding: 'utf8', timeout: 60000 });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  assertSpawnDecided(sample, `cli-bound sample ${i + 1}`);
+  if (sample.status !== 1 || sample.stdout !== '') {
+    throw new Error(`cli-bound sample ${i + 1} exited ${sample.status}, not a refusal with empty stdout: ${sample.stderr}`);
+  }
+}
+
+const cliBound = () => boundFromSamples(cliSample);
 
 function git(args, cwd) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' });
@@ -277,6 +300,7 @@ module.exports = {
   HUNG_CEILING_MS,
   HUNG_CMD,
   hangBound,
+  cliBound,
   git,
   makeRepo,
   commandsDoc,

@@ -10,7 +10,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const childProcess = require('node:child_process');
-const { cleanup, makeRepo, commandsDoc, writeKbDoc, call, withState, publishKbPath } = require('./publish-kb-setup');
+const { cleanup, makeRepo, commandsDoc, writeKbDoc, call, withState, publishKbPath, cliBound } = require('./publish-kb-setup');
+const { assertSpawnDecided } = require('./spawn-verdict');
 
 after(cleanup);
 
@@ -175,7 +176,8 @@ test('The patch above misses a module that binds `spawnSync` at load, so no modu
 });
 
 test('--help and the report describe the ledger gate, nothing of a branch', () => {
-  const help = childProcess.spawnSync(process.execPath, [publishKbPath, '--help'], { encoding: 'utf8' });
+  const help = childProcess.spawnSync(process.execPath, [publishKbPath, '--help'], { encoding: 'utf8', timeout: cliBound() });
+  assertSpawnDecided(help, 'publish-kb --help');
   const line = help.stdout.split('\n').find((l) => l.includes('--allow-unmerged   '));
   assert.match(line, /ledger does not record (it|this scope) as shipped or closed/, `the --allow-unmerged line names the ledger: ${line}`);
   assert.doesNotMatch(help.stdout, /branch|contained/, 'the help names no branch check');
