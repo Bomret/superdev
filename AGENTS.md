@@ -135,9 +135,12 @@ end of this document names the files that own each subtree's contracts.
   temporary directory it created itself, reads the repository's files without writing them, and uses no fixed path
   another suite could also use. A breach shows as a suite that fails only when another runs beside it. A suite builds each fixture
   repository once per process and copies it per case. A suite expresses each case as `test(name, fn)` from `node:test`, with a
-  name unique within the suite. Module scope holds only requires, fixture building, and helpers, and an `after()` hook
-  removes the suite's temporary directories. A suite's cases run only after all of its module-scope code has run. A case leaves `process.exitCode` as it found it. A case reaches no `process.exit`.
-  A case awaits every piece of async work it starts. A shared helper registers no case and no hook. Each `run-tests: <label>: <ms> ms` line is wall clock including the wait for a CPU,
+  name unique within the suite. Module scope holds only requires, fixture building, and helpers. An `after()` hook
+  removes each temporary directory the suite makes itself. The preferred form for a directory a shared helper makes is
+  removal from one `process.on('exit')` listener in that helper. A suite then registers nothing for that cleanup.
+  A suite's cases run only after all of its module-scope code has run. A case leaves `process.exitCode` as it found it. A case reaches no `process.exit`.
+  A case awaits every piece of async work it starts. A shared helper registers no case and no `node:test` hook. A
+  process listener is no `node:test` hook. Each `run-tests: <label>: <ms> ms` line is wall clock including the wait for a CPU,
   so time one suite alone with `time node tests/<suite>.test.js` (`scripts/AGENTS.md` → run-tests.js; measured on Node v26.12.1, about 90 s for the full run, in `docs/agents/verification.md`). No roster needs an edit when a suite is added. The runner then runs `invariant-check.js` against this repository's own register, `drift-check`'s own
   `--selftest`, `drift-check` itself, and `claude plugin validate ./plugin` as a manifest-validation
   gate. A suite that commits in a fixture repository sets `commit.gpgsign=false`, `maintenance.auto=false`, and
