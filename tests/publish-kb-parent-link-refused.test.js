@@ -5,9 +5,10 @@
 // backend verb that fails, the retry on the next run, and the storage body format. No case here hangs a
 // backend verb, so the file times no spawn. Shared fixtures live in tests/publish-kb-setup.js.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const {
+  cleanup,
   publishKbPath,
   makeRepo,
   commandsDoc,
@@ -27,6 +28,9 @@ const {
   isStaged,
   putHome,
 } = require('./publish-kb-setup');
+
+after(cleanup);
+
 const { hashBody } = require(publishKbPath);
 const { toStorage } = require('../plugin/lib/md-to-storage');
 
