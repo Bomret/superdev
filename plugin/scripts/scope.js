@@ -571,16 +571,6 @@ function asksForHelp(argv) {
   return rest.includes('--help') || rest.includes('-h');
 }
 
-// The words of `argv` that are no value of a flag of VALUE_FLAGS.
-function optionWords(argv) {
-  const words = [];
-  for (let i = 0; i < argv.length; i++) {
-    if (VALUE_FLAGS.includes(argv[i])) i += flagArity(argv[i]);
-    else words.push(argv[i]);
-  }
-  return words;
-}
-
 // The verb and subcommand a help request names: the verb is argv[0], the token `run()` dispatches on, and none when a
 // flag stands first; the subcommand is the first later token that is no flag, each flag's values skipped.
 function helpTarget(argv) {
@@ -603,7 +593,7 @@ function main() {
     return;
   }
   // `ci --wait` reads its check status through its read script, never stdin, so it runs with stdin left open.
-  const ciWait = argv[0] === 'ci' && optionWords(argv).includes('--wait');
+  const ciWait = argv[0] === 'ci' && argv.includes('--wait');
   const needsStdin = (STDIN_VERBS.includes(argv[0]) && !ciWait) || isBulletStdinInvocation(argv);
   const go = (stdinJson) => {
     // A refusal prints its message and exits nonzero; any other error is a bug and propagates.

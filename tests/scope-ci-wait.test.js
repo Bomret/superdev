@@ -180,12 +180,14 @@ it('reset', async () => {
   assert.equal(s.reads(), 4);
 });
 
-// A failed final read with no successful read before it names that no check report was read.
+// A failed final read with no successful read before it names that no check report was read, and prints that read's
+// stderr.
 it('failed final, nothing read', async () => {
-  const s = readScript([{ exit: 1 }]);
+  const s = readScript([{ err: 'boom final', exit: 1 }]);
   const r = await wait(['--sha', named, '--wait', '--read', s.file, '--timeout', '1']);
   assert.equal(r.code, 3, JSON.stringify(r));
   assert.match(r.out, /\(no check report read\)/);
+  assert.match(r.out, /boom final/);
   assert.equal(s.reads(), 2);
 });
 

@@ -61,34 +61,35 @@ const READ_MIN_MS = 10000;
 const FAILED_READS_CAP = 3;
 
 // One read: the script text, its `<sha>` placeholders already filled, run by `sh` as the leader of its own process
-// group, so `stop` ends the read and every child it started. A read past `boundMs` is ended the same way. Resolves
-// `{ ok, out, err }`: `ok` only for a read that exited 0 on its own.
-function runRead(script, cwd, boundMs, onStart) {
-  return new Promise((resolve) => {
-    let child;
-    try {
-      child = spawn('sh', ['-c', script], { cwd, detached: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
-    } catch (e) {
-      resolve({ ok: false, out: '', err: `the read could not start: ${e.message}` });
-      return;
-    }
-    let out = '';
-    let err = '';
-    let killed = false;
+// group, so `stop` ends the read and every child it started, and does nothing once the read closed. A read past
+// `boundMs` is ended the same way. Returns `{ promise, stop }`, `promise` resolving `{ ok, out, err }`: `ok` only for a
+// read that exited 0 on its own. Its output is buffered whole: a check report runs to a few lines per check.
+function runRead(script, cwd, boundMs) {
+  let child;
+  try {
+    child = spawn('sh', ['-c', script], { cwd, detached: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+  } catch (e) {
+    return { promise: Promise.resolve({ ok: false, out: '', err: `the read could not start: ${e.message}` }), stop: () => {} };
+  }
+  let out = '';
+  let err = '';
+  let killed = false;
+  let closed = false;
+  const stop = () => { if (!closed) { killed = true; endRun(child.pid); } };
+  const promise = new Promise((resolve) => {
     child.stdout.on('data', (c) => (out += c));
     child.stderr.on('data', (c) => (err += c));
-    const stop = () => { killed = true; endRun(child.pid); };
     const timer = setTimeout(stop, boundMs);
-    onStart(stop);
     child.on('error', (e) => { err += `the read could not start: ${e.message}\n`; });
     child.on('close', (code, signal) => {
+      closed = true;
       clearTimeout(timer);
-      onStart(null);
       if (killed) err += `the read was ended at its ${Math.round(boundMs / 1000)} s bound\n`;
       else if (code !== 0) err += err ? '' : `the read exited ${signal || code}\n`;
       resolve({ ok: !killed && code === 0, out, err });
     });
   });
+  return { promise, stop };
 }
 
 // `ci --sha <sha> --wait --read <script> [--timeout <s>] [--root <path>]`: re-runs the read script every 30 s and judges
@@ -137,7 +138,10 @@ async function verbCiWait(cwd, args) {
       const left = deadline - Date.now();
       if (left <= 0) final = true;
       const bound = Math.min(READ_MAX_MS, Math.max(READ_MIN_MS, left));
-      const read = await runRead(script, repo, bound, (stop) => (stopRead = stop));
+      const running = runRead(script, repo, bound);
+      stopRead = running.stop;
+      const read = await running.promise;
+      stopRead = null;
       if (stopped) break;
       if (read.ok) {
         failedInRow = 0;
@@ -153,10 +157,17 @@ async function verbCiWait(cwd, args) {
           process.exitCode = READ_FAILED_EXIT;
           return;
         }
-        if (final) return printJudgment(lastJudged || ciJudgment(repo, commit, ''));
+        if (final && lastJudged) return printJudgment(lastJudged);
+        if (final) {
+          // No check report was read at all: the verdict names that, and the read's stderr says why.
+          printJudgment(ciJudgment(repo, commit, ''));
+          if (read.err.trim()) console.log(read.err.trimEnd());
+          return;
+        }
       }
-      const pause = Math.min(INTERVAL_MS, Math.max(0, deadline - Date.now()));
-      if (pause === deadline - Date.now()) final = true;
+      const remaining = deadline - Date.now();
+      const pause = Math.min(INTERVAL_MS, remaining);
+      if (pause >= remaining) final = true;
       await new Promise((resolve) => {
         const t = setTimeout(resolve, pause);
         wake = () => { clearTimeout(t); resolve(); };

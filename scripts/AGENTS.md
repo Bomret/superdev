@@ -733,7 +733,7 @@ is a failed read, and its stdout is never judged. Each successful read is judged
 wait ends at the first green, failed, or cannot-judge verdict, and at once when no named check is pending or missing.
 Otherwise it reads again 30 s later. At the deadline, 3600 s unless `--timeout` names other whole seconds, it makes
 one final read and prints that judgment. A failed final read prints the last successful read's judgment, or `(no
-check report read)`. A head or section the plain verb cannot judge exits 2 before any read. A successful read resets
+check report read)` followed by that read's stderr. A head or section the plain verb cannot judge exits 2 before any read. A successful read resets
 the failed-read count, and the third failed read in a row exits 5 on a `ci: read-failed <sha>` line followed by that
 read's stderr. SIGTERM, SIGINT, or SIGHUP ends the running read's process group, prints `ci: stopped <sha>` and no
 verdict, and exits 6. `--wait` without `--read`, `--read` without `--wait`, a read file that cannot be read, and a
