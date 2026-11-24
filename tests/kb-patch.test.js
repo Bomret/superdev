@@ -275,7 +275,8 @@ test('an unterminated fence, in either input, refuses rather than masking every 
   );
 });
 
-test('the CLI: each refusal prints its one-line message, exits 1, and writes nothing to stdout --- A spawned `node kb-patch.js` is the only place the exit status and stderr show.', () => {
+// A spawned `node kb-patch.js` is the only place the exit status and stderr show.
+test('the CLI: each refusal prints its one-line message, exits 1, and writes nothing to stdout', () => {
   const { spawnSync } = require('node:child_process');
   const fs = require('node:fs');
   const os = require('node:os');
