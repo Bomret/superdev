@@ -7,34 +7,39 @@
 // line, changes no other byte, and leaves an already-marked file alone; a CRLF file marked and then restaged through
 // restageLiveHash stays CRLF on every line.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { parseStagedPage, markStagedCreate, restageLiveHash } = require('../plugin/lib/kb-staged-page.js');
 
-assert.equal(parseStagedPage('title: P\naction: upsert\n\nbody\n'), null, 'no leading --- is no frontmatter');
-assert.equal(parseStagedPage('---\ntitle: P\naction: upsert\nbody\n'), null, 'a block with no closing --- is unterminated');
+test('A file with no frontmatter or an unterminated block is refused with null', () => {
+  assert.equal(parseStagedPage('title: P\naction: upsert\n\nbody\n'), null, 'no leading --- is no frontmatter');
+  assert.equal(parseStagedPage('---\ntitle: P\naction: upsert\nbody\n'), null, 'a block with no closing --- is unterminated');
+});
 
-const page = parseStagedPage("---\ntitle: 'It''s here'\naction: upsert\n---\nbody\n");
-assert.equal(page.title, "It's here", "a single-quoted scalar's '' is one quote");
-assert.equal(page.action, 'upsert');
-assert.equal(page.body, 'body\n');
+test('A single-quoted scalar reads with its doubled quote as one quote', () => {
+  const page = parseStagedPage("---\ntitle: 'It''s here'\naction: upsert\n---\nbody\n");
+  assert.equal(page.title, "It's here", "a single-quoted scalar's '' is one quote");
+  assert.equal(page.action, 'upsert');
+  assert.equal(page.body, 'body\n');
+});
 
-// A double-quoted scalar that is valid JSON is unescaped; one that is not reads as the text between its quotes, backslash kept.
-assert.equal(parseStagedPage('---\ntitle: "a\\"b"\n---\nbody\n').title, 'a"b', 'a valid double-quoted scalar is unescaped');
-assert.equal(parseStagedPage('---\ntitle: "a\\qb"\n---\nbody\n').title, 'a\\qb', 'an invalid double-quoted scalar reads as the text between its quotes');
-assert.equal(parseStagedPage('---\ntitle: ""\n---\nbody\n').title, null, 'an empty double-quoted scalar is no title');
+test('A double-quoted scalar that is valid JSON is unescaped; one that is not reads as the text between its quotes, backslash kept.', () => {
+  assert.equal(parseStagedPage('---\ntitle: "a\\"b"\n---\nbody\n').title, 'a"b', 'a valid double-quoted scalar is unescaped');
+  assert.equal(parseStagedPage('---\ntitle: "a\\qb"\n---\nbody\n').title, 'a\\qb', 'an invalid double-quoted scalar reads as the text between its quotes');
+  assert.equal(parseStagedPage('---\ntitle: ""\n---\nbody\n').title, null, 'an empty double-quoted scalar is no title');
+});
 
-// A lone quote of either kind is taken verbatim, in every field, whatever whitespace surrounds it.
-assert.equal(parseStagedPage('---\ntitle: "\naction: upsert\n---\nbody\n').title, '"', 'a lone double quote is the title');
-assert.equal(parseStagedPage('---\ntitle: T\nparent: "\n---\nbody\n').parent, '"', 'a lone double quote is the parent');
-assert.equal(parseStagedPage('---\ntitle:   "  \n---\nbody\n').title, '"', 'a lone double quote amid whitespace is the title');
-assert.equal(parseStagedPage("---\ntitle: '\n---\nbody\n").title, "'", 'a lone single quote is the title');
+test('A lone quote of either kind is taken verbatim, in every field, whatever whitespace surrounds it.', () => {
+  assert.equal(parseStagedPage('---\ntitle: "\naction: upsert\n---\nbody\n').title, '"', 'a lone double quote is the title');
+  assert.equal(parseStagedPage('---\ntitle: T\nparent: "\n---\nbody\n').parent, '"', 'a lone double quote is the parent');
+  assert.equal(parseStagedPage('---\ntitle:   "  \n---\nbody\n').title, '"', 'a lone double quote amid whitespace is the title');
+  assert.equal(parseStagedPage("---\ntitle: '\n---\nbody\n").title, "'", 'a lone single quote is the title');
+});
 
-// markStagedCreate inserts one marker line before the closing ---, in the line ending of the file's opening
-// line, and leaves every other byte as it was; a second mark changes nothing.
-{
+test('markStagedCreate inserts one marker line before the closing ---, in the line ending of the file\'s opening line, and leaves every other byte as it was; a second mark changes nothing.', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-staged-page-'));
   const marker = (eol) => new RegExp(`^created-by-publish: \\S+${eol}$`);
   for (const [label, eol] of [['CRLF', '\r\n'], ['LF', '\n']]) {
@@ -74,6 +79,5 @@ assert.equal(parseStagedPage("---\ntitle: '\n---\nbody\n").title, "'", 'a lone s
   assert.ok(read.createdByPublish, 'the marker reads back');
   assert.equal(read.liveHash, 'abc', 'the hash reads back');
   fs.rmSync(dir, { recursive: true, force: true });
-}
+});
 
-console.log('kb-staged-page.test.js: all assertions passed');
