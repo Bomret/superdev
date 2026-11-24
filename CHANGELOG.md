@@ -1,3 +1,10 @@
+## [0.119.1](https://github.com/Bomret/superdev/compare/v0.119.0...v0.119.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* keep a lone quote and CRLF in staged pages, and make the Jira seed ADF-only ([#493](https://github.com/Bomret/superdev/issues/493)) ([36dd454](https://github.com/Bomret/superdev/commit/36dd454df0622a45dd74b0bb8182d9915f14d02a))
+
 # [0.119.0](https://github.com/Bomret/superdev/compare/v0.118.0...v0.119.0) (2026-11-23)
 
 
