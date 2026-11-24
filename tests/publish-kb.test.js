@@ -13,7 +13,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
-const { publishKbPath, commandsDoc } = require('./publish-kb-setup');
+const { publishKbPath, commandsDoc, cliBound } = require('./publish-kb-setup');
 const { assertSpawnDecided, boundFromSamples } = require('./spawn-verdict');
 const { parseCommandsTemplates, parseStagedPage, classifyBackend, hashBody } = require(publishKbPath);
 
@@ -118,9 +118,14 @@ test('scope.js owns the change-type set, the ref probe, and main-checkout resolu
 });
 
 test('--help / -h: usage on stdout, exit 0, before any repository or backend is read', () => {
+  const bound = cliBound();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-help-'));
   try {
-    const cli = (...a) => spawnSync(process.execPath, [publishKbPath, ...a], { cwd: dir, encoding: 'utf8' });
+    const cli = (...a) => {
+      const r = spawnSync(process.execPath, [publishKbPath, ...a], { cwd: dir, encoding: 'utf8', timeout: bound });
+      assertSpawnDecided(r, `publish-kb ${a.join(' ')}`);
+      return r;
+    };
     // A help request wins over an unknown argument beside it.
     for (const argv of [['--help'], ['-h'], ['--scope', 'x', '--help'], ['--allow-unmerged', '-h'], ['extra', '--help']]) {
       const r = cli(...argv);
