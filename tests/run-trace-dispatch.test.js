@@ -3,6 +3,7 @@
 // Suite for the subagent dispatch lines of the run trace (ADR 0117, ADR 0127, ADR 0140, INV-0133, INV-0136, INV-0145): attribution, binding,
 // outcomes, and the superdev-view trace layout.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -13,11 +14,13 @@ const { appendTrace } = require('../plugin/scripts/scope.js');
 const { encodePaths } =require('../plugin/lib/trace-log.js');
 const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agentPost, cleanup, GIT_SPAWN_BOUND_MS } = require('./run-trace-setup');
 
-// Subagent dispatches: PreToolUse on Agent records `dispatch`, PostToolUse `completed` (or async_launched then SubagentStop) the `dispatch-end`.
-// Dispatch prompts and the scope and slice each one attributes to (INV-0136). `{A}` and `{B}` stand for two run
-// roots that hold a ledger, `{NOLEDGER}` for one that holds none. The `{A}.x` entry sits on lib/ledger.js's SLUG_RE
-// boundary: a `.` ends the slug, so a slug pattern that admits it fails.
-{
+after(() => {
+  cleanup();
+});
+
+// `{A}` and `{B}` stand for two run roots that hold a ledger, `{NOLEDGER}` for one that holds none. The `{A}.x` entry
+// sits on lib/ledger.js's SLUG_RE boundary: a `.` ends the slug, so a slug pattern that admits it fails.
+test('Dispatch prompts and the scope and slice each one attributes to (INV-0136).', () => {
   const fixtures = [
     { "prompt": "Work in {A}/slicetrees/04 please", "root": "A", "slice": "04" },
     { "prompt": "Append to {A}/reports/04/progress.md", "root": "A", "slice": "04" },
@@ -39,10 +42,9 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
     assert.deepEqual(got.map(([k]) => k), f.root ? [f.root] : [], `fixture ${i} root: ${f.prompt}`);
     if (f.root) assert.equal(trace(f.root === 'A' ? A : B).find((l) => l[4] === `fx${i}`)[0], f.slice, `fixture ${i} slice: ${f.prompt}`);
   });
-}
-// The trace layout superdev-view's parse.ts reads: the hook writes exactly the shared lines, and the mod's
-// suite parses the same lines into agents, so a layout change on either side fails one suite.
-{
+});
+
+test('The trace layout superdev-view\'s parse.ts reads: the hook writes exactly the shared lines, and the mod\'s suite parses the same lines into agents, so a layout change on either side fails one suite.', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'trace-fixtures.ts'), 'utf8');
   const lines = JSON.parse(src.slice(src.indexOf('/* trace:start */') + 17, src.indexOf('/* trace:end */')));
   reset();
@@ -91,10 +93,9 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   scopeCli(['step', 'block', '--root', A]);
   assert.deepEqual(trace(A).map((l) => l.join(' ')), lines, 'the hook writes the trace lines superdev-view parses');
   fs.writeFileSync(path.join(A, 'ledger.md'), ledger([['01', 'todo'], ['02', 'todo'], ['03', 'in-progress'], ['04', 'todo'], ['05', 'todo']]));
-}
-// A report directory that names no slice of the run (a review fix cycle's `reports/review/`) reads `scope`, on the dispatch,
-// dispatch-bind, and resume lines alike; a real slice's `reports/<id>/` and `slicetrees/<id>` still read that id.
-{
+});
+
+test('A report directory that names no slice of the run (a review fix cycle\'s `reports/review/`) reads `scope`, on the dispatch, dispatch-bind, and resume lines alike; a real slice\'s `reports/<id>/` and `slicetrees/<id>` still read that id.', () => {
   reset();
   run(agentPre(`Fix. Progress log: ${A}/reports/review/progress.md`, 'rv1', 'superdev:implementer', 'Review fix', undefined, 's1'));
   run(agentPost('rv1', { status: 'async_launched', agentId: 'agr' }));
@@ -107,8 +108,9 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   assert.equal(trace(A).find((l) => l[4] === 'rv3')[0], 'scope', 'a slicetree id the ledger lacks reads scope');
   run(agentPre(`${A}/reports/05/progress.md`, 'rv4'));
   assert.equal(trace(A).find((l) => l[4] === 'rv4')[0], '05', 'a real slice report directory records that id');
-}
-{
+});
+
+test('Subagent dispatches: PreToolUse on Agent records `dispatch`, PostToolUse `completed` (or async_launched then SubagentStop) the `dispatch-end`.', () => {
   reset();
   const stop = (id, cwd) => run({ hook_event_name: 'SubagentStop', agent_id: id, agent_type: 'superdev:implementer', cwd: cwd || tmp });
   run(agentPre(`Work in ${A}/slicetrees/04 please`, 't1', 'superdev:implementer', 'two words'));
@@ -195,13 +197,10 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   assert.equal(spawnOut({ hook_event_name: 'SubagentStart', agent_id: 'z', agent_type: 'superdev:implementer', cwd: tmp }), '');
   assert.equal(trace(A).filter((l) => l[4] === 'o1' && l[2] === 'dispatch-end').length, 1);
   assert.equal(trace(A).length, 6);
-}
+});
 
-// Dispatch outcomes (ADR 0140, INV-0145): every dispatch gets one `dispatch-end` naming how it ended, shaped as the
-// hook probe recorded the events (Claude Code 2.1.296): PostToolUseFailure and PermissionDenied on Agent carry the
-// call's tool_use_id, TaskStop's PostToolUse carries the subagent's agent id as tool_input.task_id, and Stop,
-// UserPromptSubmit, and SessionEnd carry the main session's session_id.
-{
+
+test('Dispatch outcomes (ADR 0140, INV-0145): every dispatch gets one `dispatch-end` naming how it ended, shaped as the hook probe recorded the events (Claude Code 2.1.296): PostToolUseFailure and PermissionDenied on Agent carry the call\'s tool_use_id, TaskStop\'s PostToolUse carries the subagent\'s agent id as tool_input.task_id, and Stop, UserPromptSubmit, and SessionEnd carry the main session\'s session_id.', () => {
   const pre = (slice, tu, session, type) => run(agentPre(`${A}/slicetrees/${slice}`, tu, type, undefined, undefined, session));
   const bind = (tu, ag) => run(agentPost(tu, { status: 'async_launched', agentId: ag }));
   const boundary = (hook_event_name, session_id, extra) => run({ hook_event_name, session_id, cwd: tmp, ...extra });
@@ -406,10 +405,9 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   assert.ok(hooks.PostToolUse.some((g) => g.matcher.split('|').includes('TaskStop') && runsTrace(g)), 'PostToolUse on TaskStop runs run-trace.js');
   for (const ev of ['Stop', 'UserPromptSubmit', 'SessionEnd']) assert.ok(hooks[ev].some(runsTrace), `${ev} runs run-trace.js`);
   assert.ok(hooks.PreToolUse.some((g) => g.matcher === 'SendMessage' && runsTrace(g)), 'PreToolUse on SendMessage runs run-trace.js');
-}
+});
 
-// SubagentStop from a controller whose cwd is a subdirectory of the main checkout or a worktree of it.
-{
+test('SubagentStop from a controller whose cwd is a subdirectory of the main checkout or a worktree of it.', () => {
   const R = fs.mkdtempSync(path.join(tmp, 'repo-'));
   const rg = (...a) => cp.execFileSync('git', ['-C', R, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8' });
   rg('init', '-q');
@@ -442,10 +440,9 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   assert.equal(d.length, 1, 'one line for the dispatch');
   assert.ok(d[0].includes(' dispatch superdev:implementer t-w3 a'), 'backslash prompt records the dispatch');
   assert.ok(d[0].endsWith(' a\\nb -'), 'newline escaped on one line, and no session id reads `-`');
-}
+});
 
-// A git call that stalls while SubagentStop resolves the main checkout ends at the bound and records nothing.
-{
+test('A git call that stalls while SubagentStop resolves the main checkout ends at the bound and records nothing.', () => {
   const R = fs.mkdtempSync(path.join(tmp, 'stall-'));
   const C = path.join(R, '.superdev', 'scopes', 'c');
   fs.mkdirSync(path.join(R, 'sub'), { recursive: true });
@@ -464,10 +461,9 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   assertSpawnDecided(r, 'run-trace.js SubagentStop with a stalled git');
   assert.ok(fs.existsSync(marker), 'the hook reached the stalled git stub');
   assert.deepEqual(trace(C).filter((l) => l[2] === 'dispatch-end'), [], 'a killed git call records no dispatch-end');
-}
+});
 
-// SubagentStop from inside a submodule resolves the submodule's own checkout, never `.git/modules`.
-{
+test('SubagentStop from inside a submodule resolves the submodule\'s own checkout, never `.git/modules`.', () => {
   const gitIn = (cwd, ...a) => cp.execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'protocol.file.allow=always', ...a], { cwd, stdio: 'ignore' });
   const lib = fs.mkdtempSync(path.join(tmp, 'lib-'));
   const sup = fs.mkdtempSync(path.join(tmp, 'sup-'));
@@ -483,13 +479,12 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   run(agentPost('tsm1', { status: 'async_launched', agentId: 'sm1' }, sub));
   run({ hook_event_name: 'SubagentStop', agent_id: 'sm1', agent_type: 'superdev:implementer', cwd: sub });
   assert.deepEqual(trace(S).filter((l) => l[2] === 'dispatch-end').map((l) => l[4]), ['tsm1'], 'a submodule cwd records the end under the submodule checkout');
-}
+});
 
 
-// No review writes a verdict line (ADR 0197): a background review's hand-back and stop, a foreground review's report, and a
-// resumed review write only their dispatch lines, and hooks.json runs no hook on a hand-back. A trace an older release
-// wrote, carrying `verdict` and `final-verdict` lines, still prints through `scope.js trace`.
-{
+// A trace an older release wrote, carrying `verdict` and `final-verdict` lines, still prints through `scope.js
+// trace`.
+test('No review writes a verdict line (ADR 0197): a background review\'s hand-back and stop, a foreground review\'s report, and a resumed review write only their dispatch lines, and hooks.json runs no hook on a hand-back.', () => {
   reset();
   const PASS = '### Verdict: specification ✅ | quality: approved';
   const bg = (slice, tu, type, ag) => { run(agentPre(`${A}/${slice}`, tu, type)); run(agentPost(tu, { status: 'async_launched', agentId: ag })); };
@@ -519,6 +514,5 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   assertSpawnDecided(shown, 'scope.js trace');
   assert.equal(shown.status, 0, shown.stderr);
   assert.ok(/\bverdict v1 pass approved\b/.test(shown.stdout) && /\bfinal-verdict v2 yes\b/.test(shown.stdout), 'an old trace\'s verdict lines still print');
-}
+});
 
-cleanup();

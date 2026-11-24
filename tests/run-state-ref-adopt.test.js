@@ -4,6 +4,7 @@
 // real bare remote throughout. The seeded repository, its remote, and a clone of that remote are built once per
 // process and copied per case.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -14,6 +15,10 @@ const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { pushRunState } = require('../plugin/lib/run-state-ref.js');
 const { publishText } = require('../plugin/lib/run-state.js');
+
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 const SCOPE = 'push-scope';
 const ref = `refs/superdev/${SCOPE}`;
@@ -104,159 +109,143 @@ function listing(dir) {
   return out.filter((n) => n !== 'trace.log' && n !== 'digest.json').sort();
 }
 
-try {
-  // #fresh-clone: the ref's files come back byte for byte, and the next push succeeds.
-  {
+test('#fresh-clone: the ref\'s files come back byte for byte, and the next push succeeds.', () => {
+  const f = fixture();
+  const { body } = f;
+  const r = run(['adopt', '--root', f.rootB], f.b, body);
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(r.stdout, /run-state: fetched/, r.stdout);
+  for (const p of ['trace.log', 'interfaces.md', 'reports/S1/progress.md', 'reports/S1/blob.bin']) {
+    const a = fs.readFileSync(path.join(f.rootA, p));
+    const b = fs.readFileSync(path.join(f.rootB, p));
+    // adopt's own ledger event may append to the trace after the unpack.
+    assert.ok(p === 'trace.log' ? b.subarray(0, a.length).equals(a) : b.equals(a), p);
+  }
+  // The next `step clear` push, driven through the CLI, succeeds.
+  assert.strictEqual(run(['step', 'set', 'review', '--root', f.rootB], f.b).status, 0);
+  const cleared = run(['step', 'clear', '--root', f.rootB], f.b);
+  assert.strictEqual(cleared.status, 0, cleared.stderr);
+  assert.match(cleared.stdout, /run-state: sent/, cleared.stdout);
+});
+
+// A noteless anchor line takes the ref's verdict, so implement's ticks, which never reach the anchor, survive a
+// resume on another machine; a noted anchor line, a review verdict, wins over the ref's older one (ADR 0206).
+test('#dod-from-ref: the ref\'s dod.md merges into the copy the adopt step wrote from the anchor body.', () => {
+  const f = fixture();
+  const { body } = f;
+  fs.writeFileSync(path.join(f.rootA, 'dod.md'), '- [x] works — S1 — met: the test passes\n- [ ] fast — S1 — not met: 3 s\n');
+  assert.match(pushRunState(f.rootA, f.a), /run-state: sent/);
+  fs.mkdirSync(f.rootB, { recursive: true });
+  fs.writeFileSync(path.join(f.rootB, 'dod.md'), '- [ ] works — S1\n- [x] fast — S1 — met: 80 ms\n');
+  const r = run(['adopt', '--root', f.rootB], f.b, body);
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(r.stdout, /dod\.md merged into the local copy, 1 verdict from the ref/, r.stdout);
+  assert.strictEqual(fs.readFileSync(path.join(f.rootB, 'dod.md'), 'utf8'), '- [x] works — S1 — met: the test passes\n- [x] fast — S1 — met: 80 ms\n');
+});
+
+test('#stale-stage: a .run-state-* staging directory a killed adopt left in the root is removed.', () => {
+  const f = fixture();
+  const { body } = f;
+  fs.mkdirSync(path.join(f.rootB, '.run-state-old', 'reports'), { recursive: true });
+  fs.writeFileSync(path.join(f.rootB, '.run-state-old', 'reports', 'x'), 'x\n');
+  const r = run(['adopt', '--root', f.rootB], f.b, body);
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(r.stdout, /run-state: fetched/, r.stdout);
+  assert.ok(!fs.readdirSync(f.rootB).some((n) => n.startsWith('.run-state-')), fs.readdirSync(f.rootB).join(' '));
+});
+
+test('#keep-local-interfaces: a local interfaces.md stays, the unpack names it, and the rest still unpacks.', () => {
+  const f = fixture();
+  const { body } = f;
+  fs.mkdirSync(f.rootB, { recursive: true });
+  fs.writeFileSync(path.join(f.rootB, 'interfaces.md'), 'local\n');
+  const r = run(['adopt', '--root', f.rootB], f.b, body);
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(r.stdout, /run-state: fetched .*kept the local interfaces\.md/, r.stdout);
+  assert.strictEqual(fs.readFileSync(path.join(f.rootB, 'interfaces.md'), 'utf8'), 'local\n');
+  assert.ok(fs.existsSync(path.join(f.rootB, 'reports', 'S1', 'progress.md')));
+  assert.deepStrictEqual(fs.readdirSync(f.rootB).filter((n) => n.startsWith('.')), [], 'no staging dir left');
+});
+
+test('#no-ref: no ref on the remote adopts as before, with one note.', () => {
+  const f = fixture();
+  const { body } = f;
+  git(['update-ref', '-d', ref], f.origin);
+  const r = run(['adopt', '--root', f.rootB], f.b, body);
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(r.stdout, /run-state: not fetched, no .*ref/, r.stdout);
+  assert.ok(fs.existsSync(path.join(f.rootB, 'ledger.md')));
+  assert.deepStrictEqual(listing(f.rootB), ['ledger.md']);
+});
+
+test('#no-remote: no `Remote:` value adopts as before, with one note.', () => {
+  const f = fixture();
+  const { body } = f;
+  fs.writeFileSync(path.join(f.b, 'docs', 'agents', 'code-management.md'), '# CM\n');
+  const r = run(['adopt', '--root', f.rootB], f.b, body);
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(r.stdout, /run-state: not fetched/, r.stdout);
+  assert.deepStrictEqual(listing(f.rootB), ['ledger.md']);
+});
+
+test('#keep-local: a local trace.log keeps, the unpack is skipped and said, and the next push refuses.', () => {
+  const f = fixture();
+  const { body } = f;
+  fs.mkdirSync(f.rootB, { recursive: true });
+  fs.writeFileSync(path.join(f.rootB, 'trace.log'), 'local\n');
+  const r = run(['adopt', '--root', f.rootB], f.b, body);
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(r.stdout, /run-state: kept/, r.stdout);
+  assert.ok(fs.readFileSync(path.join(f.rootB, 'trace.log'), 'utf8').startsWith('local\n'));
+  assert.ok(!fs.existsSync(path.join(f.rootB, 'interfaces.md')));
+  assert.match(pushRunState(f.rootB, f.b), /refused/);
+});
+
+test('#keep-local-reports: a local reports/ keeps the same way.', () => {
+  const f = fixture();
+  const { body } = f;
+  fs.mkdirSync(path.join(f.rootB, 'reports'), { recursive: true });
+  const r = run(['adopt', '--root', f.rootB], f.b, body);
+  assert.match(r.stdout, /run-state: kept/, r.stdout);
+  assert.ok(!fs.existsSync(path.join(f.rootB, 'interfaces.md')));
+});
+
+test('#refuse-entries: a symlink, a submodule, an absolute path, or a `..` path refuses and writes nothing.', () => {
+  const blobSha = (f, text) => git(['hash-object', '-w', '--stdin'], f.origin, text);
+  const bad = {
+    symlink: (f, b) => [`100644 blob ${b}\ttrace.log`, `120000 blob ${b}\tinterfaces.md`],
+    submodule: (f, b) => [`100644 blob ${b}\ttrace.log`, `160000 commit ${'1'.repeat(40)}\treports`],
+    dotdot: (f, b) => [`100644 blob ${b}\ttrace.log`, `100644 blob ${b}\t..`],
+    nested: (f, b) => {
+      const inner = git(['mktree'], f.origin, `100644 blob ${b}\t..\n`);
+      return [`100644 blob ${b}\ttrace.log`, `040000 tree ${inner}\treports`];
+    },
+  };
+  for (const [name, mk] of Object.entries(bad)) {
     const f = fixture();
     const { body } = f;
+    plant(f, mk(f, blobSha(f, 'x\n')));
+    const outside = path.join(f.b, '.superdev', 'scopes');
     const r = run(['adopt', '--root', f.rootB], f.b, body);
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.match(r.stdout, /run-state: fetched/, r.stdout);
-    for (const p of ['trace.log', 'interfaces.md', 'reports/S1/progress.md', 'reports/S1/blob.bin']) {
-      const a = fs.readFileSync(path.join(f.rootA, p));
-      const b = fs.readFileSync(path.join(f.rootB, p));
-      // adopt's own ledger event may append to the trace after the unpack.
-      assert.ok(p === 'trace.log' ? b.subarray(0, a.length).equals(a) : b.equals(a), p);
-    }
-    // The next `step clear` push, driven through the CLI, succeeds.
-    assert.strictEqual(run(['step', 'set', 'review', '--root', f.rootB], f.b).status, 0);
-    const cleared = run(['step', 'clear', '--root', f.rootB], f.b);
-    assert.strictEqual(cleared.status, 0, cleared.stderr);
-    assert.match(cleared.stdout, /run-state: sent/, cleared.stdout);
+    assert.match(r.stdout, /run-state: not fetched, .*refus/i, `${name}: ${r.stdout}`);
+    assert.deepStrictEqual(listing(f.rootB), ['ledger.md'], name);
+    assert.ok(!fs.existsSync(path.join(outside, 'trace.log')), name);
   }
+});
 
-  // #dod-from-ref: the ref's dod.md merges into the copy the adopt step wrote from the anchor body. A noteless
-  // anchor line takes the ref's verdict, so implement's ticks, which never reach the anchor, survive a resume on
-  // another machine; a noted anchor line, a review verdict, wins over the ref's older one (ADR 0206).
-  {
-    const f = fixture();
-    const { body } = f;
-    fs.writeFileSync(path.join(f.rootA, 'dod.md'), '- [x] works — S1 — met: the test passes\n- [ ] fast — S1 — not met: 3 s\n');
-    assert.match(pushRunState(f.rootA, f.a), /run-state: sent/);
-    fs.mkdirSync(f.rootB, { recursive: true });
-    fs.writeFileSync(path.join(f.rootB, 'dod.md'), '- [ ] works — S1\n- [x] fast — S1 — met: 80 ms\n');
-    const r = run(['adopt', '--root', f.rootB], f.b, body);
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.match(r.stdout, /dod\.md merged into the local copy, 1 verdict from the ref/, r.stdout);
-    assert.strictEqual(fs.readFileSync(path.join(f.rootB, 'dod.md'), 'utf8'), '- [x] works — S1 — met: the test passes\n- [x] fast — S1 — met: 80 ms\n');
-  }
-
-  // #stale-stage: a .run-state-* staging directory a killed adopt left in the root is removed.
-  {
-    const f = fixture();
-    const { body } = f;
-    fs.mkdirSync(path.join(f.rootB, '.run-state-old', 'reports'), { recursive: true });
-    fs.writeFileSync(path.join(f.rootB, '.run-state-old', 'reports', 'x'), 'x\n');
-    const r = run(['adopt', '--root', f.rootB], f.b, body);
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.match(r.stdout, /run-state: fetched/, r.stdout);
-    assert.ok(!fs.readdirSync(f.rootB).some((n) => n.startsWith('.run-state-')), fs.readdirSync(f.rootB).join(' '));
-  }
-
-  // #keep-local-interfaces: a local interfaces.md stays, the unpack names it, and the rest still unpacks.
-  {
-    const f = fixture();
-    const { body } = f;
-    fs.mkdirSync(f.rootB, { recursive: true });
-    fs.writeFileSync(path.join(f.rootB, 'interfaces.md'), 'local\n');
-    const r = run(['adopt', '--root', f.rootB], f.b, body);
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.match(r.stdout, /run-state: fetched .*kept the local interfaces\.md/, r.stdout);
-    assert.strictEqual(fs.readFileSync(path.join(f.rootB, 'interfaces.md'), 'utf8'), 'local\n');
-    assert.ok(fs.existsSync(path.join(f.rootB, 'reports', 'S1', 'progress.md')));
-    assert.deepStrictEqual(fs.readdirSync(f.rootB).filter((n) => n.startsWith('.')), [], 'no staging dir left');
-  }
-
-  // #no-ref: no ref on the remote adopts as before, with one note.
-  {
-    const f = fixture();
-    const { body } = f;
-    git(['update-ref', '-d', ref], f.origin);
-    const r = run(['adopt', '--root', f.rootB], f.b, body);
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.match(r.stdout, /run-state: not fetched, no .*ref/, r.stdout);
-    assert.ok(fs.existsSync(path.join(f.rootB, 'ledger.md')));
-    assert.deepStrictEqual(listing(f.rootB), ['ledger.md']);
-  }
-
-  // #no-remote: no `Remote:` value adopts as before, with one note.
-  {
-    const f = fixture();
-    const { body } = f;
-    fs.writeFileSync(path.join(f.b, 'docs', 'agents', 'code-management.md'), '# CM\n');
-    const r = run(['adopt', '--root', f.rootB], f.b, body);
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.match(r.stdout, /run-state: not fetched/, r.stdout);
-    assert.deepStrictEqual(listing(f.rootB), ['ledger.md']);
-  }
-
-  // #keep-local: a local trace.log keeps, the unpack is skipped and said, and the next push refuses.
-  {
-    const f = fixture();
-    const { body } = f;
-    fs.mkdirSync(f.rootB, { recursive: true });
-    fs.writeFileSync(path.join(f.rootB, 'trace.log'), 'local\n');
-    const r = run(['adopt', '--root', f.rootB], f.b, body);
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.match(r.stdout, /run-state: kept/, r.stdout);
-    assert.ok(fs.readFileSync(path.join(f.rootB, 'trace.log'), 'utf8').startsWith('local\n'));
-    assert.ok(!fs.existsSync(path.join(f.rootB, 'interfaces.md')));
-    assert.match(pushRunState(f.rootB, f.b), /refused/);
-  }
-
-  // #keep-local-reports: a local reports/ keeps the same way.
-  {
-    const f = fixture();
-    const { body } = f;
-    fs.mkdirSync(path.join(f.rootB, 'reports'), { recursive: true });
-    const r = run(['adopt', '--root', f.rootB], f.b, body);
-    assert.match(r.stdout, /run-state: kept/, r.stdout);
-    assert.ok(!fs.existsSync(path.join(f.rootB, 'interfaces.md')));
-  }
-
-  // #refuse-entries: a symlink, a submodule, an absolute path, or a `..` path refuses and writes nothing.
-  {
-    const blobSha = (f, text) => git(['hash-object', '-w', '--stdin'], f.origin, text);
-    const bad = {
-      symlink: (f, b) => [`100644 blob ${b}\ttrace.log`, `120000 blob ${b}\tinterfaces.md`],
-      submodule: (f, b) => [`100644 blob ${b}\ttrace.log`, `160000 commit ${'1'.repeat(40)}\treports`],
-      dotdot: (f, b) => [`100644 blob ${b}\ttrace.log`, `100644 blob ${b}\t..`],
-      nested: (f, b) => {
-        const inner = git(['mktree'], f.origin, `100644 blob ${b}\t..\n`);
-        return [`100644 blob ${b}\ttrace.log`, `040000 tree ${inner}\treports`];
-      },
-    };
-    for (const [name, mk] of Object.entries(bad)) {
-      const f = fixture();
-      const { body } = f;
-      plant(f, mk(f, blobSha(f, 'x\n')));
-      const outside = path.join(f.b, '.superdev', 'scopes');
-      const r = run(['adopt', '--root', f.rootB], f.b, body);
-      assert.match(r.stdout, /run-state: not fetched, .*refus/i, `${name}: ${r.stdout}`);
-      assert.deepStrictEqual(listing(f.rootB), ['ledger.md'], name);
-      assert.ok(!fs.existsSync(path.join(outside, 'trace.log')), name);
-    }
-  }
-
-  // #hung-worktree: a remote that outlasts the bound ends within it, and adopt reports it, with `info.json` only in the main
-  // checkout, read by an adopt run from a linked worktree.
-  {
-    const f = fixture();
-    const { body } = f;
-    const hang = path.join(f.b, 'hang.sh');
-    fs.writeFileSync(hang, '#!/bin/sh\nexec sleep 8\n');
-    fs.chmodSync(hang, 0o755);
-    git(['config', 'remote.origin.uploadpack', hang], f.b);
-    writeOperatorConfig(f.b, { 'code-host': { pushTimeoutMs: 1500 } });
-    const wt = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'run-state-adopt-wt-')), 'tree');
-    made.push(path.dirname(wt));
-    git(['worktree', 'add', '-q', '--detach', wt], f.b);
-    const r = run(['adopt', '--root', f.rootB], wt, body);
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.match(r.stdout, /bound/, r.stdout);
-    assert.deepStrictEqual(listing(f.rootB), ['ledger.md']);
-  }
-} finally {
-  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
-}
-console.log('run-state-ref-adopt: ok');
+test('#hung-worktree: a remote that outlasts the bound ends within it, and adopt reports it, with `info.json` only in the main checkout, read by an adopt run from a linked worktree.', () => {
+  const f = fixture();
+  const { body } = f;
+  const hang = path.join(f.b, 'hang.sh');
+  fs.writeFileSync(hang, '#!/bin/sh\nexec sleep 8\n');
+  fs.chmodSync(hang, 0o755);
+  git(['config', 'remote.origin.uploadpack', hang], f.b);
+  writeOperatorConfig(f.b, { 'code-host': { pushTimeoutMs: 1500 } });
+  const wt = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'run-state-adopt-wt-')), 'tree');
+  made.push(path.dirname(wt));
+  git(['worktree', 'add', '-q', '--detach', wt], f.b);
+  const r = run(['adopt', '--root', f.rootB], wt, body);
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(r.stdout, /bound/, r.stdout);
+  assert.deepStrictEqual(listing(f.rootB), ['ledger.md']);
+});
