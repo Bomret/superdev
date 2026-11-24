@@ -54,8 +54,14 @@ function parseStagedPage(text) {
   };
 }
 
+// A line this module adds to a staged file's frontmatter takes the line ending of the file's opening line.
+function lineEnding(raw) {
+  return raw.startsWith('---\r\n') ? '\r\n' : '\n';
+}
+
 // Writes the `created-by-publish` marker into a staged file's frontmatter, ahead of the `create`
-// call it precedes: the staged file still holds every previous byte, and now also names the
+// call it precedes. The marker line takes the file's own line ending (`lineEnding`), so the staged
+// file still holds every previous byte, and now also names the
 // moment this run sent it as a create. A create killed before it returns leaves the marker on
 // disk, so a later run's `find` seeing the page land reads it as this run's own retry (ADR 0130)
 // rather than someone else's page (INV-0091), with no `read` call needed to tell the two apart.
@@ -70,14 +76,13 @@ function markStagedCreate(filePath) {
   } catch {
     return { ok: false, reason: 'could not write the retry marker' };
   }
-  const t = raw.replace(/\r\n/g, '\n');
-  const split = splitFrontmatter(t);
+  const split = splitFrontmatter(raw);
   if (!split) return { ok: true };
   // Already marked: a retry re-marks ahead of every `create` call it sends, so writing
   // unconditionally would append a fresh line on each one instead of leaving the first attempt's own
   // timestamp alone.
   if (/^created-by-publish:/m.test(split.fm)) return { ok: true };
-  const marked = `${t.slice(0, split.closeAt)}created-by-publish: ${new Date().toISOString()}\n${t.slice(split.closeAt)}`;
+  const marked = `${raw.slice(0, split.closeAt)}created-by-publish: ${new Date().toISOString()}${lineEnding(raw)}${raw.slice(split.closeAt)}`;
   try {
     writeFileAtomic(filePath, marked);
     return { ok: true };
@@ -97,10 +102,9 @@ function restageLiveHash(filePath, hash) {
     const split = splitFrontmatter(raw);
     if (!split) return;
     const head = raw.slice(0, split.closeAt);
-    const eol = raw.startsWith('---\r\n') ? '\r\n' : '\n';
     const rewritten = /^live-hash:/m.test(split.fm)
       ? head.replace(/^live-hash:[^\r\n]*/m, `live-hash: ${hash}`)
-      : `${head}live-hash: ${hash}${eol}`;
+      : `${head}live-hash: ${hash}${lineEnding(raw)}`;
     writeFileAtomic(filePath, rewritten + raw.slice(split.closeAt));
   } catch {
     // the file keeps its old hash, and no temporary file: the next run refuses with the live-hash reason, naming the page
