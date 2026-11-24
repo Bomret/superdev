@@ -83,18 +83,17 @@ Operator configuration, not a slice field (`assignee.md` → *Assignee*). The id
 `/superdev:plan` §6 writes each criterion's tag in `plan-contract.md`'s own notation (a slice `id`,
 `scope`, or `docs`) when it creates the Epic. Once every slice issue exists, the controller rewrites each
 slice-id tag into its `key`, in the same parallel step as **Link a dependency**, each rewrite a
-description edit through **Edit an issue's body** whose producer is
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-tags --map-file <path>`, the map file holding one
-`<id> <PROJ>-<n>` pair per slice. A tag naming several slices becomes `<PROJ>-<n>, <PROJ>-<m>`, never
-bracketed. A `scope` tag stays `scope`, and a `docs` tag `docs`. The controller types no store tag itself.
-On an ADF description the verb runs per checklist paragraph, as `dod-line` does in
+description edit through **Edit an issue's body** whose producer is the per-paragraph
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-tags --line --map-file <path>` chain below, the map file
+holding one `<id> <PROJ>-<n>` pair per slice. A tag naming several slices becomes `<PROJ>-<n>, <PROJ>-<m>`,
+never bracketed. A `scope` tag stays `scope`, and a `docs` tag `docs`. The controller types no store tag
+itself. The verb runs per checklist paragraph, as `dod-line` does in
 `docs/agents/issue-tracker.md`'s *Definition of Done ticks*: each `paragraph` whose joined text begins
 `[ ]` or `[x]` goes through `dod-tags --line --map-file <path>` on its own file, and the output replaces
 that paragraph's content through the same `nodes` filter, so every node stays a `text` node with its
 `code` marks and the description stays valid ADF. Any one refusal (an unjudged line whose tag `dod-line`
 cannot read, or a slice id the map lacks) prints nothing and stops the whole edit at the gate, so the
-description stays as it was. On a markdown or wiki-markup description the verb runs once in its default
-body mode.
+description stays as it was.
 
 ## Append mode
 

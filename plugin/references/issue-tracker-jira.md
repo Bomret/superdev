@@ -90,9 +90,9 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
   succeeded: `curl -sf <auth> "<base>/rest/api/3/issue/<key>?fields=description" > "$r" && jq -je
   .fields.description < "$r" > "$b" && <producer> < "$b" > "$f" && [ -s "$f" ] && jq '{fields:
   {description: .}}' < "$f" > "$p" && curl -s --fail-with-body <auth> -X PUT --data-binary @-
-  "<base>/rest/api/3/issue/<key>" < "$p" > "$o"`. On an instance storing markdown or wiki markup, the wrap
-  is `jq -Rs '{fields: {description: .}}' < "$f"`. `<producer>` builds the new description from `"$b"`:
-  the tick, the run-state fold, or a line append. Name each file with `mktemp`. A failed step, a response
+  "<base>/rest/api/3/issue/<key>" < "$p" > "$o"`. `<producer>` builds the new description from `"$b"`:
+  the tick, the criterion-tag rewrite, an anchor line's append, revision, or removal, or append mode's fold
+  of new criteria and parked-question delete. Name each file with `mktemp`. A failed step, a response
   without a description, or an empty result stops the chain before the edit. Every description edit goes
   through this rule, and a producer's stdout is never spliced into the payload inline.
 - **Update status**: the transition ids of *Status workflow* below.
@@ -240,30 +240,18 @@ carries no label matching `<type>/<slug>` and no `<triage>` or `<intent>` label,
   keeping client-side the issues the rule above matches. The order is oldest first.
 - **Read its age.** The issue's `fields.created` timestamp.
 
-## Run state (fill in at setup)
+## Run state
 
-`plan-contract.md` → *Run state*. The run-state merge is markdown-only, so a default instance, whose
-`description` is Atlassian Document Format (ADF), carries **no snapshot**: a run publishes nothing and
-adopts nothing. Definition of Done ticks are independent of this posture.
-
-**An instance that stores the description as markdown or wiki markup** carries a snapshot. At setup,
-confirm which of the two your instance is and strike the other, so `references/run-init.md` reads one
-yes-or-no answer here:
-
-- **Write** (once per command, at its end): the anchor description, folded per `run-state.md`'s
-  `## Publishing run state`, through **Edit an issue's body**, the fold as its producer. **Best-effort:** a
-  failed write is reported once per run and the run continues; the ledger stays authoritative.
-- **Read** (every publish, including run init and adopting a run):
-  `GET <base>/rest/api/3/issue/<key>?fields=description`, taken out with `jq -je .fields.description`.
-- **The section is machine-owned.** A subsection an operator adds under `## Run state` is replaced on the
-  next publish. Keep an operator note outside the section.
+`plan-contract.md` → *Run state*. This store is **snapshot-less**: `/rest/api/3` carries the anchor's
+`description` as Atlassian Document Format (ADF), which has no node for the section heading or the fence
+markers a run-state round trip needs, so a run publishes nothing and adopts nothing. Definition of Done
+ticks are independent of this.
 
 ## Definition of Done ticks (fill in at setup)
 
-`plan-contract.md` → *Definition of Done ticks*. This store ticks the anchor's own checklist on every
-instance.
+`plan-contract.md` → *Definition of Done ticks*. This store ticks the anchor's own checklist.
 
-**Default (ADF) posture: node shape unverified.** The mechanics below match the **text** superdev writes
+**ADF node shape unverified.** The mechanics below match the **text** superdev writes
 for a checklist line, a `paragraph` or `listItem` node whose text begins `[ ] <criterion>`, never a
 `taskItem`/`blockTaskItem` node. Verify the shape against your instance's stored description, and report
 a live shape that differs.
@@ -296,9 +284,6 @@ a live shape that differs.
   `dod.md` stays authoritative.
 - **A criterion's tag renders as the issue `key`** (`<PROJ>-<n>`, for example `PROJ-12`), several as
   `<PROJ>-<n>, <PROJ>-<m>`, never bracketed. A `scope` tag stays `scope`, and a `docs` tag `docs`.
-
-**On an instance storing the description as markdown or wiki markup**, the same chain takes the whole
-description as the producer's input, and `dod-line` runs in its default **body** mode rather than `--line`.
 
 ## Status workflow (fill in at setup)
 
