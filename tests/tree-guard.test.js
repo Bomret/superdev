@@ -252,12 +252,11 @@ test('Denied: a submodule\'s gitdir under the main `.git/modules/`.', () => {
   assert.equal(decideM(implementerWrite(path.join(modules, 'hooks', 'pre-commit'), fx.main)).block, true, "a write to a submodule's gitdir hooks is denied");
 });
 
-// Every spelling of the implementer's agent type that run-trace's `OURS` accepts for superdev's agents is fenced: `implementer`
-// bare or after a `superdev:`, `superdev_`, or `superdev-` prefix (INV-0152). Another plugin's implementer, a prefix or suffix
-// around the name, and every other superdev agent pass.
 const ACCEPTED = ['superdev:implementer', 'superdev_implementer', 'superdev-implementer', 'implementer'];
 const REJECTED = ['other:implementer', 'xsuperdev:implementer', 'superdev:implementerx', 'superdev:slice-reviewer'];
-{
+// `implementer` bare or after a `superdev:`, `superdev_`, or `superdev-` prefix (INV-0152). Another plugin's implementer, a
+// prefix or suffix around the name, and every other superdev agent pass.
+test('Every spelling of the implementer\'s agent type that run-trace\'s `OURS` accepts for superdev\'s agents is fenced.', () => {
   const linked = path.join(fx.base, 'linked-spellings');
   git(['worktree', 'add', '-q', '-b', 'linked-spellings', linked], fx.main);
   const targets = [
@@ -270,7 +269,7 @@ const REJECTED = ['other:implementer', 'xsuperdev:implementer', 'superdev:implem
       assert.equal(decideM({ ...implementerWrite(file, cwd), agent_type: agentType }).block, true, `a ${agentType} write into ${where} is denied`);
     }
   }
-}
+});
 
 test('tree-guard and run-trace agree on which implementer spellings are superdev\'s: a spelling `OURS` accepts is fenced, and one it rejects passes (INV-0152).', () => {
   const { OURS } = require(path.join(pluginRoot, 'hooks', 'run-trace.js'));
