@@ -4,6 +4,7 @@
 // away from the modules it loads and puts a stub that writes a marker file in a module's place, so the case confirms
 // the stub loaded before it asserts what the hook did.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -42,81 +43,80 @@ function passThroughScopeBranch(libDir) {
   );
 }
 
-// #probe-unavailable: the containment module is absent from its place, throws on load, or carries no
-// probe — a version-skewed install. The hook drops to the tree comparison alone, pruning what that test
-// can prove and saying nothing, while its ledger module still loads (ADR 0022, ADR 0082). The hook is
-// copied beside stub modules so the real `require`s resolve to them, and each case confirms its
-// containment stub loaded.
+// The hook drops to the tree comparison alone, pruning what that test can prove and saying nothing, while its ledger
+// module still loads (ADR 0022, ADR 0082). The hook is copied beside stub modules so the real `require`s resolve to
+// them, and each case confirms its containment stub loaded.
 for (const [skewName, containmentBody] of [
   ['carries no probe', 'module.exports = {};'],
   ['throws on load', "throw new Error('gone');"],
   ['absent from its place', null],
 ]) {
-  const skewDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-skew-'));
-  fs.mkdirSync(path.join(skewDir, 'hooks'));
-  fs.mkdirSync(path.join(skewDir, 'lib'));
-  fs.copyFileSync(hookPath, path.join(skewDir, 'hooks', 'scope-prune.js'));
-  const skewMarker = path.join(skewDir, 'stub-loaded');
-  const ledgerMarker = path.join(skewDir, 'ledger-loaded');
-  fs.writeFileSync(
-    path.join(skewDir, 'lib', 'ledger.js'),
-    `'use strict';\nrequire('fs').writeFileSync(${JSON.stringify(ledgerMarker)}, 'x');\nconst { readLedgerHeader } = require(${JSON.stringify(
-      require.resolve('../plugin/lib/ledger.js')
-    )});\nmodule.exports = { readLedgerHeader };\n`
-  );
-  if (containmentBody !== null) {
+  test(`#probe-unavailable: the containment module is absent from its place, throws on load, or carries no probe — a version-skewed install. (${skewName})`, () => {
+    const skewDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-skew-'));
+    fs.mkdirSync(path.join(skewDir, 'hooks'));
+    fs.mkdirSync(path.join(skewDir, 'lib'));
+    fs.copyFileSync(hookPath, path.join(skewDir, 'hooks', 'scope-prune.js'));
+    const skewMarker = path.join(skewDir, 'stub-loaded');
+    const ledgerMarker = path.join(skewDir, 'ledger-loaded');
     fs.writeFileSync(
-      path.join(skewDir, 'lib', 'containment.js'),
-      `require('fs').writeFileSync(${JSON.stringify(skewMarker)}, 'x');\n${containmentBody}\n`
+      path.join(skewDir, 'lib', 'ledger.js'),
+      `'use strict';\nrequire('fs').writeFileSync(${JSON.stringify(ledgerMarker)}, 'x');\nconst { readLedgerHeader } = require(${JSON.stringify(
+        require.resolve('../plugin/lib/ledger.js')
+      )});\nmodule.exports = { readLedgerHeader };\n`
+  );
+    if (containmentBody !== null) {
+      fs.writeFileSync(
+        path.join(skewDir, 'lib', 'containment.js'),
+        `require('fs').writeFileSync(${JSON.stringify(skewMarker)}, 'x');\n${containmentBody}\n`
     );
-  }
-  passThroughMainWorkTree(path.join(skewDir, 'lib'));
-  passThroughScopeBranch(path.join(skewDir, 'lib'));
-  const gitSpawnMarker = passThroughGitSpawn(path.join(skewDir, 'lib'));
-  const skewed = require(path.join(skewDir, 'hooks', 'scope-prune.js'));
-  assert.equal(fs.existsSync(ledgerMarker), true, `the stub at ../lib/ledger.js loaded (${skewName})`);
-  assert.equal(fs.existsSync(gitSpawnMarker), true, `the stub at ../lib/git-spawn.js loaded (${skewName})`);
-  assert.equal(
-    fs.existsSync(skewMarker),
-    containmentBody !== null,
-    `the stub at ../lib/containment.js loaded exactly when one exists (${skewName})`
+    }
+    passThroughMainWorkTree(path.join(skewDir, 'lib'));
+    passThroughScopeBranch(path.join(skewDir, 'lib'));
+    const gitSpawnMarker = passThroughGitSpawn(path.join(skewDir, 'lib'));
+    const skewed = require(path.join(skewDir, 'hooks', 'scope-prune.js'));
+    assert.equal(fs.existsSync(ledgerMarker), true, `the stub at ../lib/ledger.js loaded (${skewName})`);
+    assert.equal(fs.existsSync(gitSpawnMarker), true, `the stub at ../lib/git-spawn.js loaded (${skewName})`);
+    assert.equal(
+      fs.existsSync(skewMarker),
+      containmentBody !== null,
+      `the stub at ../lib/containment.js loaded exactly when one exists (${skewName})`
   );
 
-  const skewProbeRepo = makeConflictingSquashRepo('fix/skew-probe');
-  const skewProbeScopeDir = makeScope(
-    skewProbeRepo,
-    'skew-probe',
-    '**Stage:** closed\n**Branch:** fix/skew-probe\n'
-  );
-  const skewPlainRepo = makeRepo();
-  makeWorkBranch(skewPlainRepo, 'fix/skew-plain', 'app.txt', 'v2\n');
-  gitTest(['merge', '--squash', 'fix/skew-plain'], skewPlainRepo);
-  gitTest(['commit', '-q', '-m', 'fix: skew-plain (#1)'], skewPlainRepo);
-  const skewPlainScopeDir = makeScope(
-    skewPlainRepo,
-    'skew-plain',
-    '**Stage:** closed\n**Branch:** fix/skew-plain\n'
-  );
-  skewed.main(skewProbeRepo);
-  skewed.main(skewPlainRepo);
-  assert.equal(
-    fs.existsSync(skewProbeScopeDir),
-    true,
-    'with no probe available the hook leaves a conflicting scope standing, exactly as it did before'
-  );
-  assert.equal(
-    fs.existsSync(skewPlainScopeDir),
-    false,
-    'and still prunes what the tree comparison alone can prove'
-  );
-  fs.rmSync(skewProbeRepo, { recursive: true, force: true });
-  fs.rmSync(skewPlainRepo, { recursive: true, force: true });
-  fs.rmSync(skewDir, { recursive: true, force: true });
+    const skewProbeRepo = makeConflictingSquashRepo('fix/skew-probe');
+    const skewProbeScopeDir = makeScope(
+      skewProbeRepo,
+      'skew-probe',
+      '**Stage:** closed\n**Branch:** fix/skew-probe\n'
+    );
+    const skewPlainRepo = makeRepo();
+    makeWorkBranch(skewPlainRepo, 'fix/skew-plain', 'app.txt', 'v2\n');
+    gitTest(['merge', '--squash', 'fix/skew-plain'], skewPlainRepo);
+    gitTest(['commit', '-q', '-m', 'fix: skew-plain (#1)'], skewPlainRepo);
+    const skewPlainScopeDir = makeScope(
+      skewPlainRepo,
+      'skew-plain',
+      '**Stage:** closed\n**Branch:** fix/skew-plain\n'
+    );
+    skewed.main(skewProbeRepo);
+    skewed.main(skewPlainRepo);
+    assert.equal(
+      fs.existsSync(skewProbeScopeDir),
+      true,
+      'with no probe available the hook leaves a conflicting scope standing, exactly as it did before'
+    );
+    assert.equal(
+      fs.existsSync(skewPlainScopeDir),
+      false,
+      'and still prunes what the tree comparison alone can prove'
+    );
+    fs.rmSync(skewProbeRepo, { recursive: true, force: true });
+    fs.rmSync(skewPlainRepo, { recursive: true, force: true });
+    fs.rmSync(skewDir, { recursive: true, force: true });
+  });
 }
 
-// #probe-throws: the containment module loads but its probe throws on the conflicting-squash setup. The
-// throw leaves `main` and the hook's entry guard takes it: the run prunes nothing, exits 0, and says nothing.
-{
+// The throw leaves `main` and the hook's entry guard takes it: the run prunes nothing, exits 0, and says nothing.
+test('#probe-throws: the containment module loads but its probe throws on the conflicting-squash setup.', () => {
   const throwDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-probe-throws-'));
   fs.mkdirSync(path.join(throwDir, 'hooks'));
   fs.mkdirSync(path.join(throwDir, 'lib'));
@@ -155,16 +155,15 @@ for (const [skewName, containmentBody] of [
   );
   fs.rmSync(throwRepo, { recursive: true, force: true });
   fs.rmSync(throwDir, { recursive: true, force: true });
-}
+});
 
-// #reader-unavailable: the hook cannot load the shared reader → it prunes nothing and says nothing.
-// A copy of this file outside the plugin cannot resolve `../lib/ledger.js`, which is exactly the
-// failure being tested. This proves the fail-closed property holds when the reader is unavailable — not
-// that the explicit `if (!readLedgerHeader) return;` guard in main() is what causes it: `readHeader`'s
-// own try/catch already yields null for every header in that case, and a null stage is never prunable
-// either way. The guard stays as explicit intent. Fail-closed is the same direction the hook already
-// takes on a git error: a hook that cannot read a stage must never conclude a scope is finished.
-{
+// A copy of this file outside the plugin cannot resolve `../lib/ledger.js`, which is exactly the failure being
+// tested. This proves the fail-closed property holds when the reader is unavailable — not that the explicit `if
+// (!readLedgerHeader) return;` guard in main() is what causes it: `readHeader`'s own try/catch already yields null
+// for every header in that case, and a null stage is never prunable either way. The guard stays as explicit intent.
+// Fail-closed is the same direction the hook already takes on a git error: a hook that cannot read a stage must never
+// conclude a scope is finished.
+test('#reader-unavailable: the hook cannot load the shared reader → it prunes nothing and says nothing.', () => {
   const cp = require('node:child_process');
   const away = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-orphan-'));
   fs.copyFileSync(hookPath, path.join(away, 'scope-prune.js'));
@@ -234,16 +233,15 @@ for (const [skewName, containmentBody] of [
   assert.equal(fs.existsSync(doomed), true, 'a scope that would otherwise be pruned survives when the ledger reader throws');
   fs.rmSync(away, { recursive: true, force: true });
   fs.rmSync(repo, { recursive: true, force: true });
-}
+});
 
-// #git-spawn-posture: the hook takes `gitSpawn`, `gitThrow`, `parseBranchList`, and `resolveCommit` from
-// `../lib/git-spawn.js` (INV-0159). With the module unloadable, with one of the four missing, or with one of the
-// four throwing, the hook prunes nothing, exits 0, and says nothing. Each case runs beside a pass-through control
-// stub that prunes the same fixture, and confirms its own stub loaded before it asserts. A git whose `merge-tree`
-// fails shims the pre-2.38 path, so each of the first three functions is reached on every run. `resolveCommit`
-// serves only the `--write-tree` path, so its throwing case and a control of its own run on the real git. Each
-// case copies the hook to its own path, because `require` caches by path.
-{
+// With the module unloadable, with one of the four missing, or with one of the four throwing, the hook prunes
+// nothing, exits 0, and says nothing. Each case runs beside a pass-through control stub that prunes the same fixture,
+// and confirms its own stub loaded before it asserts. A git whose `merge-tree` fails shims the pre-2.38 path, so each
+// of the first three functions is reached on every run. `resolveCommit` serves only the `--write-tree` path, so its
+// throwing case and a control of its own run on the real git. Each case copies the hook to its own path, because
+// `require` caches by path.
+test('#git-spawn-posture: the hook takes `gitSpawn`, `gitThrow`, `parseBranchList`, and `resolveCommit` from `../lib/git-spawn.js` (INV-0159).', () => {
   const realGitSpawn = JSON.stringify(require.resolve('../plugin/lib/git-spawn.js'));
   const shimDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-posture-shim-'));
   const realGitPath = require('node:child_process').execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
@@ -340,12 +338,12 @@ for (const [skewName, containmentBody] of [
   assert.equal(resolveThrows.called, true, 'the throwing resolveCommit was called');
   assert.equal(resolveThrows.stands, true, 'a hook whose resolveCommit throws prunes nothing');
   fs.rmSync(shimDir, { recursive: true, force: true });
-}
+});
 
-// #resolver-unavailable: the hook takes the main working tree from `../lib/main-work-tree.js`. With the module absent,
-// throwing on load, carrying no `mainWorkTree`, or resolving nothing, it prunes nothing, exits 0, and says nothing. A
-// control beside a pass-through stub prunes the same fixture, and each case confirms its own stub loaded first.
-{
+// With the module absent, throwing on load, carrying no `mainWorkTree`, or resolving nothing, it prunes nothing,
+// exits 0, and says nothing. A control beside a pass-through stub prunes the same fixture, and each case confirms its
+// own stub loaded first.
+test('#resolver-unavailable: the hook takes the main working tree from `../lib/main-work-tree.js`.', () => {
   const realResolver = JSON.stringify(require.resolve('../plugin/lib/main-work-tree.js'));
   function runResolver(caseName, resolverBody) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-resolver-'));
@@ -405,13 +403,13 @@ for (const [skewName, containmentBody] of [
   assert.equal(outsideRun.stdout, '', 'and prints nothing');
   assert.equal(fs.existsSync(outsideScope), true, 'and prunes no run root of its own cwd');
   fs.rmSync(outside, { recursive: true, force: true });
-}
+});
 
-// #shape-rule-unavailable: the hook takes the shape rule from `../lib/scope-branch.js` (INV-0159, INV-0068). With the module
-// absent, throwing on load, or carrying no `shapeMatches` or no `parseBranchRefs`, the hook prunes nothing, exits 0, and says nothing. Each case
-// runs beside a pass-through control that prunes the same fixture: a closed, stale scope with no `**Branch:**` line whose
-// contained `feat/shaperule` branch only the shape scan can name.
-{
+// With the module absent, throwing on load, or carrying no `shapeMatches` or no `parseBranchRefs`, the hook prunes
+// nothing, exits 0, and says nothing. Each case runs beside a pass-through control that prunes the same fixture: a
+// closed, stale scope with no `**Branch:**` line whose contained `feat/shaperule` branch only the shape scan can
+// name.
+test('#shape-rule-unavailable: the hook takes the shape rule from `../lib/scope-branch.js` (INV-0159, INV-0068).', () => {
   const real = JSON.stringify(require.resolve('../plugin/lib/scope-branch.js'));
   function runCase(caseName, body) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-shape-'));
@@ -451,6 +449,5 @@ for (const [skewName, containmentBody] of [
   const old = runCase('parseBranchRefs missing', `module.exports = { shapeMatches: require(${real}).shapeMatches };`);
   assert.equal(old.loaded, true, 'the stub without parseBranchRefs loaded');
   assert.equal(old.stands, true, 'a hook whose shape rule module carries no parseBranchRefs prunes nothing');
-}
+});
 
-console.log('scope-prune-guards tests ok');

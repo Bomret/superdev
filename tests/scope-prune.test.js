@@ -2,6 +2,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
+const { test } = require('node:test');
 require('./fixture-git');
 
 // Suite for plugin/hooks/scope-prune.js, its pure internals. Requires the hook (silent, ADR 0059 / issue #442's
@@ -35,30 +36,28 @@ const containedIn = (...names) => {
   return (branch) => set.has(branch);
 };
 
-// #merged-and-stale: contained branch, mtime past TTL, ledger stage `closed` → prune.
-// #merged-and-fresh: contained branch, mtime within TTL → skip (too soon), regardless of stage.
-// #unmerged: scope branch not contained (still active) → skip regardless of age or stage.
-const closed = () => 'closed';
-const mtimes = { 'merged-and-stale': STALE, 'merged-and-fresh': FRESH, unmerged: STALE };
-const merged = containedIn('fix/merged-and-stale', 'docs/merged-and-fresh');
-// Every scope here still has its branch, so containment is the question being asked of each.
-const present = new Set(['main', 'fix/merged-and-stale', 'docs/merged-and-fresh', 'feat/unmerged']);
-assert.deepEqual(
-  selectPrunable(Object.keys(mtimes), merged, (s) => mtimes[s], closed, present, () => null),
-  ['merged-and-stale'],
-  'only a contained AND stale AND closed scope is pruned'
-);
-assert.deepEqual(
-  selectPrunable(['unknown-mtime'], merged, () => null, closed, present, () => null),
-  [],
-  'unreadable mtime is never pruned'
-);
+let closed, mtimes, merged, present;
+test('#merged-and-stale: contained branch, mtime past TTL, ledger stage `closed` → prune. #merged-and-fresh: contained branch, mtime within TTL → skip (too soon), regardless of stage. #unmerged: scope branch not contained (still active) → skip regardless of age or stage.', () => {
+  closed = () => 'closed';
+  mtimes = { 'merged-and-stale': STALE, 'merged-and-fresh': FRESH, unmerged: STALE };
+  merged = containedIn('fix/merged-and-stale', 'docs/merged-and-fresh');
+  // Every scope here still has its branch, so containment is the question being asked of each.
+  present = new Set(['main', 'fix/merged-and-stale', 'docs/merged-and-fresh', 'feat/unmerged']);
+  assert.deepEqual(
+    selectPrunable(Object.keys(mtimes), merged, (s) => mtimes[s], closed, present, () => null),
+    ['merged-and-stale'],
+    'only a contained AND stale AND closed scope is pruned'
+  );
+  assert.deepEqual(
+    selectPrunable(['unknown-mtime'], merged, () => null, closed, present, () => null),
+    [],
+    'unreadable mtime is never pruned'
+  );
+});
 
-// The gates run cheapest-first, and `--write-tree` writes tree objects into the object database on
-// every call, in a `Stop` hook that fires on every finished turn. A scope that fails the TTL check or
-// the stage check must therefore never reach the containment test at all (ADR 0053). Counting the
-// calls is the only way to pin an ordering: every ordering returns the same answer.
-{
+// A scope that fails the TTL check or the stage check must therefore never reach the containment test at all (ADR
+// 0053). Counting the calls is the only way to pin an ordering: every ordering returns the same answer.
+test('The gates run cheapest-first, and `--write-tree` writes tree objects into the object database on every call, in a `Stop` hook that fires on every finished turn.', () => {
   let calls = 0;
   const counted = (branch) => {
     calls += 1;
@@ -87,68 +86,69 @@ assert.deepEqual(
     'a scope past both cheap gates does reach the containment test'
   );
   assert.equal(calls, 1, 'and reaches it exactly once');
-}
+});
 
-// Neither tier switches the invoking checkout onto the scope branch (ADR 0045), and both leave a
-// scopetree standing until `/superdev:ship` removes it, so the containment test and the scopetree guard
-// already protect a run mid-chain. The stage gate is the second, independent signal, exercised here on
-// its own: a merged, stale scope whose ledger stage is `reviewed` (review ran, ship never did) must
-// still not be pruned, whatever the branch or scopetree checks would otherwise say.
-const parkedAll = new Set(['main', 'feat/parked-mid-chain']);
-const parkedContained = containedIn('feat/parked-mid-chain');
-assert.deepEqual(
-  selectPrunable(['parked-mid-chain'], parkedContained, () => STALE, () => 'reviewed', parkedAll, () => null),
-  [],
-  'a contained, stale scope whose ledger stage is not `closed` is never pruned'
-);
+// The stage gate is the second, independent signal, exercised here on its own: a merged, stale scope whose ledger
+// stage is `reviewed` (review ran, ship never did) must still not be pruned, whatever the branch or scopetree checks
+// would otherwise say.
+let parkedAll, parkedContained;
+test('Neither tier switches the invoking checkout onto the scope branch (ADR 0045), and both leave a scopetree standing until `/superdev:ship` removes it, so the containment test and the scopetree guard already protect a run mid-chain.', () => {
+  parkedAll = new Set(['main', 'feat/parked-mid-chain']);
+  parkedContained = containedIn('feat/parked-mid-chain');
+  assert.deepEqual(
+    selectPrunable(['parked-mid-chain'], parkedContained, () => STALE, () => 'reviewed', parkedAll, () => null),
+    [],
+    'a contained, stale scope whose ledger stage is not `closed` is never pruned'
+  );
+});
 
-// An unreadable ledger, or one with no `**Stage:**` line, is not evidence a run finished — it is
-// evidence nothing can be read. Never prune on a guess.
-assert.deepEqual(
-  selectPrunable(['parked-mid-chain'], parkedContained, () => STALE, () => null, parkedAll, () => null),
-  [],
-  'a scope with no readable stage is never pruned'
-);
+// Never prune on a guess.
+test('An unreadable ledger, or one with no `**Stage:**` line, is not evidence a run finished — it is evidence nothing can be read.', () => {
+  assert.deepEqual(
+    selectPrunable(['parked-mid-chain'], parkedContained, () => STALE, () => null, parkedAll, () => null),
+    [],
+    'a scope with no readable stage is never pruned'
+  );
+});
 
-// `shipped` is what an older version left behind, or what `/superdev:ship` writes today before its
-// own gate hands off to `/superdev:wrap-up` (ADR 0106). It is not `closed`, so it is never prunable —
-// whatever the TTL, containment, or branch presence otherwise say.
-assert.deepEqual(
-  selectPrunable(['awaiting-wrap-up'], parkedContained, () => STALE, () => 'shipped', parkedAll, () => null),
-  [],
-  'a contained, stale scope at `shipped` is never pruned — only `/superdev:wrap-up` moves it to `closed`'
-);
-assert.deepEqual(
-  selectPrunable(['gone-and-shipped'], () => false, () => STALE, () => 'shipped', new Set(['main']), () => null),
-  [],
-  'a `shipped` scope whose branch is gone entirely is still never pruned'
-);
+// It is not `closed`, so it is never prunable — whatever the TTL, containment, or branch presence otherwise say.
+test('`shipped` is what an older version left behind, or what `/superdev:ship` writes today before its own gate hands off to `/superdev:wrap-up` (ADR 0106).', () => {
+  assert.deepEqual(
+    selectPrunable(['awaiting-wrap-up'], parkedContained, () => STALE, () => 'shipped', parkedAll, () => null),
+    [],
+    'a contained, stale scope at `shipped` is never pruned — only `/superdev:wrap-up` moves it to `closed`'
+  );
+  assert.deepEqual(
+    selectPrunable(['gone-and-shipped'], () => false, () => STALE, () => 'shipped', new Set(['main']), () => null),
+    [],
+    'a `shipped` scope whose branch is gone entirely is still never pruned'
+  );
+});
 
-// --- readStage: reads the ledger's `**Stage:**` line, or null when unreadable/absent ---
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
-fs.writeFileSync(path.join(tmp, 'ledger.md'), '# ledger\n\n**Stage:** closed\n');
-assert.equal(readStage(tmp), 'closed', 'reads the stage value off the ledger line');
-assert.equal(readStage(path.join(tmp, 'no-such-dir')), null, 'an unreadable ledger yields null');
-fs.rmSync(tmp, { recursive: true, force: true });
+test('readStage: reads the ledger\'s `**Stage:**` line, or null when unreadable/absent', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
+  fs.writeFileSync(path.join(tmp, 'ledger.md'), '# ledger\n\n**Stage:** closed\n');
+  assert.equal(readStage(tmp), 'closed', 'reads the stage value off the ledger line');
+  assert.equal(readStage(path.join(tmp, 'no-such-dir')), null, 'an unreadable ledger yields null');
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
 
-// `scope.js stage set` may well write the value in backticks (`` **Stage:** `closed` ``), the same
-// markup an agent writes by hand elsewhere in the ledger. The capture must still read `closed`, or the
-// gate never matches and pruning is silently disabled forever.
-const tmpBacktick = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
-fs.writeFileSync(path.join(tmpBacktick, 'ledger.md'), '# ledger\n\n**Stage:** `closed`\n');
-assert.equal(readStage(tmpBacktick), 'closed', 'strips backticks from the captured stage value');
-const backtickAll = new Set(['main', 'chore/backticked']);
-assert.deepEqual(
-  selectPrunable(['backticked'], containedIn('chore/backticked'), () => STALE, () => readStage(tmpBacktick), backtickAll, () => null),
-  ['backticked'],
-  'a ledger whose stage line wraps the value in backticks is still prunable'
-);
-fs.rmSync(tmpBacktick, { recursive: true, force: true });
+// The capture must still read `closed`, or the gate never matches and pruning is silently disabled forever.
+test('`scope.js stage set` may well write the value in backticks (`` **Stage:** `closed` ``), the same markup an agent writes by hand elsewhere in the ledger.', () => {
+  const tmpBacktick = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
+  fs.writeFileSync(path.join(tmpBacktick, 'ledger.md'), '# ledger\n\n**Stage:** `closed`\n');
+  assert.equal(readStage(tmpBacktick), 'closed', 'strips backticks from the captured stage value');
+  const backtickAll = new Set(['main', 'chore/backticked']);
+  assert.deepEqual(
+    selectPrunable(['backticked'], containedIn('chore/backticked'), () => STALE, () => readStage(tmpBacktick), backtickAll, () => null),
+    ['backticked'],
+    'a ledger whose stage line wraps the value in backticks is still prunable'
+  );
+  fs.rmSync(tmpBacktick, { recursive: true, force: true });
+});
 
-// The two spellings a maintainer or an agent also plausibly writes: a backticked value followed by a
-// period, and an emphasized value. Both must normalize, or the gate silently stops matching and the
-// scope is never pruned. Every one of these is a real stage line, so the strip must not care in which
-// order the markers appear.
+// Both must normalize, or the gate silently stops matching and the scope is never pruned. Every one of these is a
+// real stage line, so the strip must not care in which order the markers appear.
 for (const [line, label] of [
   ['**Stage:** `closed`.', 'a backticked value with a trailing period'],
   ['**Stage:** **closed**', 'an emphasized value'],
@@ -156,25 +156,28 @@ for (const [line, label] of [
   ['**Stage:** `closed`', 'a backticked value'],
   ['**Stage:** closed', 'a plain value'],
 ]) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
-  fs.writeFileSync(path.join(dir, 'ledger.md'), `# ledger\n\n${line}\n`);
-  assert.equal(readStage(dir), 'closed', `normalizes ${label}`);
-  fs.rmSync(dir, { recursive: true, force: true });
+  test(`The two spellings a maintainer or an agent also plausibly writes: a backticked value followed by a period, and an emphasized value. (${line})`, () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
+    fs.writeFileSync(path.join(dir, 'ledger.md'), `# ledger\n\n${line}\n`);
+    assert.equal(readStage(dir), 'closed', `normalizes ${label}`);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
 }
 
-// The strip must not turn a different stage into `closed`. Every one of these stays itself, so a scope
-// that has not closed is never pruned by a normalization accident.
+// Every one of these stays itself, so a scope that has not closed is never pruned by a normalization accident.
 for (const [line, expected] of [
   ['**Stage:** documented-unreviewed', 'documented-unreviewed'],
   ['**Stage:** `reviewed`', 'reviewed'],
   ['**Stage:** unclosed', 'unclosed'],
   ['**Stage:** not-closed', 'not-closed'],
 ]) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
-  fs.writeFileSync(path.join(dir, 'ledger.md'), `# ledger\n\n${line}\n`);
-  assert.equal(readStage(dir), expected, `leaves \`${expected}\` as itself`);
-  assert.notEqual(readStage(dir), 'closed', `never reads \`${expected}\` as closed`);
-  fs.rmSync(dir, { recursive: true, force: true });
+  test(`The strip must not turn a different stage into \`closed\`. (${line})`, () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
+    fs.writeFileSync(path.join(dir, 'ledger.md'), `# ledger\n\n${line}\n`);
+    assert.equal(readStage(dir), expected, `leaves \`${expected}\` as itself`);
+    assert.notEqual(readStage(dir), 'closed', `never reads \`${expected}\` as closed`);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
 }
 
 // --- Gone, and present-but-not-contained: the two halves of the branch decision ---
@@ -185,65 +188,63 @@ for (const [line, expected] of [
 const ALL = (...names) => new Set(['main', ...names]);
 const nothingContained = () => false;
 
-assert.deepEqual(
-  selectPrunable(['squashed'], nothingContained, () => STALE, closed, ALL(), () => null),
-  ['squashed'],
-  'a gone branch, closed and past the TTL, is prunable'
-);
-assert.deepEqual(
-  selectPrunable(['squashed'], nothingContained, () => STALE, () => 'reviewed', ALL(), () => null),
-  [],
-  'a gone branch whose stage is not `closed` is never prunable'
-);
-assert.deepEqual(
-  selectPrunable(['squashed'], nothingContained, () => FRESH, closed, ALL(), () => null),
-  [],
-  'a gone branch inside the TTL is never prunable'
-);
-assert.deepEqual(
-  selectPrunable(['squashed'], nothingContained, () => STALE, () => null, ALL(), () => null),
-  [],
-  'a gone branch with no readable stage is never prunable'
-);
+test('A gone branch is prunable only when closed and past the TTL', () => {
+  assert.deepEqual(
+    selectPrunable(['squashed'], nothingContained, () => STALE, closed, ALL(), () => null),
+    ['squashed'],
+    'a gone branch, closed and past the TTL, is prunable'
+  );
+  assert.deepEqual(
+    selectPrunable(['squashed'], nothingContained, () => STALE, () => 'reviewed', ALL(), () => null),
+    [],
+    'a gone branch whose stage is not `closed` is never prunable'
+  );
+  assert.deepEqual(
+    selectPrunable(['squashed'], nothingContained, () => FRESH, closed, ALL(), () => null),
+    [],
+    'a gone branch inside the TTL is never prunable'
+  );
+  assert.deepEqual(
+    selectPrunable(['squashed'], nothingContained, () => STALE, () => null, ALL(), () => null),
+    [],
+    'a gone branch with no readable stage is never prunable'
+  );
+});
 
-// Present-but-not-contained is the case absence must not swallow: the branch exists and carries
-// content base does not hold, so the work is still in flight.
-assert.deepEqual(
-  selectPrunable(['live'], nothingContained, () => STALE, closed, ALL('feat/live'), () => null),
-  [],
-  'a branch that exists but is not contained is never prunable'
-);
-assert.deepEqual(
-  selectPrunable(['landed'], containedIn('feat/landed'), () => STALE, closed, ALL('feat/landed'), () => null),
-  ['landed'],
-  'a branch that exists and is contained is prunable'
-);
+test('Present-but-not-contained is the case absence must not swallow: the branch exists and carries content base does not hold, so the work is still in flight.', () => {
+  assert.deepEqual(
+    selectPrunable(['live'], nothingContained, () => STALE, closed, ALL('feat/live'), () => null),
+    [],
+    'a branch that exists but is not contained is never prunable'
+  );
+  assert.deepEqual(
+    selectPrunable(['landed'], containedIn('feat/landed'), () => STALE, closed, ALL('feat/landed'), () => null),
+    ['landed'],
+    'a branch that exists and is contained is prunable'
+  );
+});
 
-// A remote-tracking ref the user has not pruned counts as present, so an unfetched repository asks
-// containment about it — and a branch base does not hold keeps the scope alive. Failing closed is the
-// whole point: absence is only evidence when the refs are current.
-assert.deepEqual(
-  selectPrunable(['unfetched'], nothingContained, () => STALE, closed, ALL('fix/unfetched'), () => null),
-  [],
-  'a stale remote-tracking ref whose content base lacks keeps the scope alive — absence fails closed'
-);
+// Failing closed is the whole point: absence is only evidence when the refs are current.
+test('A remote-tracking ref the user has not pruned counts as present, so an unfetched repository asks containment about it — and a branch base does not hold keeps the scope alive.', () => {
+  assert.deepEqual(
+    selectPrunable(['unfetched'], nothingContained, () => STALE, closed, ALL('fix/unfetched'), () => null),
+    [],
+    'a stale remote-tracking ref whose content base lacks keeps the scope alive — absence fails closed'
+  );
+});
 
-// Absence is matched by the same shape rule as before: only a change-typed branch names this scope.
-// A `slice/<scope>/<id>` or a maintainer's `wip/<scope>` must not read as the scope branch, or its
-// presence would keep a finished run's root forever.
-assert.deepEqual(
-  selectPrunable(['exports'], nothingContained, () => STALE, closed, ALL('slice/exports/03', 'wip/exports'), () => null),
-  ['exports'],
-  'a slice branch and a wip branch do not count as the scope branch being present'
-);
+// A `slice/<scope>/<id>` or a maintainer's `wip/<scope>` must not read as the scope branch, or its presence would
+// keep a finished run's root forever.
+test('Absence is matched by the same shape rule as before: only a change-typed branch names this scope.', () => {
+  assert.deepEqual(
+    selectPrunable(['exports'], nothingContained, () => STALE, closed, ALL('slice/exports/03', 'wip/exports'), () => null),
+    ['exports'],
+    'a slice branch and a wip branch do not count as the scope branch being present'
+  );
+});
 
-// --- readBranch / resolveBranch: the ledger's `**Branch:**` line is authoritative, the shape scan is
-// only the pre-CLI fallback (references/scope-mode.md, `## The scope branch`) ---
-//
-// The shape scan alone reads a live, unmerged branch as gone in two ordinary ways: a change type it
-// doesn't recognise, or a slug that drifted from the run-root's directory name. Both would prune a run
-// still mid-flight, because "gone" and "closed" together mean prunable.
-{
+// Both would prune a run still mid-flight, because "gone" and "closed" together mean prunable.
+test('readBranch / resolveBranch: the ledger\'s `**Branch:**` line is authoritative, the shape scan is only the pre-CLI fallback (references/scope-mode.md, `## The scope branch`) The shape scan alone reads a live, unmerged branch as gone in two ordinary ways: a change type it doesn\'t recognise, or a slug that drifted from the run-root\'s directory name.', () => {
   // `feature/alpha`: the type is not in CHANGE_TYPES (only `feat` is), so the shape scan reads
   // `alpha`'s branch as gone even though it exists and is unmerged.
   const alphaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-branch-'));
@@ -335,44 +336,41 @@ assert.deepEqual(
     ['exports'],
     'a ledger-named branch that is gone is never rescued by an unrelated shape-matching branch'
   );
-}
+});
 
-// --- branchNamesFrom: normalises `git for-each-ref` output to comparable branch names ---
-const refs = [
-  'refs/heads/main',
-  'refs/heads/fix/local-only',
-  'refs/remotes/origin/main',
-  'refs/remotes/origin/fix/on-remote',
-  'refs/remotes/origin/HEAD',
-  'refs/remotes/upstream/feat/other-remote',
-  '',
-];
-const names = branchNamesFrom(refs);
-assert.equal(names.has('fix/local-only'), true, 'a local branch keeps its name');
-assert.equal(names.has('fix/on-remote'), true, 'a remote-tracking ref drops its remote prefix');
-assert.equal(names.has('feat/other-remote'), true, 'a second remote is handled the same way');
-assert.equal(names.has('HEAD'), false, "origin/HEAD is a symbolic ref, not a branch");
-assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix');
+test('branchNamesFrom: normalises `git for-each-ref` output to comparable branch names', () => {
+  const refs = [
+    'refs/heads/main',
+    'refs/heads/fix/local-only',
+    'refs/remotes/origin/main',
+    'refs/remotes/origin/fix/on-remote',
+    'refs/remotes/origin/HEAD',
+    'refs/remotes/upstream/feat/other-remote',
+    '',
+  ];
+  const names = branchNamesFrom(refs);
+  assert.equal(names.has('fix/local-only'), true, 'a local branch keeps its name');
+  assert.equal(names.has('fix/on-remote'), true, 'a remote-tracking ref drops its remote prefix');
+  assert.equal(names.has('feat/other-remote'), true, 'a second remote is handled the same way');
+  assert.equal(names.has('HEAD'), false, "origin/HEAD is a symbolic ref, not a branch");
+  assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix');
+});
 
-// The hook `require`s `../lib/ledger.js`, `../lib/containment.js`, and `../lib/git-spawn.js`, and nothing else
-// asserts that `lib/` actually ships alongside `hooks/` in a real install. If a future packaging change stopped
-// shipping it, this hook would fail closed and prune nothing, forever, with no signal beyond that silence.
+// If a future packaging change stopped shipping it, this hook would fail closed and prune nothing, forever, with no
+// signal beyond that silence.
 for (const mod of ['ledger.js', 'containment.js', 'git-spawn.js']) {
-  assert.equal(
-    fs.existsSync(path.join(path.dirname(hookPath), '..', 'lib', mod)),
-    true,
-    `lib/${mod} ships alongside this hook`
+  test(`The hook \`require\`s \`../lib/ledger.js\`, \`../lib/containment.js\`, and \`../lib/git-spawn.js\`, and nothing else asserts that \`lib/\` actually ships alongside \`hooks/\` in a real install. (${mod})`, () => {
+    assert.equal(
+      fs.existsSync(path.join(path.dirname(hookPath), '..', 'lib', mod)),
+      true,
+      `lib/${mod} ships alongside this hook`
   );
+  });
 }
 
-// --- one reader, shared with scripts/scope.js (ADR 0022) ---
-//
-// This hook carried its own header regex and it drifted on four axes — anchoring, capture width,
-// whether the whitespace after the colon crossed a newline, and normalisation — while being hardened
-// against defects on this very delete path. Every vector below is the same one `tests/scope-ledger-header.test.js`
-// asserts, so agreement is a property of there being one implementation rather than of two staying
-// in step.
-{
+// Every vector below is the same one `tests/scope-ledger-header.test.js` asserts, so agreement is a property of there
+// being one implementation rather than of two staying in step.
+test('one reader, shared with scripts/scope.js (ADR 0022) This hook carried its own header regex and it drifted on four axes — anchoring, capture width, whether the whitespace after the colon crossed a newline, and normalisation — while being hardened against defects on this very delete path.', () => {
   const scope = require(path.join(path.dirname(hookPath), '..', 'scripts', 'scope.js'));
   const mk = (body) => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-hdr-'));
@@ -420,6 +418,5 @@ for (const mod of ['ledger.js', 'containment.js', 'git-spawn.js']) {
   fs.rmSync(empty, { recursive: true, force: true });
 
   assert.equal(readHeader(path.join(os.tmpdir(), 'no-such-scope-dir'), 'Stage'), null, 'an unreadable ledger is null');
-}
+});
 
-console.log('scope-prune tests ok');

@@ -3,6 +3,7 @@
 // Suite for plugin/hooks/scope-prune.js, `main()` end to end against real repositories: which run roots the hook
 // prunes and which it leaves standing. The entry guard that keeps a plain `require` from pruning is held in tests/plugin-layout.test.js.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -12,13 +13,11 @@ const { execFileSync } = require('node:child_process');
 const { hook, gitTest, makeRepo, makeScope } = require('./scope-prune-setup');
 const { main } = hook;
 
-// --- smoke test: main() end to end, against a real repository ---
-//
-// Every pure case in `scope-prune.test.js` calls the pure functions directly, with hand-built Sets and string arrays — never
-// sh()/git()/main(). A shell-quoted git command that throws on every invocation (Critical 1: unquoted
-// `%(refname)` hitting /bin/sh) would still pass all of them, because main()'s try/catch swallows the
-// error and prunes nothing, silently. Only running main() against a real repository catches that.
-{
+// Every pure case in `scope-prune.test.js` calls the pure functions directly, with hand-built Sets and string arrays —
+// never sh()/git()/main(). A shell-quoted git command that throws on every invocation (Critical 1: unquoted
+// `%(refname)` hitting /bin/sh) would still pass all of them, because main()'s try/catch swallows the error and prunes
+// nothing, silently. Only running main() against a real repository catches that.
+test('smoke test: main() end to end, against a real repository', () => {
   // #gone-and-closed: no branch named for this scope anywhere in the repo, ledger stage `closed`,
   // mtime past the TTL → main() removes the run root.
   const goneRepo = makeRepo();
@@ -268,13 +267,12 @@ const { main } = hook;
   );
   fs.rmSync(failRepo, { recursive: true, force: true });
   fs.rmSync(fakeBinDir, { recursive: true, force: true });
-}
+});
 
-// --- the session directory: the hook acts on the main working tree's runs from wherever the session stands ---
 // Each session directory is a checkout or folder of one repository: its root, a subdirectory, a scopetree, a
-// slicetree. The two worktrees sit beside an unrelated live run, so the scope under test holds no `scopetree/`
-// or `slicetrees/` entry that would stop its prune. The same closed run, whose branch is gone, is pruned from each.
-{
+// slicetree. The two worktrees sit beside an unrelated live run, so the scope under test holds no `scopetree/` or `slicetrees/`
+// entry that would stop its prune. The same closed run, whose branch is gone, is pruned from each.
+test('the session directory: the hook acts on the main working tree\'s runs from wherever the session stands', () => {
   const sessions = {
     'the repository root': () => '',
     'a subdirectory': (repo) => {
@@ -332,6 +330,5 @@ const { main } = hook;
     fs.rmSync(outside, { recursive: true, force: true });
     fs.rmSync(repo, { recursive: true, force: true });
   }
-}
+});
 
-console.log('scope-prune-main tests ok');

@@ -5,6 +5,7 @@
 // throws the refusal error `main()` prints; one spawned case per verb family keeps the exit status and the stderr line.
 // A hand-edited `**Deploy:**` entry is read as the documented outcome: a refusal naming the bad entry.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -12,6 +13,10 @@ const { spawnSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { tmp, call, run, sliceJson, scopePath, cleanup, writeDod, scopeRoot } = require('./scope-setup');
 const { publishText } = require(scopePath);
+
+after(() => {
+  cleanup();
+});
 
 // Every file under `dir` with its bytes, so a refusal can be shown to write nothing. The digest sidecar is left out: the check a
 // writing verb makes first seals a hand-written run on its first check, a refusal included (ADR 0227).
@@ -60,14 +65,16 @@ const spawn = (argv, input = '') => {
   return res;
 };
 
-try {
+let root, R, ledgerFile;
+test('init creates the run the refusals below read', () => {
   writeDod(scopeRoot('refuse-me'));
   assert.ok(call(['init', 'feat/refuse-me', 'implementing'], sliceJson).ok);
-  const root = path.join(tmp, '.superdev', 'scopes', 'refuse-me');
-  const R = ['--root', root];
-  const ledgerFile = path.join(root, 'ledger.md');
+  root = path.join(tmp, '.superdev', 'scopes', 'refuse-me');
+  R = ['--root', root];
+  ledgerFile = path.join(root, 'ledger.md');
+});
 
-  // --- the CLI switch ---
+test('the CLI switch', () => {
   refuses(['bogus'], /^unknown verb "bogus"\nusage:/);
   refuses([], /^unknown verb ""\nusage:/);
   refuses(['stage', 'set', 'planned'], /missing --root/);
@@ -93,16 +100,18 @@ try {
   refuses(['trace', '--slice', ...R], /trace: --slice needs a value/);
   refuses(['collisions', '--base', 'a', '--branch', 'b', '--range-base', 'c', 'stray'], /unrecognized argument "stray"/, 2);
   refuses(['collisions', '--also'], /--also needs a value/, 2);
+});
 
-  // --- plan-open's argument parser ---
+test('plan-open\'s argument parser', () => {
   refuses(['open'], /open needs a <type>\/<slug> label/);
   refuses(['open', 'feat/x', '--bogus', 'v'], /open: unrecognized argument "--bogus"/);
   refuses(['open', 'feat/x', '--base'], /open: --base needs a value/);
   refuses(['open', 'feat/x', '--base', 'main', '--remote', ''], /open: --remote needs a value/);
   refuses(['open', 'feat/x', '--base', 'main', '--base', 'main'], /open: --base given twice/);
   refuses(['open', 'feat/x'], /open needs --base <base-ref>/);
+});
 
-  // --- citations flags ---
+test('citations flags', () => {
   refuses(['citations', '--range-base', '--branch', 'b', '0131'], /citations: --range-base needs a value/, 2);
   refuses(['citations', '--range-base', 'a', '--branch', 'b', '--branch', 'c', '0131'], /citations: --branch given twice/, 2);
   refuses(['citations', '--range-base', 'a', '--branch', 'b', '--bogus', '0131'], /citations: unrecognized flag "--bogus"/, 2);
@@ -111,16 +120,19 @@ try {
   refuses(['citations', '--range-base', 'a', '--branch', 'b', '131'], /"131" is no id/, 2);
   refuses(['citations', '--range-base', 'a', '--branch', 'b', 'INV-12'], /"INV-12" is no id/, 2);
   refuses(['citations', '--branch', 'b', '0131'], /citations needs --range-base <ref>/, 2);
+});
 
-  // --- ledger init: the stdin payload ---
-  const label = 'feat/never-written';
-  const payload = (o) => JSON.stringify({ anchor: '#1 — a', slices: [], ...o });
+let label, payload;
+test('ledger init: the stdin payload', () => {
+  label = 'feat/never-written';
+  payload = (o) => JSON.stringify({ anchor: '#1 — a', slices: [], ...o });
   refuses(['init', label, 'planned'], /stdin is not JSON/, 1, '');
   refuses(['init', label, 'planned'], /"anchor" string and a "slices" array/, 1, JSON.stringify({ slices: [] }));
   refuses(['init', label, 'planned'], /slice row missing "issue"/, 1, payload({ slices: [{ id: '01', title: 't', type: 'behavior' }] }));
   refuses(['init', label, 'planned'], /slice 01 has unknown status "done"/, 1, payload({ slices: [{ id: '01', issue: '#1', title: 't', type: 'behavior', status: 'done' }] }));
+});
 
-  // --- stage, step, slice, and adopt over a hand-edited ledger or anchor body ---
+test('stage, step, slice, and adopt over a hand-edited ledger or anchor body', () => {
   refuses(['stage', 'bogus', 'merged', ...R], /unknown stage subcommand "bogus" — use set/);
   refuses(['step', 'bogus', ...R], /unknown step subcommand "bogus" — use set\|clear\|block/);
   const shortRoot = path.join(tmp, '.superdev', 'scopes', 'short-row');
@@ -131,16 +143,20 @@ try {
       '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n| 01 | #1 | t | behavior | — | todo |\n'
   );
   refuses(['slice', '01', 'merged', '--root', shortRoot], /slice row "01" does not carry the 7 ledger columns/);
+});
 
-  const adoptRoot = path.join(tmp, 'adopt-refusals', 'refuse-me');
+let adoptRoot, published, shortPayload;
+test('adopt refuses a malformed run-state payload', () => {
+  adoptRoot = path.join(tmp, 'adopt-refusals', 'refuse-me');
   fs.mkdirSync(path.dirname(adoptRoot), { recursive: true });
-  const published = publishText(root);
+  published = publishText(root);
   refuses(['adopt', '--root', adoptRoot], /run-state payload carries unknown stage "bogus"/, 1, published.replace('**Stage:** implementing', '**Stage:** bogus'));
-  const shortPayload = published.replace(/^\| 01 \|.*$/m, '| 01 | #188 | t | behavior | — | todo |');
+  shortPayload = published.replace(/^\| 01 \|.*$/m, '| 01 | #188 | t | behavior | — | todo |');
   assert.notEqual(shortPayload, published, 'the payload carries a short row');
   refuses(['adopt', '--root', adoptRoot], /run-state payload carries a slice row without the 7 ledger columns/, 1, shortPayload);
+});
 
-  // --- a hand-edited **Deploy:** entry, alone and inside a list ---
+test('a hand-edited **Deploy:** entry, alone and inside a list', () => {
   const ledger = fs.readFileSync(ledgerFile, 'utf8');
   // A hand-written ledger has no digest to mismatch: the sidecar goes with each edit (ADR 0227).
   const handWrite = (text) => {
@@ -158,8 +174,9 @@ try {
   withDeploy('pve deployed, proxy failed exit 2');
   assert.equal(call(['deploy', 'get', ...R]).out, 'pve deployed\nproxy failed exit 2', 'a well-formed list is read back');
   handWrite(ledger);
+});
 
-  // --- one spawned refusal per verb family keeps the exit status and the stderr line ---
+test('one spawned refusal per verb family keeps the exit status and the stderr line', () => {
   const before = snapshot(tmp);
   let res = spawn(['bogus']);
   assert.equal(res.status, 1, 'an unknown verb exits 1');
@@ -178,8 +195,5 @@ try {
   assert.equal(res.status, 2, 'a collisions refusal exits 2');
   assert.match(res.stderr, /--also needs a value/);
   assert.deepEqual(snapshot(tmp), before, 'the spawned refusals write nothing');
+});
 
-  console.log('scope-refusals: all checks passed');
-} finally {
-  cleanup();
-}

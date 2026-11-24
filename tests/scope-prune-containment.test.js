@@ -4,6 +4,7 @@
 // present locally whose content base holds (ADR 0053), the second tier of the patch probe (ADR 0082), the third
 // tier of a base commit holding the branch (ADR 0248), and a git without `--write-tree`.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -22,13 +23,11 @@ const {
 } = require('./scope-prune-setup');
 const { main } = hook;
 
-{
-  // --- Containment end to end: the branch is still present locally, and base holds its content ---
-  //
-  // Every case below keeps the scope branch standing, which is this repository's own steady state:
-  // `/superdev:ship` leaves it (the pull request is open from it) and nothing later returns for it, so
-  // the absence arm never fires and containment is the only thing that can (ADR 0053). Each fixture
-  // reaches git for real, so it exercises `containedInBase` rather than a stub.
+// Every case below keeps the scope branch standing, which is this repository's own steady state: `/superdev:ship`
+// leaves it (the pull request is open from it) and nothing later returns for it, so the absence arm never fires and
+// containment is the only thing that can (ADR 0053). Each fixture reaches git for real, so it exercises
+// `containedInBase` rather than a stub.
+test('Containment end to end: the branch is still present locally, and base holds its content', () => {
 
   // #squash-merged-branch-present: the epic's own red-capable case. `git branch --merged` lists `main`
   // alone here, and the branch is present, so both arms of the old test fail together and the run root
@@ -371,6 +370,5 @@ const { main } = hook;
   fs.rmSync(oldMergeRepo, { recursive: true, force: true });
   fs.rmSync(oldSquashRepo, { recursive: true, force: true });
   fs.rmSync(oldGitDir, { recursive: true, force: true });
-}
+});
 
-console.log('scope-prune-containment tests ok');

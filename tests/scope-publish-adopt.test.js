@@ -4,6 +4,7 @@
 // (ADR 0042), its markers, the refusals, and the real fold through kb-patch.js. The shared directory, `call`,
 // and the init payload come from tests/scope-setup.js.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -11,30 +12,33 @@ const { execFileSync } = require('node:child_process');
 const { tmp, call, sliceJson, scopePath, run, cleanup, writeDod } = require('./scope-setup');
 const { publishText } = require(scopePath);
 
-try {
-  let r;
+after(() => {
+  cleanup();
+});
 
-  // --- publish / adopt: the anchor's published snapshot (ADR 0042) ---
+let r;
 
-  // publish|adopt round trip on a minimal ledger — Stage, Branch, Anchor, and a slice table only,
-  // the shape a fresh init leaves behind before any of Degraded/Unresolved/Deferred/Docs exist.
+// --- publish / adopt: the anchor's published snapshot (ADR 0042) ---
+
+let minimalRoot, minimalOriginal, minimalPublished, openAt, closeAt, adoptMinimalRoot;
+test('publish|adopt round trip on a minimal ledger — Stage, Branch, Anchor, and a slice table only, the shape a fresh init leaves behind before any of Degraded/Unresolved/Deferred/Docs exist.', () => {
   assert.ok(call(['init', 'feat/publish-minimal', 'planned'], sliceJson).ok);
-  const minimalRoot = path.join(tmp, '.superdev', 'scopes', 'publish-minimal');
-  const minimalOriginal = fs.readFileSync(path.join(minimalRoot, 'ledger.md'), 'utf8');
-  const minimalPublished = publishText(minimalRoot);
+  minimalRoot = path.join(tmp, '.superdev', 'scopes', 'publish-minimal');
+  minimalOriginal = fs.readFileSync(path.join(minimalRoot, 'ledger.md'), 'utf8');
+  minimalPublished = publishText(minimalRoot);
   assert.ok(minimalPublished.startsWith('## Run state\n'), 'publish output opens with the Run state heading');
   assert.strictEqual(
     (minimalPublished.match(/^#{1,6} /gm) || []).length,
     1,
     'publish output carries no other heading'
   );
-  const openAt = minimalPublished.indexOf('<!-- superdev:run-state -->');
-  const closeAt = minimalPublished.indexOf('<!-- /superdev:run-state -->');
+  openAt = minimalPublished.indexOf('<!-- superdev:run-state -->');
+  closeAt = minimalPublished.indexOf('<!-- /superdev:run-state -->');
   assert.ok(openAt > 0 && closeAt > openAt, 'publish output wraps its payload between the two markers');
   // A different location, same basename as the slug — adopt checks the run-root directory name
   // against the branch slug, so the adopted copy cannot sit under .superdev/scopes/ beside the
   // original without colliding on that same name.
-  const adoptMinimalRoot = path.join(tmp, 'adopted-elsewhere', 'publish-minimal');
+  adoptMinimalRoot = path.join(tmp, 'adopted-elsewhere', 'publish-minimal');
   fs.mkdirSync(path.dirname(adoptMinimalRoot), { recursive: true });
   run(['adopt', '--root', adoptMinimalRoot], tmp, minimalPublished);
   assert.strictEqual(
@@ -42,9 +46,9 @@ try {
     minimalOriginal,
     'adopt reproduces a minimal ledger byte-for-byte'
   );
+});
 
-  // The same round trip on a ledger carrying every header line — Stage, Branch, Anchor, Degraded,
-  // Unresolved, Deferred, Docs — plus a slice table.
+test('The same round trip on a ledger carrying every header line — Stage, Branch, Anchor, Degraded, Unresolved, Deferred, Docs — plus a slice table.', () => {
   assert.ok(call(['init', 'feat/publish-full', 'planned'], sliceJson).ok);
   const fullRoot = path.join(tmp, '.superdev', 'scopes', 'publish-full');
   const F = ['--root', fullRoot];
@@ -77,9 +81,9 @@ try {
     'pve deployed\nproxy failed exit 2',
     'the adopted ledger still reads the deploy record'
   );
+});
 
-  // The same round trip at stage `submitted` (issue #682) — the snapshot preserves the stage rather
-  // than dropping or renaming it.
+test('The same round trip at stage `submitted` (issue #682) — the snapshot preserves the stage rather than dropping or renaming it.', () => {
   assert.ok(call(['init', 'feat/publish-submitted', 'planned'], sliceJson).ok);
   const submittedRoot = path.join(tmp, '.superdev', 'scopes', 'publish-submitted');
   assert.ok(call(['stage', 'set', 'reviewed', '--root', submittedRoot]).ok);
@@ -99,29 +103,33 @@ try {
     'submitted',
     'the adopted ledger still reads stage submitted'
   );
+});
 
-  // publish: a run root holding no ledger.md refuses, one line on stderr, nothing written.
+test('publish: a run root holding no ledger.md refuses, one line on stderr, nothing written.', () => {
   const noLedgerRoot = path.join(tmp, '.superdev', 'scopes', 'no-such-scope');
   r = call(['publish', '--root', noLedgerRoot]);
   assert.ok(!r.ok && /no ledger at/.test(r.err), 'publish with no ledger.md refused, naming the path: ' + (r.err || ''));
   assert.ok(!fs.existsSync(noLedgerRoot), 'publish creates nothing on refusal');
+});
 
-  // adopt: no opening marker at all refuses, and writes nothing.
+test('adopt: no opening marker at all refuses, and writes nothing.', () => {
   const noOpenRoot = path.join(tmp, 'adopted-elsewhere', 'no-open-marker');
   fs.mkdirSync(path.dirname(noOpenRoot), { recursive: true });
   r = call(['adopt', '--root', noOpenRoot], '# Some anchor\n\nJust a description, no run-state markers at all.\n');
   assert.ok(!r.ok && /no ".*superdev:run-state.*" marker/.test(r.err), 'adopt with no opening marker refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(noOpenRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
+});
 
-  // adopt: an opening marker with no closing marker refuses.
+test('adopt: an opening marker with no closing marker refuses.', () => {
   const noCloseRoot = path.join(tmp, 'adopted-elsewhere', 'no-close-marker');
   fs.mkdirSync(path.dirname(noCloseRoot), { recursive: true });
   const noCloseBody = '## Run state\n\n<!-- superdev:run-state -->\n\n**Branch:** feat/no-close-marker\n';
   r = call(['adopt', '--root', noCloseRoot], noCloseBody);
   assert.ok(!r.ok && /no ".*\/superdev:run-state.*" marker/.test(r.err), 'adopt with no closing marker refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(noCloseRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
+});
 
-  // adopt: a closing marker that appears before the opening one refuses.
+test('adopt: a closing marker that appears before the opening one refuses.', () => {
   const reversedRoot = path.join(tmp, 'adopted-elsewhere', 'reversed-markers');
   fs.mkdirSync(path.dirname(reversedRoot), { recursive: true });
   const reversedBody =
@@ -129,8 +137,9 @@ try {
   r = call(['adopt', '--root', reversedRoot], reversedBody);
   assert.ok(!r.ok && /appears before its/.test(r.err), 'adopt with a closing marker before the opening one refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(reversedRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
+});
 
-  // adopt: more than one opening marker refuses — which payload to adopt cannot be resolved.
+test('adopt: more than one opening marker refuses — which payload to adopt cannot be resolved.', () => {
   const dupOpenRoot = path.join(tmp, 'adopted-elsewhere', 'dup-open-marker');
   fs.mkdirSync(path.dirname(dupOpenRoot), { recursive: true });
   const dupOpenBody =
@@ -139,9 +148,9 @@ try {
   r = call(['adopt', '--root', dupOpenRoot], dupOpenBody);
   assert.ok(!r.ok && /2 times/.test(r.err), 'adopt with a duplicated opening marker refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(dupOpenRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
+});
 
-  // adopt: a payload with no **Branch:** line fails the schema — the heading is reconstructed from
-  // that line, so its absence is the case that matters.
+test('adopt: a payload with no **Branch:** line fails the schema — the heading is reconstructed from that line, so its absence is the case that matters.', () => {
   const noBranchRoot = path.join(tmp, 'adopted-elsewhere', 'no-branch');
   fs.mkdirSync(path.dirname(noBranchRoot), { recursive: true });
   const noBranchBody =
@@ -151,9 +160,9 @@ try {
   r = call(['adopt', '--root', noBranchRoot], noBranchBody);
   assert.ok(!r.ok && /no \*\*Branch:\*\* line/.test(r.err), 'adopt with no Branch line refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(noBranchRoot, 'ledger.md')), 'adopt writes nothing on a schema failure');
+});
 
-  // adopt: a `**Minors:**` bullet that is no id in the payload's slice table refuses, and writes nothing — the
-  // anchor body is editable by anyone with issue access, and the controller derives `reports/<id>/progress.md` from it.
+test('adopt: a `**Minors:**` bullet that is no id in the payload\'s slice table refuses, and writes nothing — the anchor body is editable by anyone with issue access, and the controller derives `reports/<id>/progress.md` from it.', () => {
   const badMinorRoot = path.join(tmp, 'adopted-elsewhere', 'bad-minor');
   fs.mkdirSync(path.dirname(badMinorRoot), { recursive: true });
   const badMinorBody = (bullet) =>
@@ -168,13 +177,15 @@ try {
   assert.ok(!r.ok && /99/.test(r.err), 'adopt with a Minors bullet the slice table lacks refused: ' + (r.err || ''));
   writeDod(badMinorRoot);
   assert.ok(call(['adopt', '--root', badMinorRoot], badMinorBody('- 01')).ok, 'adopt with a Minors bullet naming a table id succeeds');
+});
 
-  // adopt: a run root whose ledger.md already exists refuses, and leaves that ledger untouched.
-  const existingRoot = path.join(tmp, 'adopted-elsewhere', 'already-there');
+let existingRoot, existingBefore, validBody;
+test('adopt: a run root whose ledger.md already exists refuses, and leaves that ledger untouched.', () => {
+  existingRoot = path.join(tmp, 'adopted-elsewhere', 'already-there');
   fs.mkdirSync(existingRoot, { recursive: true });
   fs.writeFileSync(path.join(existingRoot, 'ledger.md'), '# Ledger — already-there\n\n**Stage:** merged\n', 'utf8');
-  const existingBefore = fs.readFileSync(path.join(existingRoot, 'ledger.md'), 'utf8');
-  const validBody =
+  existingBefore = fs.readFileSync(path.join(existingRoot, 'ledger.md'), 'utf8');
+  validBody =
     '## Run state\n\n<!-- superdev:run-state -->\n\n**Stage:** implementing\n**Branch:** feat/already-there\n**Anchor:** #1 — anchor\n\n' +
     '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n' +
     '<!-- /superdev:run-state -->\n';
@@ -185,54 +196,58 @@ try {
     existingBefore,
     'the existing ledger is left untouched'
   );
+});
 
-  // adopt: a run root whose directory name does not match the Branch line's slug refuses.
+test('adopt: a run root whose directory name does not match the Branch line\'s slug refuses.', () => {
   const mismatchRoot = path.join(tmp, 'adopted-elsewhere', 'wrong-name');
   fs.mkdirSync(path.dirname(mismatchRoot), { recursive: true });
   r = call(['adopt', '--root', mismatchRoot], validBody); // validBody's Branch slug is already-there
   assert.ok(!r.ok && /does not match the branch slug/.test(r.err), 'adopt with a mismatched run root refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(mismatchRoot, 'ledger.md')), 'adopt writes nothing on a slug mismatch');
+});
 
-  // adopt: a payload whose Stage reads "shipped" refuses. `shipped` is terminal (`## The stage
-  // never moves backwards`), so adopting one would write dod.md, name the run kind `resumed`, and
-  // cut a scopetree — only to have every later `stage set` then refuse the ledger it just built.
-  const shippedRoot = path.join(tmp, 'adopted-elsewhere', 'shipped-snapshot');
+// `shipped` is terminal (`## The stage never moves backwards`), so adopting one would write dod.md, name the run kind
+// `resumed`, and cut a scopetree — only to have every later `stage set` then refuse the ledger it just built.
+let shippedRoot, shippedBody;
+test('adopt: a payload whose Stage reads "shipped" refuses.', () => {
+  shippedRoot = path.join(tmp, 'adopted-elsewhere', 'shipped-snapshot');
   fs.mkdirSync(path.dirname(shippedRoot), { recursive: true });
-  const shippedBody =
+  shippedBody =
     '## Run state\n\n<!-- superdev:run-state -->\n\n**Stage:** shipped\n**Branch:** feat/shipped-snapshot\n**Anchor:** #1 — anchor\n\n' +
     '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n' +
     '<!-- /superdev:run-state -->\n';
   r = call(['adopt', '--root', shippedRoot], shippedBody);
   assert.ok(!r.ok && /shipped/.test(r.err), 'adopt with a shipped snapshot refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(shippedRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
+});
 
-  // adopt: a `closed` snapshot refuses the same way (ADR 0106).
+test('adopt: a `closed` snapshot refuses the same way (ADR 0106).', () => {
   const closedRoot = path.join(tmp, 'adopted-elsewhere', 'closed-snapshot');
   r = call(['adopt', '--root', closedRoot], shippedBody.replace('Stage:** shipped', 'Stage:** closed').replace('shipped-snapshot', 'closed-snapshot'));
   assert.ok(!r.ok && /closed/.test(r.err), 'adopt with a closed snapshot refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(closedRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
+});
 
-  // adopt: a payload with no Stage line refuses as `--shipped` does, since a ledger adopted without one
-  // could never move its stage again.
+test('adopt: a payload with no Stage line refuses as `--shipped` does, since a ledger adopted without one could never move its stage again.', () => {
   const stagelessRoot = path.join(tmp, 'adopted-elsewhere', 'stageless-snapshot');
   r = call(['adopt', '--root', stagelessRoot], shippedBody.replace('**Stage:** shipped\n', '').replace('shipped-snapshot', 'stageless-snapshot'));
   assert.ok(!r.ok && /no \*\*Stage:\*\* line/.test(r.err), 'adopt with a stage-less snapshot refused, naming the line: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(stagelessRoot, 'ledger.md')), 'adopt writes nothing on a stage-less payload');
+});
 
-  // adopt --shipped: the explicit opt-in recreates a shipped original's run root from its anchor's
-  // snapshot (shipped-run.md's `## Adopting a shipped original`, ADR 0124), where plain adopt refuses.
+test('adopt --shipped: the explicit opt-in recreates a shipped original\'s run root from its anchor\'s snapshot (shipped-run.md\'s `## Adopting a shipped original`, ADR 0124), where plain adopt refuses.', () => {
   const shippedOptRoot = path.join(tmp, 'adopted-elsewhere', 'shipped-opt-in');
   r = call(['adopt', '--shipped', '--root', shippedOptRoot], shippedBody.replace('shipped-snapshot', 'shipped-opt-in'));
   assert.ok(r.ok, 'adopt --shipped adopts a shipped snapshot: ' + (r.err || ''));
   assert.strictEqual(call(['get', 'stage', '--root', shippedOptRoot]).out, 'shipped', 'the adopted ledger reads shipped');
+});
 
-  // adopt --shipped accepts `shipped` and only `shipped`: a live, a closed, or a stage-less payload
-  // refuses and writes nothing, so the opt-in never adopts what run init's own adopt path owns.
-  for (const [stageLine, name] of [
-    ['**Stage:** implementing\n', 'shipped-opt-in-live'],
-    ['**Stage:** closed\n', 'shipped-opt-in-closed'],
-    ['', 'shipped-opt-in-stageless'],
-  ]) {
+for (const [stageLine, name] of [
+  ['**Stage:** implementing\n', 'shipped-opt-in-live'],
+  ['**Stage:** closed\n', 'shipped-opt-in-closed'],
+  ['', 'shipped-opt-in-stageless'],
+]) {
+  test(`adopt --shipped accepts \`shipped\` and only \`shipped\`: a live, a closed, or a stage-less payload refuses and writes nothing, so the opt-in never adopts what run init's own adopt path owns. (${stageLine})`, () => {
     const optRoot = path.join(tmp, 'adopted-elsewhere', name);
     r = call(['adopt', '--shipped', '--root', optRoot], shippedBody.replace('**Stage:** shipped\n', stageLine).replace('shipped-snapshot', name));
     assert.ok(!r.ok && /--shipped adopts only/.test(r.err), `adopt --shipped refuses ${name}: ` + (r.err || ''));
@@ -240,12 +255,10 @@ try {
     if (!stageLine) {
       assert.ok(/carries no \*\*Stage:\*\* line/.test(r.err), 'a stage-less refusal names the missing Stage line: ' + r.err);
     }
-  }
+  });
+}
 
-  // adopt disregards every heading in the body: a bare `#`-led line and a fenced `#`-led line
-  // sitting *inside* the payload, between two slice-table rows, neither end the payload early nor
-  // trigger a refusal — the markers alone decide where it starts and stops, so heading-shaped
-  // content between them is just more payload text.
+test('adopt disregards every heading in the body: a bare `#`-led line and a fenced `#`-led line sitting *inside* the payload, between two slice-table rows, neither end the payload early nor trigger a refusal — the markers alone decide where it starts and stops, so heading-shaped content between them is just more payload text.', () => {
   const headingsInsideRoot = path.join(tmp, 'adopted-elsewhere', 'headings-inside-payload');
   writeDod(headingsInsideRoot);
   const headingsInsideBody =
@@ -263,13 +276,9 @@ try {
     '01\t#1\tone\tbehavior\t—\tmerged\t—\n02\t#2\ttwo\tbehavior\t01\tmerged\t—',
     'neither row is dropped — the headings inside the payload never truncated it'
   );
+});
 
-  // adopt takes only what sits between the markers from a body carrying other sections around
-  // them — the shape a real anchor issue body has (a description, then the snapshot, then comments
-  // or other content the code host renders around it) — including sections whose own content reuses
-  // ledger vocabulary (an unrelated table, prose mentioning "**Degraded:**"/"**Unresolved:**"/
-  // "**Deferred:**"): none of that plays any part in bounding the payload, so none of it triggers a
-  // refusal the way the inferred-boundary rule this replaced did.
+test('adopt takes only what sits between the markers from a body carrying other sections around them — the shape a real anchor issue body has (a description, then the snapshot, then comments or other content the code host renders around it) — including sections whose own content reuses ledger vocabulary (an unrelated table, prose mentioning "**Degraded:**"/"**Unresolved:**"/ "**Deferred:**"): none of that plays any part in bounding the payload, so none of it triggers a refusal the way the inferred-boundary rule this replaced did.', () => {
   const sectionedRoot = path.join(tmp, 'adopted-elsewhere', 'sectioned');
   writeDod(sectionedRoot);
   const sectionedBody =
@@ -288,26 +297,26 @@ try {
   assert.ok(!sectionedLedger.includes('Some description'), 'the section before Run state is not carried in');
   assert.ok(!sectionedLedger.includes('someone commented') && !sectionedLedger.includes('left | right'), 'the section after Run state is not carried in either');
   assert.strictEqual(call(['get', 'stage', '--root', sectionedRoot]).out, 'merged', 'the adopted ledger reads correctly through the normal verbs');
+});
 
-  // adopt round-trips a real `publish --root` result (the actual CLI, spawned as a subprocess, not
-  // the in-process pure function) spliced into a realistic multi-section anchor body — Definition of
-  // Done checkboxes, Non-goals bullets, and a Slice graph mermaid fence — with the Run state section
-  // placed last. Hand-built fixtures are exactly what let both the truncation and the false-refusal
-  // through the last two review cycles, so this one uses the real output instead.
+// Hand-built fixtures are exactly what let both the truncation and the false-refusal through the last two review
+// cycles, so this one uses the real output instead.
+let realRoot, RS, realOriginal, realPublished, realBodyRunStateLast, realAdoptRoot;
+test('adopt round-trips a real `publish --root` result (the actual CLI, spawned as a subprocess, not the in-process pure function) spliced into a realistic multi-section anchor body — Definition of Done checkboxes, Non-goals bullets, and a Slice graph mermaid fence — with the Run state section placed last.', () => {
   assert.ok(call(['init', 'feat/real-publish-splice', 'planned'], sliceJson).ok);
-  const realRoot = path.join(tmp, '.superdev', 'scopes', 'real-publish-splice');
-  const RS = ['--root', realRoot];
+  realRoot = path.join(tmp, '.superdev', 'scopes', 'real-publish-splice');
+  RS = ['--root', realRoot];
   assert.ok(call(['degraded', 'add', 'a denied pass', ...RS]).ok);
   assert.ok(call(['unresolved', 'add', 'suite still red', ...RS]).ok);
-  const realOriginal = fs.readFileSync(path.join(realRoot, 'ledger.md'), 'utf8');
-  const realPublished = execFileSync(process.execPath, [scopePath, 'publish', '--root', realRoot], { encoding: 'utf8' });
-  const realBodyRunStateLast =
+  realOriginal = fs.readFileSync(path.join(realRoot, 'ledger.md'), 'utf8');
+  realPublished = execFileSync(process.execPath, [scopePath, 'publish', '--root', realRoot], { encoding: 'utf8' });
+  realBodyRunStateLast =
     '# Add a widget\n\nSome description of the feature.\n\n' +
     '## Definition of Done\n\n- [x] one thing\n- [ ] another thing\n\n' +
     '## Non-goals\n\n- Not covering X\n\n' +
     '## Slice graph\n\n```mermaid\ngraph TD\n  01 --> 02\n```\n\n' +
     realPublished;
-  const realAdoptRoot = path.join(tmp, 'adopted-elsewhere', 'real-publish-splice');
+  realAdoptRoot = path.join(tmp, 'adopted-elsewhere', 'real-publish-splice');
   writeDod(realAdoptRoot);
   run(['adopt', '--root', realAdoptRoot], tmp, realBodyRunStateLast);
   assert.strictEqual(
@@ -315,9 +324,9 @@ try {
     realOriginal,
     'adopt reproduces the ledger byte-for-byte from a real publish output, Run state placed last'
   );
+});
 
-  // The same real published payload, placed *before* Definition of Done instead of after it — the
-  // markers bound the payload regardless of where among the other sections it sits.
+test('The same real published payload, placed *before* Definition of Done instead of after it — the markers bound the payload regardless of where among the other sections it sits.', () => {
   const realBodyRunStateFirst =
     '# Add a widget\n\nSome description of the feature.\n\n' +
     realPublished + '\n\n' +
@@ -342,11 +351,11 @@ try {
     realOriginal,
     'adopt reproduces the ledger byte-for-byte from a real publish output placed before Definition of Done'
   );
+});
 
-  // A fenced illustrative example of the marker syntax — the only way to *show* an HTML comment to
-  // a human, since it renders invisibly otherwise — sits elsewhere in the body alongside the real
-  // payload. The fence is masked before the marker scan runs, so it is neither mistaken for the
-  // real payload nor counted as a second opening marker.
+// The fence is masked before the marker scan runs, so it is neither mistaken for the real payload nor counted as a
+// second opening marker.
+test('A fenced illustrative example of the marker syntax — the only way to *show* an HTML comment to a human, since it renders invisibly otherwise — sits elsewhere in the body alongside the real payload.', () => {
   const fencedExampleRoot = path.join(tmp, 'adopted-elsewhere', 'fenced-example');
   writeDod(fencedExampleRoot);
   const fencedExampleBody =
@@ -360,10 +369,9 @@ try {
   r = call(['adopt', '--root', fencedExampleRoot], fencedExampleBody);
   assert.ok(r.ok, 'adopt with a fenced illustrative example alongside the real payload should pass: ' + (r.err || ''));
   assert.strictEqual(call(['get', 'stage', '--root', fencedExampleRoot]).out, 'implementing', 'the real payload, not the fenced example, was adopted');
+});
 
-  // A body whose *only* marker pair sits inside a fence carries no real payload at all — the
-  // markers are masked away before the scan, so this reads exactly as "no opening marker" and
-  // refuses, rather than silently adopting the fenced example as live state.
+test('A body whose *only* marker pair sits inside a fence carries no real payload at all — the markers are masked away before the scan, so this reads exactly as "no opening marker" and refuses, rather than silently adopting the fenced example as live state.', () => {
   const onlyFencedRoot = path.join(tmp, 'adopted-elsewhere', 'only-fenced-markers');
   fs.mkdirSync(path.dirname(onlyFencedRoot), { recursive: true });
   const onlyFencedBody =
@@ -372,9 +380,9 @@ try {
   r = call(['adopt', '--root', onlyFencedRoot], onlyFencedBody);
   assert.ok(!r.ok, 'adopt with only a fenced example and no real payload refuses rather than fabricating control flow: ' + JSON.stringify(r));
   assert.ok(!fs.existsSync(path.join(onlyFencedRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
+});
 
-  // An unterminated fence in the body refuses outright, the same posture kb-patch.js's merge()
-  // already takes: guessing where the fence would have closed risks masking real markers past it.
+test('An unterminated fence in the body refuses outright, the same posture kb-patch.js\'s merge() already takes: guessing where the fence would have closed risks masking real markers past it.', () => {
   const unterminatedFenceRoot = path.join(tmp, 'adopted-elsewhere', 'unterminated-fence');
   fs.mkdirSync(path.dirname(unterminatedFenceRoot), { recursive: true });
   const unterminatedFenceBody =
@@ -385,46 +393,48 @@ try {
   r = call(['adopt', '--root', unterminatedFenceRoot], unterminatedFenceBody);
   assert.ok(!r.ok && /unterminated fenced code block/.test(r.err), 'adopt with an unterminated fence refuses, naming it: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(unterminatedFenceRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
+});
 
-  // --- the real fold: publish → kb-patch.js <anchor-body> <publish-output> → adopt ---
-  //
-  // Every fixture above builds its anchor body by hand, splicing scope.js's own publish output
-  // straight into a string. Production never does that: run-state.md's `## Publishing run state` mechanism hands
-  // both the fetched anchor body and publish's stdout to kb-patch.js's merge, and adopts *its* stdout.
-  // "Hand-built fixtures are exactly what let both the truncation and the false-refusal through the
-  // last two review cycles" (above) stopped one step short of exercising that fold — this closes it,
-  // running kb-patch.js as a real subprocess rather than importing its merge().
+// Production never does that: run-state.md's `## Publishing run state` mechanism hands both the fetched anchor body
+// and publish's stdout to kb-patch.js's merge, and adopts *its* stdout. "Hand-built fixtures are exactly what let
+// both the truncation and the false-refusal through the last two review cycles" (above) stopped one step short of
+// exercising that fold — this closes it, running kb-patch.js as a real subprocess rather than importing its merge().
+let foldRoot, kbPatchPath, foldDir;
+test('the real fold: publish → kb-patch.js <anchor-body> <publish-output> → adopt Every fixture above builds its anchor body by hand, splicing scope.js\'s own publish output straight into a string.', () => {
   assert.ok(call(['init', 'feat/kb-patch-fold', 'planned'], sliceJson).ok);
-  const foldRoot = path.join(tmp, '.superdev', 'scopes', 'kb-patch-fold');
-  const kbPatchPath = path.join(path.dirname(scopePath), 'kb-patch.js');
-  const foldDir = path.join(tmp, 'kb-patch-fold-fixtures');
+  foldRoot = path.join(tmp, '.superdev', 'scopes', 'kb-patch-fold');
+  kbPatchPath = path.join(path.dirname(scopePath), 'kb-patch.js');
+  foldDir = path.join(tmp, 'kb-patch-fold-fixtures');
   fs.mkdirSync(foldDir, { recursive: true });
+});
 
-  // Append: a fresh anchor body carrying no `## Run state` section yet.
-  const noSectionFile = path.join(foldDir, 'anchor-1.md');
+let noSectionFile, publish1File, merged1;
+test('Append: a fresh anchor body carrying no `## Run state` section yet.', () => {
+  noSectionFile = path.join(foldDir, 'anchor-1.md');
   fs.writeFileSync(noSectionFile, '# Add a widget\n\nSome description.\n\n## Non-goals\n\n- Not covering X\n', 'utf8');
-  const publish1File = path.join(foldDir, 'publish-1.md');
+  publish1File = path.join(foldDir, 'publish-1.md');
   fs.writeFileSync(publish1File, execFileSync(process.execPath, [scopePath, 'publish', '--root', foldRoot], { encoding: 'utf8' }), 'utf8');
-  const merged1 = execFileSync(process.execPath, [kbPatchPath, noSectionFile, publish1File], { encoding: 'utf8' });
+  merged1 = execFileSync(process.execPath, [kbPatchPath, noSectionFile, publish1File], { encoding: 'utf8' });
   assert.ok(merged1.includes('## Run state'), 'the fold appends the Run state section to a body carrying none');
   assert.ok(merged1.startsWith('# Add a widget'), 'the section ahead of it survives untouched');
   assert.ok(merged1.includes('## Non-goals'), 'the section after it survives untouched');
+});
 
-  // Replace: a further ledger write, then a second publish folded into the body the first fold just
-  // produced — the shape a later command's publish under run-state.md's `## Publishing run state` takes.
+let merged1File, publish2File, merged2, stripRunState;
+test('Replace: a further ledger write, then a second publish folded into the body the first fold just produced — the shape a later command\'s publish under run-state.md\'s `## Publishing run state` takes.', () => {
   assert.ok(call(['degraded', 'add', 'a denied pass', '--root', foldRoot]).ok);
-  const merged1File = path.join(foldDir, 'anchor-2.md');
+  merged1File = path.join(foldDir, 'anchor-2.md');
   fs.writeFileSync(merged1File, merged1, 'utf8');
-  const publish2File = path.join(foldDir, 'publish-2.md');
+  publish2File = path.join(foldDir, 'publish-2.md');
   fs.writeFileSync(publish2File, execFileSync(process.execPath, [scopePath, 'publish', '--root', foldRoot], { encoding: 'utf8' }), 'utf8');
-  const merged2 = execFileSync(process.execPath, [kbPatchPath, merged1File, publish2File], { encoding: 'utf8' });
+  merged2 = execFileSync(process.execPath, [kbPatchPath, merged1File, publish2File], { encoding: 'utf8' });
   assert.strictEqual((merged2.match(/^## Run state$/gm) || []).length, 1, 'the second fold replaces the section rather than appending a second one');
   assert.ok(merged2.includes('a denied pass'), 'the replaced section carries the later write');
   assert.ok(merged2.startsWith('# Add a widget'), 'the surrounding body still survives the replace');
   // Splice the `## Run state` section (through the next heading of level 1 or 2, or EOF) out of
   // each body, kb-patch.js's own section-boundary rule, and compare what's left byte-for-byte —
   // the DoD's "every byte outside the section identical" criterion, not just a prefix check.
-  const stripRunState = (text) => {
+  stripRunState = (text) => {
     const lines = text.split('\n');
     const start = lines.findIndex((l) => /^## Run state\s*$/.test(l));
     if (start === -1) return text;
@@ -443,8 +453,9 @@ try {
     stripRunState(merged1),
     'the replace leaves every byte outside the ## Run state section identical'
   );
+});
 
-  // Round trip: adopting the kb-patch.js-folded body reproduces the ledger byte-for-byte.
+test('Round trip: adopting the kb-patch.js-folded body reproduces the ledger byte-for-byte.', () => {
   const foldedOriginal = fs.readFileSync(path.join(foldRoot, 'ledger.md'), 'utf8');
   const foldAdoptRoot = path.join(tmp, 'adopted-elsewhere', 'kb-patch-fold');
   writeDod(foldAdoptRoot);
@@ -454,11 +465,10 @@ try {
     foldedOriginal,
     'adopting the kb-patch.js-folded body reproduces the ledger byte-for-byte'
   );
+});
 
-  // Pin: the modules holding scope.js's fence-aware readers (the run-state adopt and the dod-line edit) share
-  // kb-patch.js's fence-masking rule, which lives in lib/md-sections.js, via `require` rather than growing a
-  // private copy that could silently diverge (ADR 0022's second-reader lesson).
-  for (const name of ['run-state', 'dod-line']) {
+for (const name of ['run-state', 'dod-line']) {
+  test(`Pin: the modules holding scope.js's fence-aware readers (the run-state adopt and the dod-line edit) share kb-patch.js's fence-masking rule, which lives in lib/md-sections.js, via \`require\` rather than growing a private copy that could silently diverge (ADR 0022's second-reader lesson). (${name})`, () => {
     const src = fs.readFileSync(path.join(path.dirname(scopePath), '..', 'lib', `${name}.js`), 'utf8');
     assert.ok(
       /const\s*\{\s*maskFencedLines\s*\}\s*=\s*require\(['"]\.\/md-sections\.js['"]\)/.test(src),
@@ -469,9 +479,10 @@ try {
       0,
       `${name}.js defines no private maskFencedLines of its own`
     );
-  }
+  });
+}
 
-  // A slice id that would lead outside reports/<id>/ is refused everywhere a reports path is built (triage #1342).
+test('A slice id that would lead outside reports/<id>/ is refused everywhere a reports path is built (triage #1342).', () => {
   const badIds = ['../x', 'a/b', '/abs', 'a\\b', '..', ''];
   const row01 = /^\| 01 \|/m;
   assert.ok(row01.test(minimalPublished), 'fixture snapshot holds an `01` row');
@@ -543,6 +554,4 @@ try {
   const shippedDupRoot = path.join(tmp, 'adopted-elsewhere', 'shipped-dup');
   r = call(['adopt', '--shipped', '--root', shippedDupRoot], shippedBody.replace('shipped-snapshot', 'shipped-dup').replace('**Anchor:**', '**PR:** three\n**Anchor:**'));
   assert.ok(!r.ok && /pr set value/.test(r.err), 'adopt --shipped applies the same checks: ' + (r.err || ''));
-} finally {
-  cleanup();
-}
+});

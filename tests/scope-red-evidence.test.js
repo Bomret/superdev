@@ -1,6 +1,7 @@
 'use strict';
 
 // Fixture repositories commit regardless of the maintainer's global git config.
+const { test, after } = require('node:test');
 const { copyFixture, templateOnce } = require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `red-evidence` verb: the scope review's red-evidence reading (`references/review-scope-mode.md`'s
@@ -14,6 +15,10 @@ const { execFileSync } = require('node:child_process');
 const { scopePath, run } = require('./scope-setup');
 const { appendTrace } = require(scopePath);
 const { encodePaths } = require('../plugin/lib/trace-log.js');
+
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 const made = [];
@@ -85,10 +90,9 @@ function make(focused = 'node focus.js {paths}', extra = '') {
   return { repo, B, R, M, T, S, root, args };
 }
 
-try {
-  const f = make();
+const f = make();
 
-  // A red record at the tip prints the commit and the failed files its paired `Failed` record names.
+test('A red record at the tip prints the commit and the failed files its paired `Failed` record names.', () => {
   {
     const rt = f.root([`**Suite:** red @ ${f.T}`, `**Failed:** tests/a.test.js @ ${f.T}`]);
     const r = verb(f.args(rt), f.repo);
@@ -268,7 +272,4 @@ try {
     assert.strictEqual(verb(f.args(rt), f.repo).ok, true);
     assert.strictEqual(snap(), before, 'the ledger, the trace, the run root, and git are unchanged');
   }
-  console.log('scope-red-evidence tests passed');
-} finally {
-  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
-}
+});

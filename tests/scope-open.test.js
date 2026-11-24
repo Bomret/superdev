@@ -4,6 +4,7 @@
 // or reuse of the scope branch, the run lock, the empty `planned` ledger, and the plan step. Real git repositories
 // and a real bare remote throughout. Each case builds its own fixture.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -13,6 +14,10 @@ const { scopePath, call, fetchBound, writeOperatorConfig } = require('./scope-se
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { STALENESS_MS } = require('../plugin/lib/run-lock.js');
+
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
 
 const BRANCH = 'feat/open-me';
 const made = [];
@@ -82,294 +87,277 @@ const age = (file, ms) => {
   fs.utimesSync(file, t, t);
 };
 
-try {
-  // #fresh-cut: no branch, no ledger — the branch is cut from base into the scopetree, and the lock, the empty
-  // planned ledger, and the plan step are written.
-  {
-    const f = fixture();
-    const r = open(f);
-    assert.strictEqual(r.status, 0, `open exits 0: ${r.err}`);
-    assert.strictEqual(r.word, 'cut', `prints the outcome first: ${r.out}`);
-    assert.ok(r.out.includes(`root ${f.root}`), `prints the run root: ${r.out}`);
-    assert.match(r.nonce, /^[0-9a-f]+$/, 'prints the lock nonce');
-    assert.strictEqual(git(['rev-parse', '--abbrev-ref', 'HEAD'], f.scopetree), BRANCH, 'the scopetree holds the scope branch');
-    assert.strictEqual(git(['rev-parse', 'HEAD'], f.scopetree), git(['rev-parse', 'main'], f.repo), 'cut from base');
-    assert.strictEqual(fs.readFileSync(f.lock, 'utf8'), `plan ${r.nonce}\n`, 'the lock names the nonce');
-    const l = ledger(f);
-    assert.match(l, /\*\*Stage:\*\* planned/, 'the ledger enters at planned');
-    assert.match(l, /\*\*Anchor:\*\* pending/, 'the anchor reads pending');
-    assert.match(l, /\*\*Step:\*\* plan/, 'the plan step stands');
-    assert.match(fs.readFileSync(path.join(f.repo, '.gitignore'), 'utf8'), /^\.superdev\/$/m, '.superdev/ is git-ignored');
-    assert.strictEqual(count(trace(f), /\binit\b.*\bplanned\b/g), 1, 'the init is traced');
-    assert.strictEqual(count(trace(f), /\bstep\b.*\bset\b.*\bplan\b/g), 1, 'the step is traced');
+test('#fresh-cut: no branch, no ledger — the branch is cut from base into the scopetree, and the lock, the empty planned ledger, and the plan step are written.', () => {
+  const f = fixture();
+  const r = open(f);
+  assert.strictEqual(r.status, 0, `open exits 0: ${r.err}`);
+  assert.strictEqual(r.word, 'cut', `prints the outcome first: ${r.out}`);
+  assert.ok(r.out.includes(`root ${f.root}`), `prints the run root: ${r.out}`);
+  assert.match(r.nonce, /^[0-9a-f]+$/, 'prints the lock nonce');
+  assert.strictEqual(git(['rev-parse', '--abbrev-ref', 'HEAD'], f.scopetree), BRANCH, 'the scopetree holds the scope branch');
+  assert.strictEqual(git(['rev-parse', 'HEAD'], f.scopetree), git(['rev-parse', 'main'], f.repo), 'cut from base');
+  assert.strictEqual(fs.readFileSync(f.lock, 'utf8'), `plan ${r.nonce}\n`, 'the lock names the nonce');
+  const l = ledger(f);
+  assert.match(l, /\*\*Stage:\*\* planned/, 'the ledger enters at planned');
+  assert.match(l, /\*\*Anchor:\*\* pending/, 'the anchor reads pending');
+  assert.match(l, /\*\*Step:\*\* plan/, 'the plan step stands');
+  assert.match(fs.readFileSync(path.join(f.repo, '.gitignore'), 'utf8'), /^\.superdev\/$/m, '.superdev/ is git-ignored');
+  assert.strictEqual(count(trace(f), /\binit\b.*\bplanned\b/g), 1, 'the init is traced');
+  assert.strictEqual(count(trace(f), /\bstep\b.*\bset\b.*\bplan\b/g), 1, 'the step is traced');
 
-    // #repeat: the same run calls again with its nonce — nothing is cut, the step is not traced twice.
-    const again = open(f, ['--lock', r.nonce]);
-    assert.strictEqual(again.status, 0, `the repeat exits 0: ${again.err}`);
-    assert.strictEqual(again.word, 'existing', `the repeat reads existing: ${again.out}`);
-    assert.strictEqual(again.nonce, r.nonce, 'the repeat keeps the nonce');
-    assert.strictEqual(count(trace(f), /\bstep\b.*\bset\b.*\bplan\b/g), 1, 'a repeat call records no second start');
+  // #repeat: the same run calls again with its nonce — nothing is cut, the step is not traced twice.
+  const again = open(f, ['--lock', r.nonce]);
+  assert.strictEqual(again.status, 0, `the repeat exits 0: ${again.err}`);
+  assert.strictEqual(again.word, 'existing', `the repeat reads existing: ${again.out}`);
+  assert.strictEqual(again.nonce, r.nonce, 'the repeat keeps the nonce');
+  assert.strictEqual(count(trace(f), /\bstep\b.*\bset\b.*\bplan\b/g), 1, 'a repeat call records no second start');
 
-    // #locked: another session, while the step stands and the lock is fresh, is stopped and writes nothing.
-    const before = ledger(f);
-    const other = open(f);
-    assert.strictEqual(other.status, 3, `a second session exits 3: ${other.out}`);
-    assert.strictEqual(other.word, 'locked', `prints locked: ${other.out}`);
-    assert.strictEqual(ledger(f), before, 'the ledger is unchanged');
-    assert.strictEqual(fs.readFileSync(f.lock, 'utf8'), `plan ${r.nonce}\n`, 'the lock is unchanged');
+  // #locked: another session, while the step stands and the lock is fresh, is stopped and writes nothing.
+  const before = ledger(f);
+  const other = open(f);
+  assert.strictEqual(other.status, 3, `a second session exits 3: ${other.out}`);
+  assert.strictEqual(other.word, 'locked', `prints locked: ${other.out}`);
+  assert.strictEqual(ledger(f), before, 'the ledger is unchanged');
+  assert.strictEqual(fs.readFileSync(f.lock, 'utf8'), `plan ${r.nonce}\n`, 'the lock is unchanged');
 
-    // #finished-run: once the earlier run cleared its step, a fresh lock no longer holds the run.
-    scope(f, 'step', 'clear');
-    const next = open(f);
-    assert.strictEqual(next.status, 0, `a later run exits 0: ${next.err}`);
-    assert.strictEqual(next.word, 'existing', `a later run reads existing: ${next.out}`);
-    assert.notStrictEqual(next.nonce, r.nonce, 'a later run writes its own nonce');
-    assert.strictEqual(count(trace(f), /\bstep\b.*\bset\b.*\bplan\b/g), 2, 'a later run records a start of its own');
+  // #finished-run: once the earlier run cleared its step, a fresh lock no longer holds the run.
+  scope(f, 'step', 'clear');
+  const next = open(f);
+  assert.strictEqual(next.status, 0, `a later run exits 0: ${next.err}`);
+  assert.strictEqual(next.word, 'existing', `a later run reads existing: ${next.out}`);
+  assert.notStrictEqual(next.nonce, r.nonce, 'a later run writes its own nonce');
+  assert.strictEqual(count(trace(f), /\bstep\b.*\bset\b.*\bplan\b/g), 2, 'a later run records a start of its own');
 
-    // #stale-lock: a lock past the bound holds nothing, even with a step standing.
-    age(f.lock, STALENESS_MS + 60000);
-    const late = open(f);
-    assert.strictEqual(late.status, 0, `a stale lock lets the run in: ${late.err}`);
-    assert.strictEqual(late.word, 'existing');
-  }
+  // #stale-lock: a lock past the bound holds nothing, even with a step standing.
+  age(f.lock, STALENESS_MS + 60000);
+  const late = open(f);
+  assert.strictEqual(late.status, 0, `a stale lock lets the run in: ${late.err}`);
+  assert.strictEqual(late.word, 'existing');
+});
 
-  // #locked-before-cut: a fresh lock with no ledger stops the run before anything is cut.
-  {
-    const f = fixture();
-    fs.mkdirSync(f.root, { recursive: true });
-    fs.writeFileSync(f.lock, 'plan abc123\n');
-    const r = open(f);
-    assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
-    assert.strictEqual(r.word, 'locked');
-    assert.ok(!fs.existsSync(f.scopetree), 'no scopetree is cut');
-    assert.ok(!fs.existsSync(path.join(f.root, 'ledger.md')), 'no ledger is written');
-    assert.strictEqual(spawnSync('git', ['rev-parse', '--verify', '--quiet', `refs/heads/${BRANCH}`], { cwd: f.repo }).status, 1, 'no branch is created');
-  }
+test('#locked-before-cut: a fresh lock with no ledger stops the run before anything is cut.', () => {
+  const f = fixture();
+  fs.mkdirSync(f.root, { recursive: true });
+  fs.writeFileSync(f.lock, 'plan abc123\n');
+  const r = open(f);
+  assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
+  assert.strictEqual(r.word, 'locked');
+  assert.ok(!fs.existsSync(f.scopetree), 'no scopetree is cut');
+  assert.ok(!fs.existsSync(path.join(f.root, 'ledger.md')), 'no ledger is written');
+  assert.strictEqual(spawnSync('git', ['rev-parse', '--verify', '--quiet', `refs/heads/${BRANCH}`], { cwd: f.repo }).status, 1, 'no branch is created');
+});
 
-  // #reused: the name exists and base holds its content — the branch is reused and re-pointed to base.
-  {
-    const f = fixture();
-    git(['branch', BRANCH, 'main'], f.repo);
-    commit(f.repo, 'later.md', 'y\n', 'later');
-    const r = open(f);
-    assert.strictEqual(r.status, 0, `exits 0: ${r.err}`);
-    assert.strictEqual(r.word, 'reused', `prints reused: ${r.out}`);
-    assert.strictEqual(git(['rev-parse', 'HEAD'], f.scopetree), git(['rev-parse', 'main'], f.repo), 're-pointed to base');
-  }
+test('#reused: the name exists and base holds its content — the branch is reused and re-pointed to base.', () => {
+  const f = fixture();
+  git(['branch', BRANCH, 'main'], f.repo);
+  commit(f.repo, 'later.md', 'y\n', 'later');
+  const r = open(f);
+  assert.strictEqual(r.status, 0, `exits 0: ${r.err}`);
+  assert.strictEqual(r.word, 'reused', `prints reused: ${r.out}`);
+  assert.strictEqual(git(['rev-parse', 'HEAD'], f.scopetree), git(['rev-parse', 'main'], f.repo), 're-pointed to base');
+});
 
-  // #not-contained: the name exists with commits base never took — the commits and the rename remedy are named,
-  // and nothing is written. The code-management document names the remote every refetch below reaches (INV-0203).
-  {
-    const f = fixture();
-    const codeMgmt = (remote) => {
-      fs.mkdirSync(path.join(f.repo, 'docs', 'agents'), { recursive: true });
-      fs.writeFileSync(path.join(f.repo, 'docs', 'agents', 'code-management.md'), `# Code host\n\n- **Remote:** \`${remote}\`\n`);
-    };
-    codeMgmt('origin');
-    git(['checkout', '-q', '-b', BRANCH], f.repo);
-    commit(f.repo, 'work.md', 'w\n', 'real work');
-    git(['checkout', '-q', 'main'], f.repo);
-    const r = open(f);
-    assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
-    assert.strictEqual(r.word, 'not-contained');
-    assert.match(r.out, /real work/, 'lists the commit at risk');
-    assert.match(r.out, new RegExp(`remedy: git branch -m ${BRANCH} ${BRANCH}-\\d{4}-\\d{2}-\\d{2}`), 'names the rename remedy');
-    assert.doesNotMatch(r.out, /^refetch /m, 'a refetch that brought the base marks nothing');
-    assert.ok(!fs.existsSync(f.root), 'nothing is written');
-
-    // A not-contained answer whose refetch ended without a base carries no verdict (INV-0003, INV-0009): the stop names the
-    // mark `contained` prints for it, as its last line, with the same exit.
-    const failed = open(f, ['--remote', 'nowhere']);
-    assert.strictEqual(failed.status, 3, `a failed refetch exits 3: ${failed.out}`);
-    assert.strictEqual(failed.word, 'not-contained');
-    assert.strictEqual(failed.out.trimEnd().split('\n').pop(), 'refetch failed', `a failed refetch is marked: ${failed.out}`);
-    // A configured remote of any name is the one the refetch reaches: an unreachable `upstream` is marked failed while the
-    // reachable `origin` stands beside it. An explicit `--remote` wins over the configured value.
-    git(['remote', 'add', 'upstream', path.join(f.repo, '..', 'no-such-upstream')], f.repo);
-    codeMgmt('upstream');
-    const viaUpstream = open(f);
-    assert.strictEqual(viaUpstream.status, 3, `exits 3: ${viaUpstream.out}`);
-    assert.strictEqual(viaUpstream.out.trimEnd().split('\n').pop(), 'refetch failed', `the configured upstream is refetched: ${viaUpstream.out}`);
-    const explicit = open(f, ['--remote', 'origin']);
-    assert.strictEqual(explicit.status, 3, `exits 3: ${explicit.out}`);
-    assert.doesNotMatch(explicit.out, /^refetch /m, `an explicit --remote origin wins over the configured upstream: ${explicit.out}`);
-    codeMgmt('origin');
-    // The refetch runs under the operator's `code-host.pushTimeoutMs` bound (`.superdev/info.json`), the bound `contained`
-    // takes. A bound this run measured, under a remote that stalls past it but ends well short of the 60 s default: the
-    // configured bound ends the refetch, so the stop is marked timed-out rather than failed.
-    const bound = fetchBound();
-    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: bound } });
-    const hang = path.join(f.repo, '..', 'hang.sh');
-    fs.writeFileSync(hang, `#!/bin/sh\nexec sleep ${Math.ceil(bound / 1000) + 4}\n`, { mode: 0o755 });
-    const uploadpack = (script) => git(['config', 'remote.origin.uploadpack', `'${script.replace(/'/g, `'\\''`)}'`], f.repo);
-    uploadpack(hang);
-    const hung = open(f);
-    assert.strictEqual(hung.status, 3, `a refetch its bound ended exits 3: ${hung.out}`);
-    assert.strictEqual(hung.out.trimEnd().split('\n').pop(), 'refetch timed-out', `a refetch the configured bound ended is marked: ${hung.out}`);
-    // A remote that answers after 6 s, past the 5 s built-in refetch bound, under a configured bound well above that wait plus a
-    // healthy fetch (ten of this run's measured bounds, so a loaded machine still clears it): the refetch brings the base, so
-    // the stop is the verdict and carries no mark.
-    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 6000 + 10 * bound } });
-    const slow = path.join(f.repo, '..', 'slow.sh');
-    fs.writeFileSync(slow, '#!/bin/sh\nsleep 6\nexec git-upload-pack "$@"\n', { mode: 0o755 });
-    uploadpack(slow);
-    const late = open(f);
-    assert.strictEqual(late.status, 3, `a late refetch still answers not-contained: ${late.out}`);
-    assert.doesNotMatch(late.out, /^refetch /m, `a refetch within the configured bound brings the base: ${late.out}`);
-    assert.ok(!fs.existsSync(f.root), 'nothing is written');
-  }
-
-  // #no-configured-remote (INV-0203): no `--remote` and no `Remote:` value — `open` reaches no remote, though one named
-  // `origin` exists, and judges against the local base, so the stop carries no refetch mark.
-  {
-    const f = fixture();
-    git(['remote', 'set-url', 'origin', path.join(f.repo, '..', 'no-such-remote')], f.repo);
-    git(['checkout', '-q', '-b', BRANCH], f.repo);
-    commit(f.repo, 'work.md', 'w\n', 'real work');
-    git(['checkout', '-q', 'main'], f.repo);
-    const r = open(f);
-    assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
-    assert.strictEqual(r.word, 'not-contained', `stops not-contained: ${r.out}`);
-    assert.doesNotMatch(r.out, /^refetch /m, `no refetch ran: ${r.out}`);
-  }
-
-  // #dirty: a contained branch whose scopetree holds an uncommitted change stops before the reset.
-  {
-    const f = fixture();
-    git(['branch', BRANCH, 'main'], f.repo);
-    git(['worktree', 'add', '-q', f.scopetree, BRANCH], f.repo);
-    fs.writeFileSync(path.join(f.scopetree, 'scratch.md'), 'keep me\n');
-    const r = open(f);
-    assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
-    assert.strictEqual(r.word, 'dirty');
-    assert.match(r.out, /scratch\.md/, 'names what status reported');
-    assert.ok(fs.existsSync(path.join(f.scopetree, 'scratch.md')), 'the change survives');
-    assert.ok(!fs.existsSync(path.join(f.root, 'ledger.md')), 'no ledger is written');
-  }
-
-  // #held: a different worktree holds the branch.
-  {
-    const f = fixture();
-    git(['branch', BRANCH, 'main'], f.repo);
-    const elsewhere = path.join(tmp('scope-open-elsewhere-'), 'wt');
-    git(['worktree', 'add', '-q', elsewhere, BRANCH], f.repo);
-    const r = open(f);
-    assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
-    assert.strictEqual(r.word, 'held');
-    assert.ok(r.out.includes(elsewhere), 'names the holding worktree');
-  }
-
-  // #held: the holding worktree's path holds a newline and is named whole.
-  {
-    const f = fixture();
-    git(['branch', BRANCH, 'main'], f.repo);
-    const elsewhere = path.join(tmp('scope-open-elsewhere-'), 'w\nt');
-    git(['worktree', 'add', '-q', elsewhere, BRANCH], f.repo);
-    const r = open(f);
-    assert.strictEqual(r.word, 'held');
-    assert.ok(r.out.includes(elsewhere), 'names the holding worktree whole');
-  }
-
-  // #closed: a closed ledger from a retired label is rotated aside, and the run is cut fresh.
-  {
-    const f = fixture();
-    fs.mkdirSync(f.root, { recursive: true });
-    fs.writeFileSync(path.join(f.root, 'ledger.md'), `# Ledger — open-me\n\n**Stage:** closed\n**Branch:** ${BRANCH}\n`);
-    const r = open(f);
-    assert.strictEqual(r.status, 0, `exits 0: ${r.err}`);
-    assert.strictEqual(r.word, 'cut');
-    assert.match(ledger(f), /\*\*Stage:\*\* planned/, 'a new planned ledger');
-    assert.ok(fs.readdirSync(f.root).some((n) => /^ledger-closed-/.test(n)), 'the closed ledger is rotated aside');
-  }
-
-  // #refusals: a later stage, a branch the planned ledger does not name, and a missing --base refuse with exit 1.
-  {
-    const f = fixture();
-    fs.mkdirSync(f.root, { recursive: true });
-    fs.writeFileSync(path.join(f.root, 'ledger.md'), `# Ledger — open-me\n\n**Stage:** implementing\n**Branch:** ${BRANCH}\n`);
-    const r = open(f);
-    assert.strictEqual(r.status, 1, 'a later stage refuses');
-    assert.match(r.err, /stage "implementing"/);
-    fs.writeFileSync(path.join(f.root, 'ledger.md'), `# Ledger — open-me\n\n**Stage:** planned\n**Branch:** fix/open-me\n`);
-    const other = open(f);
-    assert.strictEqual(other.status, 1, 'another branch refuses');
-    assert.match(other.err, /names the branch fix\/open-me/);
-    const noBase = spawnSync(process.execPath, [scopePath, 'open', BRANCH], { cwd: f.repo, encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL' });
-    assertSpawnDecided(noBase, 'scope.js open without --base');
-    assert.strictEqual(noBase.status, 1, 'a missing --base refuses');
-    assert.match(noBase.stderr, /--base/);
-  }
-
-  // #in-process refusals: an unresolvable base and a scopetree git cannot read refuse with exit 1 and write nothing.
-  {
-    const refused = (f, argv) => {
-      const r = call(argv, '', f.repo);
-      assert.strictEqual(r.ok, false, `${argv.join(' ')} refuses`);
-      assert.strictEqual(r.out, '', `${argv.join(' ')} prints nothing`);
-      return r;
-    };
-    const f = fixture();
-    const err = refused(f, ['open', BRANCH, '--base', 'nope']);
-    assert.match(err.err, /open: the base nope does not resolve to a commit/);
-    assert.strictEqual(err.exitCode, undefined, 'a refusal exits 1');
-    assert.ok(!fs.existsSync(f.root), 'an unresolvable base writes no run root');
-    assert.strictEqual(git(['branch', '--list', BRANCH], f.repo), '', 'and cuts no branch');
-
-    const g = fixture();
-    assert.strictEqual(open(g).status, 0, 'a first open cuts the branch');
-    fs.rmSync(path.join(g.root, 'ledger.md'));
-    fs.rmSync(g.lock);
-    fs.writeFileSync(path.join(g.scopetree, '.git'), 'gitdir: /nonexistent/gitdir\n');
-    const broken = refused(g, ['open', BRANCH, '--base', 'main']);
-    assert.match(broken.err, /open: git status in .* failed/);
-    assert.ok(!fs.existsSync(path.join(g.root, 'ledger.md')) && !fs.existsSync(g.lock), 'an unreadable scopetree writes no ledger and no lock');
-  }
-
-  // #unreadable: a run lock or a ledger open cannot read refuses with one `open:` line and no stack trace.
-  const refusal = (r, ...names) => {
-    assert.strictEqual(r.status, 1, `exits 1: ${r.out}${r.err}`);
-    const lines = r.err.trimEnd().split('\n');
-    assert.strictEqual(lines.length, 1, `one stderr line: ${r.err}`);
-    assert.match(lines[0], /^open: /, `the line starts open: ${r.err}`);
-    for (const n of names) assert.ok(lines[0].includes(n), `the line names ${n}: ${r.err}`);
+// The code-management document names the remote every refetch below reaches (INV-0203).
+test('#not-contained: the name exists with commits base never took — the commits and the rename remedy are named, and nothing is written.', () => {
+  const f = fixture();
+  const codeMgmt = (remote) => {
+    fs.mkdirSync(path.join(f.repo, 'docs', 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(f.repo, 'docs', 'agents', 'code-management.md'), `# Code host\n\n- **Remote:** \`${remote}\`\n`);
   };
-  const noCut = (f) => {
-    assert.ok(!fs.existsSync(f.scopetree), 'no scopetree is cut');
-    assert.strictEqual(git(['branch', '--list', BRANCH], f.repo), '', 'no branch is cut');
+  codeMgmt('origin');
+  git(['checkout', '-q', '-b', BRANCH], f.repo);
+  commit(f.repo, 'work.md', 'w\n', 'real work');
+  git(['checkout', '-q', 'main'], f.repo);
+  const r = open(f);
+  assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
+  assert.strictEqual(r.word, 'not-contained');
+  assert.match(r.out, /real work/, 'lists the commit at risk');
+  assert.match(r.out, new RegExp(`remedy: git branch -m ${BRANCH} ${BRANCH}-\\d{4}-\\d{2}-\\d{2}`), 'names the rename remedy');
+  assert.doesNotMatch(r.out, /^refetch /m, 'a refetch that brought the base marks nothing');
+  assert.ok(!fs.existsSync(f.root), 'nothing is written');
+
+  // A not-contained answer whose refetch ended without a base carries no verdict (INV-0003, INV-0009): the stop names the
+  // mark `contained` prints for it, as its last line, with the same exit.
+  const failed = open(f, ['--remote', 'nowhere']);
+  assert.strictEqual(failed.status, 3, `a failed refetch exits 3: ${failed.out}`);
+  assert.strictEqual(failed.word, 'not-contained');
+  assert.strictEqual(failed.out.trimEnd().split('\n').pop(), 'refetch failed', `a failed refetch is marked: ${failed.out}`);
+  // A configured remote of any name is the one the refetch reaches: an unreachable `upstream` is marked failed while the
+  // reachable `origin` stands beside it. An explicit `--remote` wins over the configured value.
+  git(['remote', 'add', 'upstream', path.join(f.repo, '..', 'no-such-upstream')], f.repo);
+  codeMgmt('upstream');
+  const viaUpstream = open(f);
+  assert.strictEqual(viaUpstream.status, 3, `exits 3: ${viaUpstream.out}`);
+  assert.strictEqual(viaUpstream.out.trimEnd().split('\n').pop(), 'refetch failed', `the configured upstream is refetched: ${viaUpstream.out}`);
+  const explicit = open(f, ['--remote', 'origin']);
+  assert.strictEqual(explicit.status, 3, `exits 3: ${explicit.out}`);
+  assert.doesNotMatch(explicit.out, /^refetch /m, `an explicit --remote origin wins over the configured upstream: ${explicit.out}`);
+  codeMgmt('origin');
+  // The refetch runs under the operator's `code-host.pushTimeoutMs` bound (`.superdev/info.json`), the bound `contained`
+  // takes. A bound this run measured, under a remote that stalls past it but ends well short of the 60 s default: the
+  // configured bound ends the refetch, so the stop is marked timed-out rather than failed.
+  const bound = fetchBound();
+  writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: bound } });
+  const hang = path.join(f.repo, '..', 'hang.sh');
+  fs.writeFileSync(hang, `#!/bin/sh\nexec sleep ${Math.ceil(bound / 1000) + 4}\n`, { mode: 0o755 });
+  const uploadpack = (script) => git(['config', 'remote.origin.uploadpack', `'${script.replace(/'/g, `'\\''`)}'`], f.repo);
+  uploadpack(hang);
+  const hung = open(f);
+  assert.strictEqual(hung.status, 3, `a refetch its bound ended exits 3: ${hung.out}`);
+  assert.strictEqual(hung.out.trimEnd().split('\n').pop(), 'refetch timed-out', `a refetch the configured bound ended is marked: ${hung.out}`);
+  // A remote that answers after 6 s, past the 5 s built-in refetch bound, under a configured bound well above that wait plus a
+  // healthy fetch (ten of this run's measured bounds, so a loaded machine still clears it): the refetch brings the base, so
+  // the stop is the verdict and carries no mark.
+  writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 6000 + 10 * bound } });
+  const slow = path.join(f.repo, '..', 'slow.sh');
+  fs.writeFileSync(slow, '#!/bin/sh\nsleep 6\nexec git-upload-pack "$@"\n', { mode: 0o755 });
+  uploadpack(slow);
+  const late = open(f);
+  assert.strictEqual(late.status, 3, `a late refetch still answers not-contained: ${late.out}`);
+  assert.doesNotMatch(late.out, /^refetch /m, `a refetch within the configured bound brings the base: ${late.out}`);
+  assert.ok(!fs.existsSync(f.root), 'nothing is written');
+});
+
+test('#no-configured-remote (INV-0203): no `--remote` and no `Remote:` value — `open` reaches no remote, though one named `origin` exists, and judges against the local base, so the stop carries no refetch mark.', () => {
+  const f = fixture();
+  git(['remote', 'set-url', 'origin', path.join(f.repo, '..', 'no-such-remote')], f.repo);
+  git(['checkout', '-q', '-b', BRANCH], f.repo);
+  commit(f.repo, 'work.md', 'w\n', 'real work');
+  git(['checkout', '-q', 'main'], f.repo);
+  const r = open(f);
+  assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
+  assert.strictEqual(r.word, 'not-contained', `stops not-contained: ${r.out}`);
+  assert.doesNotMatch(r.out, /^refetch /m, `no refetch ran: ${r.out}`);
+});
+
+test('#dirty: a contained branch whose scopetree holds an uncommitted change stops before the reset.', () => {
+  const f = fixture();
+  git(['branch', BRANCH, 'main'], f.repo);
+  git(['worktree', 'add', '-q', f.scopetree, BRANCH], f.repo);
+  fs.writeFileSync(path.join(f.scopetree, 'scratch.md'), 'keep me\n');
+  const r = open(f);
+  assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
+  assert.strictEqual(r.word, 'dirty');
+  assert.match(r.out, /scratch\.md/, 'names what status reported');
+  assert.ok(fs.existsSync(path.join(f.scopetree, 'scratch.md')), 'the change survives');
+  assert.ok(!fs.existsSync(path.join(f.root, 'ledger.md')), 'no ledger is written');
+});
+
+test('#held: a different worktree holds the branch.', () => {
+  const f = fixture();
+  git(['branch', BRANCH, 'main'], f.repo);
+  const elsewhere = path.join(tmp('scope-open-elsewhere-'), 'wt');
+  git(['worktree', 'add', '-q', elsewhere, BRANCH], f.repo);
+  const r = open(f);
+  assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
+  assert.strictEqual(r.word, 'held');
+  assert.ok(r.out.includes(elsewhere), 'names the holding worktree');
+});
+
+test('#held: the holding worktree\'s path holds a newline and is named whole.', () => {
+  const f = fixture();
+  git(['branch', BRANCH, 'main'], f.repo);
+  const elsewhere = path.join(tmp('scope-open-elsewhere-'), 'w\nt');
+  git(['worktree', 'add', '-q', elsewhere, BRANCH], f.repo);
+  const r = open(f);
+  assert.strictEqual(r.word, 'held');
+  assert.ok(r.out.includes(elsewhere), 'names the holding worktree whole');
+});
+
+test('#closed: a closed ledger from a retired label is rotated aside, and the run is cut fresh.', () => {
+  const f = fixture();
+  fs.mkdirSync(f.root, { recursive: true });
+  fs.writeFileSync(path.join(f.root, 'ledger.md'), `# Ledger — open-me\n\n**Stage:** closed\n**Branch:** ${BRANCH}\n`);
+  const r = open(f);
+  assert.strictEqual(r.status, 0, `exits 0: ${r.err}`);
+  assert.strictEqual(r.word, 'cut');
+  assert.match(ledger(f), /\*\*Stage:\*\* planned/, 'a new planned ledger');
+  assert.ok(fs.readdirSync(f.root).some((n) => /^ledger-closed-/.test(n)), 'the closed ledger is rotated aside');
+});
+
+test('#refusals: a later stage, a branch the planned ledger does not name, and a missing --base refuse with exit 1.', () => {
+  const f = fixture();
+  fs.mkdirSync(f.root, { recursive: true });
+  fs.writeFileSync(path.join(f.root, 'ledger.md'), `# Ledger — open-me\n\n**Stage:** implementing\n**Branch:** ${BRANCH}\n`);
+  const r = open(f);
+  assert.strictEqual(r.status, 1, 'a later stage refuses');
+  assert.match(r.err, /stage "implementing"/);
+  fs.writeFileSync(path.join(f.root, 'ledger.md'), `# Ledger — open-me\n\n**Stage:** planned\n**Branch:** fix/open-me\n`);
+  const other = open(f);
+  assert.strictEqual(other.status, 1, 'another branch refuses');
+  assert.match(other.err, /names the branch fix\/open-me/);
+  const noBase = spawnSync(process.execPath, [scopePath, 'open', BRANCH], { cwd: f.repo, encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL' });
+  assertSpawnDecided(noBase, 'scope.js open without --base');
+  assert.strictEqual(noBase.status, 1, 'a missing --base refuses');
+  assert.match(noBase.stderr, /--base/);
+});
+
+test('#in-process refusals: an unresolvable base and a scopetree git cannot read refuse with exit 1 and write nothing.', () => {
+  const refused = (f, argv) => {
+    const r = call(argv, '', f.repo);
+    assert.strictEqual(r.ok, false, `${argv.join(' ')} refuses`);
+    assert.strictEqual(r.out, '', `${argv.join(' ')} prints nothing`);
+    return r;
   };
+  const f = fixture();
+  const err = refused(f, ['open', BRANCH, '--base', 'nope']);
+  assert.match(err.err, /open: the base nope does not resolve to a commit/);
+  assert.strictEqual(err.exitCode, undefined, 'a refusal exits 1');
+  assert.ok(!fs.existsSync(f.root), 'an unresolvable base writes no run root');
+  assert.strictEqual(git(['branch', '--list', BRANCH], f.repo), '', 'and cuts no branch');
 
-  // #lock-dir: a directory at the lock path.
-  {
-    const f = fixture();
-    fs.mkdirSync(f.lock, { recursive: true });
-    refusal(open(f), f.lock, 'EISDIR');
-    noCut(f);
-    assert.ok(!fs.existsSync(path.join(f.root, 'ledger.md')), 'no ledger is written');
-    assert.ok(fs.statSync(f.lock).isDirectory(), 'the directory stays in place');
-  }
+  const g = fixture();
+  assert.strictEqual(open(g).status, 0, 'a first open cuts the branch');
+  fs.rmSync(path.join(g.root, 'ledger.md'));
+  fs.rmSync(g.lock);
+  fs.writeFileSync(path.join(g.scopetree, '.git'), 'gitdir: /nonexistent/gitdir\n');
+  const broken = refused(g, ['open', BRANCH, '--base', 'main']);
+  assert.match(broken.err, /open: git status in .* failed/);
+  assert.ok(!fs.existsSync(path.join(g.root, 'ledger.md')) && !fs.existsSync(g.lock), 'an unreadable scopetree writes no ledger and no lock');
+});
 
-  // #lock-symlink: a dangling symlink at the lock path; nothing is written through it.
-  {
-    const f = fixture();
-    fs.mkdirSync(f.root, { recursive: true });
-    const target = path.join(f.repo, 'elsewhere.lock');
-    fs.symlinkSync(target, f.lock);
-    refusal(open(f), f.lock, 'symbolic link');
-    noCut(f);
-    assert.ok(!fs.existsSync(target), 'the link target still does not exist');
-    assert.ok(fs.lstatSync(f.lock).isSymbolicLink(), 'the link stays in place');
-  }
+// #unreadable: a run lock or a ledger open cannot read refuses with one `open:` line and no stack trace.
+const refusal = (r, ...names) => {
+  assert.strictEqual(r.status, 1, `exits 1: ${r.out}${r.err}`);
+  const lines = r.err.trimEnd().split('\n');
+  assert.strictEqual(lines.length, 1, `one stderr line: ${r.err}`);
+  assert.match(lines[0], /^open: /, `the line starts open: ${r.err}`);
+  for (const n of names) assert.ok(lines[0].includes(n), `the line names ${n}: ${r.err}`);
+};
+const noCut = (f) => {
+  assert.ok(!fs.existsSync(f.scopetree), 'no scopetree is cut');
+  assert.strictEqual(git(['branch', '--list', BRANCH], f.repo), '', 'no branch is cut');
+};
 
-  // #ledger-unreadable: a directory at the ledger path.
-  {
-    const f = fixture();
-    const ledgerAt = path.join(f.root, 'ledger.md');
-    fs.mkdirSync(ledgerAt, { recursive: true });
-    refusal(open(f), ledgerAt, 'EISDIR');
-    noCut(f);
-  }
+test('#lock-dir: a directory at the lock path.', () => {
+  const f = fixture();
+  fs.mkdirSync(f.lock, { recursive: true });
+  refusal(open(f), f.lock, 'EISDIR');
+  noCut(f);
+  assert.ok(!fs.existsSync(path.join(f.root, 'ledger.md')), 'no ledger is written');
+  assert.ok(fs.statSync(f.lock).isDirectory(), 'the directory stays in place');
+});
 
-  // #lock-write-fails: the lock write after the branch is set up fails; a second open once the cause is gone reuses it.
+test('#lock-symlink: a dangling symlink at the lock path; nothing is written through it.', () => {
+  const f = fixture();
+  fs.mkdirSync(f.root, { recursive: true });
+  const target = path.join(f.repo, 'elsewhere.lock');
+  fs.symlinkSync(target, f.lock);
+  refusal(open(f), f.lock, 'symbolic link');
+  noCut(f);
+  assert.ok(!fs.existsSync(target), 'the link target still does not exist');
+  assert.ok(fs.lstatSync(f.lock).isSymbolicLink(), 'the link stays in place');
+});
+
+test('#ledger-unreadable: a directory at the ledger path.', () => {
+  const f = fixture();
+  const ledgerAt = path.join(f.root, 'ledger.md');
+  fs.mkdirSync(ledgerAt, { recursive: true });
+  refusal(open(f), ledgerAt, 'EISDIR');
+  noCut(f);
+});
+
+test('#lock-write-fails: the lock write after the branch is set up fails; a second open once the cause is gone reuses it.', () => {
   if (process.platform !== 'win32' && process.getuid() !== 0) {
     const f = fixture();
     assert.strictEqual(open(f).status, 0, 'a first open cuts the branch');
@@ -387,8 +375,9 @@ try {
     assert.strictEqual(again.status, 0, `a second open succeeds: ${again.err}`);
     assert.strictEqual(again.word, 'existing', `reuses the branch: ${again.out}`);
   }
+});
 
-  // #lock-write-fails, fresh run: the lock write after cut() fails before any ledger exists; a second open reuses the cut.
+test('#lock-write-fails, fresh run: the lock write after cut() fails before any ledger exists; a second open reuses the cut.', () => {
   if (process.platform !== 'win32' && process.getuid() !== 0) {
     const f = fixture();
     fs.mkdirSync(f.scopetree, { recursive: true });
@@ -404,17 +393,14 @@ try {
     assert.strictEqual(again.status, 0, `a second open of a fresh run succeeds: ${again.err}`);
     assert.strictEqual(again.word, 'reused', `reuses the branch and scopetree: ${again.out}`);
   }
+});
 
-  {
-    // superdev-view reads a never-ended run under a run lock this old as `lock stale`. The mod cannot require
-    // plugin/lib/, so it carries the bound itself, as a product of numerals; it must equal the run lock's own.
-    const parseSrc = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'parse.ts'), 'utf8');
-    const expr = /^const LOCK_STALE_MS = ([0-9e.]+(?: \* [0-9e.]+)*)$/m.exec(parseSrc);
-    assert.ok(expr, 'parse.ts defines LOCK_STALE_MS as a product of numerals');
-    assert.strictEqual(expr[1].split(' * ').reduce((a, n) => a * Number(n), 1), STALENESS_MS, 'parse.ts LOCK_STALE_MS equals run-lock.js STALENESS_MS');
-  }
+// The mod cannot require plugin/lib/, so it carries the bound itself, as a product of numerals; it must equal the run
+// lock's own.
+test('superdev-view reads a never-ended run under a run lock this old as `lock stale`.', () => {
+  const parseSrc = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'parse.ts'), 'utf8');
+  const expr = /^const LOCK_STALE_MS = ([0-9e.]+(?: \* [0-9e.]+)*)$/m.exec(parseSrc);
+  assert.ok(expr, 'parse.ts defines LOCK_STALE_MS as a product of numerals');
+  assert.strictEqual(expr[1].split(' * ').reduce((a, n) => a * Number(n), 1), STALENESS_MS, 'parse.ts LOCK_STALE_MS equals run-lock.js STALENESS_MS');
+});
 
-  console.log('scope-open: all checks passed');
-} finally {
-  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
-}
