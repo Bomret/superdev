@@ -5,13 +5,15 @@
 // operator's `knowledge-base` section rides in it, and a command that still names the old variables is refused
 // before any backend call.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { shq, FAKE_BACKEND, hangBound, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, withCapture, captures, setKbTimeout, writeOperatorConfig, hangingVerbDoc, failingVerbDoc, linksDoc } = require('./publish-kb-setup');
+const { cleanup, shq, FAKE_BACKEND, hangBound, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, withCapture, captures, setKbTimeout, writeOperatorConfig, hangingVerbDoc, failingVerbDoc, linksDoc } = require('./publish-kb-setup');
+
+after(cleanup);
 
 const HANG_MS = hangBound();
 const staged = (repo, f) => fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', f));

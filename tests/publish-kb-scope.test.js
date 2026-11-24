@@ -6,11 +6,13 @@
 // the `--scope` argument, an argument publish-kb does not take, and the report's body-free text. Shared fixtures live in
 // tests/publish-kb-setup.js.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, withCapture } = require('./publish-kb-setup');
+const { cleanup, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, withCapture } = require('./publish-kb-setup');
+
+after(cleanup);
 
 test('no ## Commands section: nothing published, refusal names /superdev:setup', () => {
   withState(() => {

@@ -8,6 +8,10 @@
 // The backend is a real fake command (tests/fixtures/fake-kb-backend.js), never a mocked exec
 // function: the contract under test is what publish-kb.js does to a real `sh -c` child
 // process, so the module under test needs no seam of its own to make that observable.
+//
+// `cleanup()` removes every directory `makeRepo`, `withState`, `withCapture`, and `freshFindDoc` made in
+// this process, and nothing else: it walks its own registry and never lists the temporary directory, which
+// suites running side by side share. Each suite that calls one of those helpers registers `after(cleanup)`.
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
@@ -23,6 +27,24 @@ const publishKbPath = require.resolve('../plugin/scripts/publish-kb.js');
 const { run } = require(publishKbPath);
 
 const FAKE_BACKEND = require.resolve('./fixtures/fake-kb-backend.js');
+
+// Every directory a fixture helper below made in this process, for `cleanup()` to remove.
+const made = [];
+const record = (dir) => {
+  made.push(dir);
+  return dir;
+};
+
+// Removes each recorded directory, one failed removal skipping none of the rest, and empties the registry.
+function cleanup() {
+  for (const dir of made.splice(0)) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // A directory that cannot be removed leaves the others to remove.
+    }
+  }
+}
 
 // The bound every hanging-verb block runs under, taken from this run rather than fixed (AGENTS.md,
 // ADR 0086). `hangingVerbDoc` hangs one verb and leaves every other verb a real `node` spawn of the fake
@@ -85,7 +107,7 @@ const repoTemplate = templateOnce((dir) => {
 // A case that expects every command to succeed runs under the ceiling no healthy command reaches, however loaded the machine;
 // a timeout case overwrites it with its own bound (`setKbTimeout`).
 function makeRepo() {
-  const repo = copyFixture(repoTemplate(), 'kb-repo-');
+  const repo = record(copyFixture(repoTemplate(), 'kb-repo-'));
   setKbTimeout(repo, HUNG_CEILING_MS);
   return repo;
 }
@@ -137,7 +159,7 @@ function call(argv, cwd) {
 // Isolate the fake backend's persistent state (and, where used, its env-capture directory) per
 // scenario, restoring the ambient env afterwards.
 function withState(fn) {
-  const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-state-')), 'state.json');
+  const stateFile = path.join(record(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-state-'))), 'state.json');
   const prevState = process.env.FAKE_KB_STATE_FILE;
   const prevCapture = process.env.FAKE_KB_CAPTURE_DIR;
   process.env.FAKE_KB_STATE_FILE = stateFile;
@@ -168,7 +190,7 @@ function captures(dir, verb) {
 // capture directory that `fn` receives.
 function withCapture(fn) {
   withState((stateFile) => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+    const dir = record(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-')));
     process.env.FAKE_KB_CAPTURE_DIR = dir;
     fn(stateFile, dir);
   });
@@ -219,7 +241,7 @@ function withNewSubUrl(value, fn) {
 
 // the fresh find after a create: `then` answers every find for Child after the first, which routes the create
 function freshFindDoc(then) {
-  const seen = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-find-')), 'seen');
+  const seen = path.join(record(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-find-'))), 'seen');
   const fake = `node ${shq(FAKE_BACKEND)} find "$1"`;
   return linksDoc().replace(fake, `if grep -q '"title":"Child"' "$1"; then [ -e ${shq(seen)} ] && { ${then}; }; : > ${shq(seen)}; fi\n${fake}`);
 }
@@ -233,6 +255,7 @@ const stageDelete = (repo, title = 'Child') =>
 const HOME_WITH_CHILD = HOME.replace('- [B](B)\n', '- [B](B)\n- [Child](Child) — desc\n');
 
 module.exports = {
+  cleanup,
   shq,
   PATCH_VERBS,
   LINKS_LINE,

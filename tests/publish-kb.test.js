@@ -12,9 +12,25 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const { publishKbPath, commandsDoc } = require('./publish-kb-setup');
+const { assertSpawnDecided, boundFromSamples } = require('./spawn-verdict');
 const { parseCommandsTemplates, parseStagedPage, classifyBackend, hashBody } = require(publishKbPath);
+
+test('publish-kb-setup: requiring the shared helper registers no node:test case and no hook', () => {
+  // A top-level test() or hook makes node:test run and print its summary when the process exits.
+  const requireSetup = (timeout) =>
+    spawnSync(process.execPath, ['-e', `require(${JSON.stringify(require.resolve('./publish-kb-setup'))})`], {
+      encoding: 'utf8',
+      timeout,
+    });
+  // Each calibration sample runs under its own 60s bound, as healthySpawn in tests/publish-kb-setup.js does.
+  const r = requireSetup(
+    boundFromSamples((i) => assertSpawnDecided(requireSetup(60000), `require publish-kb-setup sample ${i + 1}`)),
+  );
+  assertSpawnDecided(r, 'require publish-kb-setup');
+  assert.deepEqual({ status: r.status, stdout: r.stdout }, { status: 0, stdout: '' });
+});
 
 test('hashBody: the digest algorithm is pinned by a literal, not derived from hashBody itself', () => {
   assert.equal(
@@ -102,7 +118,6 @@ test('scope.js owns the change-type set, the ref probe, and main-checkout resolu
 });
 
 test('--help / -h: usage on stdout, exit 0, before any repository or backend is read', () => {
-  const { spawnSync } = require('node:child_process');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-help-'));
   try {
     const cli = (...a) => spawnSync(process.execPath, [publishKbPath, ...a], { cwd: dir, encoding: 'utf8' });

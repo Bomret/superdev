@@ -17,6 +17,7 @@ after(() => {
   for (const d of made) fs.rmSync(d, { recursive: true, force: true });
 });
 const {
+  cleanup,
   publishKbPath,
   makeRepo,
   writeKbDoc,
@@ -34,6 +35,9 @@ const {
   withNewSubUrl,
   freshFindDoc,
 } = require('./publish-kb-setup');
+
+after(cleanup);
+
 const { hashBody } = require(publishKbPath);
 
 test('a `{sub_url}` placeholder in the parent-link target is filled with the sub_url the child\'s own find returns: after a create through a fresh find, on an update through the find the page already used', () => {

@@ -10,7 +10,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { publishKbPath, FAKE_BACKEND, shq, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
+const { cleanup, publishKbPath, FAKE_BACKEND, shq, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
+
+after(cleanup);
+
 const { classifyBackend, hashBody } = require(publishKbPath);
 
 const made = [];
@@ -359,7 +362,9 @@ test('a temp-body-dir cleanup failure (the `finally { fs.rmSync }`) never aborts
     stagePage(repo, 'demo', 'second.md', 'title: Second Page\naction: upsert');
 
     const origRm = fs.rmSync;
-    fs.rmSync = () => {
+    const refused = [];
+    fs.rmSync = (p) => {
+      refused.push(p);
       throw new Error('simulated temp-dir cleanup failure');
     };
     let res;
@@ -367,6 +372,12 @@ test('a temp-body-dir cleanup failure (the `finally { fs.rmSync }`) never aborts
       res = call(['--scope', 'demo'], repo);
     } finally {
       fs.rmSync = origRm;
+      // Remove the values and body directories the stub kept publish-kb from removing, and no other path.
+      for (const p of refused) {
+        if (path.dirname(p) === os.tmpdir() && /^kb-(values|body)-/.test(path.basename(p))) {
+          fs.rmSync(p, { recursive: true, force: true });
+        }
+      }
     }
 
     assert.ok(res.ok, `expected success, got: ${res.err}`);
