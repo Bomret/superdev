@@ -6,10 +6,9 @@
 // `hangBound()` call (tests/publish-kb-setup.js, AGENTS.md, ADR 0086), taken in this process from this run's
 // healthy backend spawns. Shared fixtures live in tests/publish-kb-setup.js.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const {
-  cleanup,
   HUNG_CMD,
   hangBound,
   makeRepo,
@@ -31,8 +30,6 @@ const {
   freshFindDoc,
   stagePatchLinked,
 } = require('./publish-kb-setup');
-
-after(cleanup);
 
 // The bound every hanging-verb block below runs under, taken from this run's own healthy spawns.
 const HANG_MS = hangBound();

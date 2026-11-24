@@ -9,9 +9,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { cleanup, FAKE_BACKEND, shq, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
-
-after(cleanup);
+const { FAKE_BACKEND, shq, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
 
 const made = [];
 after(() => {

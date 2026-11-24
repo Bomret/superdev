@@ -17,7 +17,6 @@ after(() => {
 });
 const { assertSpawnDecided } = require('./spawn-verdict');
 const {
-  cleanup,
   publishKbPath,
   shq,
   FAKE_BACKEND,
@@ -35,9 +34,6 @@ const {
   hangingVerbDoc,
   failingVerbDoc,
 } = require('./publish-kb-setup');
-
-after(cleanup);
-
 const { hashBody, timeoutMs } = require(publishKbPath);
 
 // The bound every hanging-verb block below runs under, taken from this run's own healthy spawns.

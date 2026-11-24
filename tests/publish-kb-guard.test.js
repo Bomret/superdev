@@ -4,14 +4,11 @@
 // storage body conversion (ADR 0109, INV-0109), and the staged `parent:` (ADR 0109). Shared fixtures
 // live in tests/publish-kb-setup.js.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { cleanup, publishKbPath, shq, FAKE_BACKEND, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, captures, withCapture } = require('./publish-kb-setup');
-
-after(cleanup);
-
+const { publishKbPath, shq, FAKE_BACKEND, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, captures, withCapture } = require('./publish-kb-setup');
 const { hashBody } = require(publishKbPath);
 
 const PATCH_VERBS = ['find', 'read', 'create', 'update', 'delete'];

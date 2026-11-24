@@ -10,9 +10,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { cleanup, publishKbPath, FAKE_BACKEND, shq, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
-
-after(cleanup);
+const { publishKbPath, FAKE_BACKEND, shq, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
 
 const { classifyBackend, hashBody } = require(publishKbPath);
 
