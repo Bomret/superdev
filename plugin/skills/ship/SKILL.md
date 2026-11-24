@@ -15,6 +15,7 @@ Applies to every start. You merge the pull request `/superdev:submit-pr` opened,
 - **The carry**: `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`, run in `<run-root>/scopetree` with no ask. A carried tip proceeds, and ship writes no suite record for it.
 - **The red exit**: merge nothing, name the result, and point at `/superdev:review <scope>` to fix it. A review at stage `submitted` leaves the stage where it is.
 - **The named checks**: the check names the `## CI` section of `docs/agents/verification.md` lists at a commit, read with `git -C <run-root>/scopetree show <commit>:docs/agents/verification.md` (`CONTEXT.md` → *Named check*, ADR 0255). The tip naming checks puts this run on **the CI path**; a section reading `none`, an absent section, or an absent document puts it on **the local path**. A section holding both `none` and a check name, a check name being any backtick span outside a fenced block other than `none`, and a bare `none` line counting as `none`, puts it on neither path: it is a configuration error, the one `scope.js ci` cannot judge. Refuse: run `step block`, name the error, merge nothing, and point at `/superdev:setup`. **Adopting a hand merge** records it at `head.sha` as a cannot-judge `**Degraded:**` bullet instead.
+- **The read script**: the one fenced block of `docs/agents/code-management.md`'s `## Check status` section. A section holding exactly one fenced block carries it; a section holding none or two or more carries none.
 - **The CI read**: `docs/agents/code-management.md`'s `## Check status` read for one commit, its lines read into a file, then fed to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <sha> --root <run-root>/scopetree`. The verb prints `ci: <verdict> <sha>` and one line per check that is not green, and exits 0 (green), 3 (not yet green: pending, missing, or finished not green), 4 (failed), or 2 (cannot judge). A read that fails passes nothing to the verb. The CI read writes no suite record, and a local suite record neither blocks nor permits a merge on the CI path.
 - **The PR read**: the `pr` field of the `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call §2 makes, then the pull request read by that number per `docs/agents/code-management.md`'s `## Merge` section: its `state`, `merged`, `merge_commit_sha`, `head.sha`, and `mergeable`.
 - **The deployment document**: `docs/agents/deployment.md`. Its posture is its `## Posture` section's `Posture:` line. A missing document, or one with no such line, reads as posture `none`.
@@ -123,7 +124,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 **The suite gate.** Applies after the deploy gate. It takes the full-suite evidence for the exact head ship merges.
 
-- **The CI path** → run no `scope.js test` call and no carry. The CI read runs in §4, at **The CI gate**, once the equality check and **The draft gate** have passed.
+- **The CI path** → run no `scope.js test` call and no carry. **The CI gate** judges the tip in §4, once the equality check and **The draft gate** have passed.
 - **The local path** → take **The local suite gate**.
 - **A `## CI` section at the tip holding both `none` and a name** → take the configuration-error refusal of **The named checks**.
 
@@ -174,7 +175,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 **The merged-tip run.** Applies to a clean merge.
 
-- **The CI path** → run nothing locally. Take **The deploy gate again**, then **The push**, which pushes the merged tip and refuses as pending: CI has not reported on it.
+- **The CI path** → run nothing locally. Take **The deploy gate again**, then **The push**, which pushes the merged tip for the named checks to report on.
 - **The local path, carry** → take the carry first. A carried merged tip runs no full command and writes no record. A failing carry run takes **A failing carry**.
 - **The local path, no carry** → take **The local run** on the merged tip, the whole-repo command in place of the full command under **The whole-repo gate**, never beside it.
 
@@ -186,14 +187,14 @@ Applies to every start past §1. Read the stage and the pull request number with
 **The push.** Applies to every run that reaches it, whether or not base moved. Compare the tip with the `head.sha` §3 read. To push, print `git -C <run-root>/scopetree log <head-sha-just-compared>..<branch> --oneline`, and go on even when that log fails with "unknown revision". Then run `git push <remote> <scope-branch>` per `docs/agents/code-management.md`, a push of the **scope branch**, never of base.
 
 - **Identical** → nothing to push.
-- **They differ, on the CI path** → push. An accepted push refuses as pending: run `step block`, merge nothing, name the new SHA the named checks have not reported on, and print `/superdev:ship <scope>` to run once they are green. A rejected push takes **The push result**.
+- **They differ, on the CI path** → push, and take **The push result**.
 - **They differ, on the local path** → run `suite reusable` on the tip (`--whole` where §3 added it). **Refuses** → take the carry; a failing carry run takes **A failing carry** and pushes nothing. **No carry** → take **The local run** on the tip; a red, denied, or unfinished run pushes nothing. **Accepts, carried, or a green local run** → push.
 
-**The push result.** Applies to a push that ran, except an accepted push on the CI path, which **The push** ends.
+**The push result.** Applies to every push that ran.
 
 - **Rejected, non-fast-forward** → the pull request's head carries commits this scope branch lacks. Refuse: name that gap and merge nothing. Put fetching those commits into the scope branch on a `First:` line, and print `/superdev:review <scope>` as the next command, then `/superdev:ship <scope>` again.
 - **Rejected for any other reason** (authentication, a pre-receive hook, the network) → relay git's error and merge nothing. Stop.
-- **Accepted, on the local path** → repeat the PR read until its `head.sha` equals the tip just pushed, at most 3 times with a short pause, the bound `references/code-management-github.md` uses for a `mergeable` not yet known. Still different → the equality check refuses.
+- **Accepted** → repeat the PR read until its `head.sha` equals the tip just pushed, at most 3 times with a short pause, the bound `references/code-management-github.md` uses for a `mergeable` not yet known. Still different, on the local path → the equality check refuses. Still different, on the CI path → refuse: run `step block`, merge nothing, name the pushed SHA the pull request does not show yet, and print `/superdev:ship <scope>` to run again. Equal, on the CI path → go on to the equality check, **The draft gate**, and **The CI gate**, which waits on the pushed head.
 
 **The equality check.** Applies before the merge. The freshest `head.sha`, from the read after a push or from §3 without one, must equal the tip: on the local path, the tip `suite reusable` accepted, the carry covered, or the local run passed; on the CI path, the local tip. They differ → refuse: name both shas, and merge nothing.
 
@@ -205,15 +206,30 @@ Applies to every start past §1. Read the stage and the pull request number with
 - **A Mark ready call the permission classifier denies** → take the denial stop of **The merge**: merge nothing, try no other route, run `step block`, name the denial and its mitigation.
 - **A Mark ready call that fails otherwise** (an auth, network, or host error) → relay its error and merge nothing. Read the draft state again through the **Read the draft state** call and report whether the pull request is still a draft or now ready: a call that timed out can have taken effect on the host.
 
-**The CI gate.** Applies once **The draft gate** passes. On the local path, go to **The merge**. On the CI path, take the CI read for the tip, the SHA the equality check matched. Nothing here waits for a check or reads it again later (INV-0192).
+**The CI gate.** Applies once **The draft gate** passes. On the local path, go to **The merge**. On the CI path, judge the tip, the SHA the equality check matched: through **The CI wait** where the code-management document carries **the read script**, and through one CI read where it carries none. The session itself reads check status only through these two, and `scope.js ci --wait` is the only wait (INV-0192).
 
 - **No `## Check status` section in the code-management document** → refuse: run `step block`, merge nothing, and point at `/superdev:setup`.
-- **The read fails** (no CLI, no login, an HTTP error, or the network) → refuse: run `step block`, relay its error, and merge nothing.
+- **Any refusal below, after The draft gate's Mark ready call ran** → add that the pull request is now ready, as **The merge**'s host-refusal bullet does.
+
+**The CI wait.** Applies to the CI path where the code-management document carries **the read script**.
+
+1. Write the read script, `<sha>` left in place, to a file named with `mktemp`.
+2. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`, so a wait that never reports back leaves the step and consent a pending refusal leaves.
+3. Start `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <tip> --wait --read <file> --timeout 3600 --root <run-root>/scopetree` through the Bash tool with `run_in_background: true`. Tell the operator that ship waits up to 60 minutes for the named checks on `<tip>`, and end the turn. The Bash tool re-invokes the session when the verb exits.
+4. On that re-invocation, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set ship --root <run-root>` again, remove the read-script file, read the verb's output, and act on its exit status:
+
 - **Green, exit 0** → go to **The merge**, pinned to that SHA.
-- **Not yet green, exit 3** → refuse: run `step block`, merge nothing, name the SHA and each check the verb lists as pending, missing, or finished not green, and print `/superdev:ship <scope>` to run once they are green.
 - **Failed, exit 4** → refuse: run `step block`, merge nothing, name each failed check with its link, and point at `/superdev:review <scope>`, which starts from that red.
+- **Not green, exit 3** → refuse: run `step block`, merge nothing, name the SHA and each check the verb lists as pending, missing, or finished not green, and print `/superdev:ship <scope>` to wait again.
 - **Cannot judge, exit 2, or a usage refusal, exit 1** → refuse: run `step block`, name the verb's reason or its usage error, and merge nothing.
-- **Any refusal above, after The draft gate's Mark ready call ran** → add that the pull request is now ready, as **The merge**'s host-refusal bullet does.
+- **Read failed, exit 5** → refuse: run `step block`, relay the read's error the verb printed, and merge nothing.
+- **Stopped, exit 6** → the wait was stopped and carries no verdict: run `step block`, merge nothing, and print `/superdev:ship <scope>` to wait again.
+- **Any other exit status** (a crash of the verb itself) → refuse: run `step block`, relay the verb's output, and merge nothing.
+
+**The single CI read.** Applies to the CI path where the code-management document carries no **read script**: take one CI read for the tip, and act on the verb's exit status as **The CI wait**'s step 4 does for exits 0 to 4 and any other status, with two differences:
+
+- **The read fails** (no CLI, no login, an HTTP error, or the network) → refuse: run `step block`, relay its error, and merge nothing.
+- **Not yet green, exit 3** → also point at `/superdev:setup`, whose re-run offers the read script that lets ship wait, and print `/superdev:ship <scope>` to run once the checks are green.
 
 **The merge.** Applies once **The CI gate** passes. Print the pull request, its head, the base, and the CI verdict, the suite result, or the carry outcome. Then squash-merge it into the base branch through the host's merge API, pinned to the tip, per `docs/agents/code-management.md`'s `## Merge` section: the one write this plugin makes straight onto base, and the only merge this contract admits.
 
