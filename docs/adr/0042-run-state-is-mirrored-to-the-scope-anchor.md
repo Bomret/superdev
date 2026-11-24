@@ -91,6 +91,9 @@ on every slice merge and lands in the pull request. Jira's anchor is unsafe for 
 `description` field is Atlassian Document Format by default, which has no node for the section heading or
 the fence markers a round trip needs, so a default Jira instance is snapshot-less too.
 
+**Amended 2026-11-24: the Jira seed is always snapshot-less.** The Jira seed calls only `/rest/api/3`, and
+Atlassian's v3 REST intro (https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/, section Version, checked 2026-11-24) states that v3 carries an issue's `description` as Atlassian Document Format, so no Jira store carries a markdown or wiki-markup description and no setup choice remains.
+
 ## Considered options
 
 - **The anchor becomes the source of truth** — a remote run-state backend behind `scope.js`, with

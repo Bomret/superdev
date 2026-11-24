@@ -134,3 +134,6 @@ the gate that keeps the original open, so a link that only routes needs no reade
 - A repair that itself ships with a criterion observed false is repaired the same way.
 - A snapshot-less store, such as a default Jira instance, publishes no snapshot, so an original with no
   local run root cannot be repaired there.
+
+**Amended 2026-11-24: every Jira store is snapshot-less.** The Jira seed calls only `/rest/api/3`, and
+Atlassian's v3 REST intro (https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/, section Version, checked 2026-11-24) states that v3 carries an issue's `description` as Atlassian Document Format, so the case above holds for every Jira store.
