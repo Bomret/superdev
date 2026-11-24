@@ -4,6 +4,7 @@
 // read from the ledger's slice rows and `**Degraded:**` bullets. The verb only reads, so every case writes its own ledger in one
 // temporary directory.
 
+const { test } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -43,52 +44,56 @@ const refused = (argv) => {
 };
 const lots = (k) => Array(k).fill(DENIED);
 
-// Attended, every denial is inline with no cap, whatever the tier.
-assert.strictEqual(verdict('final-reviewer', rootWith(FULL, lots(3)), false), 'inline', 'a third attended denial is inline');
-assert.strictEqual(verdict('implementer', rootWith(FULL), false), 'inline', 'an attended denied implementer is inline');
-assert.strictEqual(verdict('slice-reviewer', rootWith([], lots(1)), false), 'inline', 'an attended unknown tier is inline');
+test('Attended, every denial is inline with no cap, whatever the tier.', () => {
+  assert.strictEqual(verdict('final-reviewer', rootWith(FULL, lots(3)), false), 'inline', 'a third attended denial is inline');
+  assert.strictEqual(verdict('implementer', rootWith(FULL), false), 'inline', 'an attended denied implementer is inline');
+  assert.strictEqual(verdict('slice-reviewer', rootWith([], lots(1)), false), 'inline', 'an attended unknown tier is inline');
+});
 
-// Unattended, a denied implementer or fix blocks at once, recorded or not.
-assert.strictEqual(verdict('implementer', rootWith(FULL), true), 'block implementer');
-assert.strictEqual(verdict('fix', rootWith([B]), true), 'block implementer');
+test('Unattended, a denied implementer or fix blocks at once, recorded or not.', () => {
+  assert.strictEqual(verdict('implementer', rootWith(FULL), true), 'block implementer');
+  assert.strictEqual(verdict('fix', rootWith([B]), true), 'block implementer');
+});
 
-// Unattended verification: an unknown tier blocks, then authored work blocks, then the second denial.
-assert.strictEqual(verdict('final-reviewer', rootWith([], lots(1)), true), 'block unknown-tier');
-assert.strictEqual(verdict('final-reviewer', rootWith([B, B], lots(1)), true), 'block authored', 'a lite run is authored');
-assert.strictEqual(verdict('doc-reader', rootWith([...FULL, 'docs'], lots(1)), true), 'block authored', 'a docs row is authored');
-assert.strictEqual(verdict('final-reviewer', rootWith([...FULL, 'mechanical'], lots(1)), true), 'block authored', 'a mechanical row is authored');
-// A slice review verifies a behavior slice a dispatched implementer built, so it is never authored work.
-assert.strictEqual(verdict('slice-reviewer', rootWith([...FULL, 'docs'], lots(1)), true), 'inline', 'a first slice-review denial with a docs row is inline');
-assert.strictEqual(verdict('slice-reviewer', rootWith([...FULL, 'mechanical'], lots(2)), true), 'block second-denial', 'a second slice-review denial blocks');
-assert.strictEqual(verdict('final-reviewer', rootWith(FULL, lots(1)), true), 'inline', 'the first denial of an all-behavior full run is inline');
-assert.strictEqual(verdict('final-reviewer', rootWith(FULL, lots(2)), true), 'block second-denial');
-assert.strictEqual(verdict('final-reviewer', rootWith(FULL, lots(3)), true), 'block second-denial', 'a later denial still blocks');
+test('Unattended verification: an unknown tier blocks, then authored work blocks, then the second denial.', () => {
+  assert.strictEqual(verdict('final-reviewer', rootWith([], lots(1)), true), 'block unknown-tier');
+  assert.strictEqual(verdict('final-reviewer', rootWith([B, B], lots(1)), true), 'block authored', 'a lite run is authored');
+  assert.strictEqual(verdict('doc-reader', rootWith([...FULL, 'docs'], lots(1)), true), 'block authored', 'a docs row is authored');
+  assert.strictEqual(verdict('final-reviewer', rootWith([...FULL, 'mechanical'], lots(1)), true), 'block authored', 'a mechanical row is authored');
+  // A slice review verifies a behavior slice a dispatched implementer built, so it is never authored work.
+  assert.strictEqual(verdict('slice-reviewer', rootWith([...FULL, 'docs'], lots(1)), true), 'inline', 'a first slice-review denial with a docs row is inline');
+  assert.strictEqual(verdict('slice-reviewer', rootWith([...FULL, 'mechanical'], lots(2)), true), 'block second-denial', 'a second slice-review denial blocks');
+  assert.strictEqual(verdict('final-reviewer', rootWith(FULL, lots(1)), true), 'inline', 'the first denial of an all-behavior full run is inline');
+  assert.strictEqual(verdict('final-reviewer', rootWith(FULL, lots(2)), true), 'block second-denial');
+  assert.strictEqual(verdict('final-reviewer', rootWith(FULL, lots(3)), true), 'block second-denial', 'a later denial still blocks');
+});
 
-// The count runs from the last reset marker.
-assert.strictEqual(verdict('final-reviewer', rootWith(FULL, [...lots(2), RESET, DENIED]), true), 'inline', 'denials before a reset do not count');
-assert.strictEqual(verdict('final-reviewer', rootWith(FULL, [...lots(2), RESET, DENIED, DENIED]), true), 'block second-denial');
+test('The count runs from the last reset marker.', () => {
+  assert.strictEqual(verdict('final-reviewer', rootWith(FULL, [...lots(2), RESET, DENIED]), true), 'inline', 'denials before a reset do not count');
+  assert.strictEqual(verdict('final-reviewer', rootWith(FULL, [...lots(2), RESET, DENIED, DENIED]), true), 'block second-denial');
+});
 
-// A plain degraded entry is no denial.
-assert.ok(refused(['denial', 'final-reviewer', '--root', rootWith(FULL, ['- ran inline — kb writer could not stage'])]).includes('denial'));
+test('A plain degraded entry is no denial.', () => {
+  assert.ok(refused(['denial', 'final-reviewer', '--root', rootWith(FULL, ['- ran inline — kb writer could not stage'])]).includes('denial'));
+});
 
-// Refusals: an unknown pass, an unrecorded verification denial (also behind a reset), a missing pass, a stray argument, a bad root.
-assert.ok(refused(['denial', 'simplicity-reviewer', '--root', rootWith(FULL, lots(1))]).includes('simplicity-reviewer'));
-// A plan-time or brainstorm-time reader is no verification pass.
-for (const reader of ['slice-readiness-reviewer', 'intent-challenger']) {
-  assert.ok(refused(['denial', reader, '--root', rootWith(FULL, lots(1))]).includes(`"${reader}" is no known pass`), `${reader} is no pass`);
-}
-assert.ok(refused(['denial', 'final-reviewer', '--root', rootWith(FULL)]).includes('record'));
-assert.ok(refused(['denial', 'final-reviewer', '--unattended', '--root', rootWith(FULL, [...lots(2), RESET])]).includes('record'));
-refused(['denial', '--root', rootWith(FULL)]);
-refused(['denial', 'final-reviewer', 'extra', '--root', rootWith(FULL, lots(1))]);
-refused(['denial', 'final-reviewer', '--root', path.join(dir, 'absent')]);
+test('Refusals: an unknown pass, an unrecorded verification denial (also behind a reset), a missing pass, a stray argument, a bad root.', () => {
+  assert.ok(refused(['denial', 'simplicity-reviewer', '--root', rootWith(FULL, lots(1))]).includes('simplicity-reviewer'));
+  // A plan-time or brainstorm-time reader is no verification pass.
+  for (const reader of ['slice-readiness-reviewer', 'intent-challenger']) {
+    assert.ok(refused(['denial', reader, '--root', rootWith(FULL, lots(1))]).includes(`"${reader}" is no known pass`), `${reader} is no pass`);
+  }
+  assert.ok(refused(['denial', 'final-reviewer', '--root', rootWith(FULL)]).includes('record'));
+  assert.ok(refused(['denial', 'final-reviewer', '--unattended', '--root', rootWith(FULL, [...lots(2), RESET])]).includes('record'));
+  refused(['denial', '--root', rootWith(FULL)]);
+  refused(['denial', 'final-reviewer', 'extra', '--root', rootWith(FULL, lots(1))]);
+  refused(['denial', 'final-reviewer', '--root', path.join(dir, 'absent')]);
+});
 
-// The verb writes nothing.
-{
+test('The verb writes nothing.', () => {
   const root = rootWith(FULL, lots(1));
   const before = fs.readdirSync(root).sort().join() + fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
   verdict('final-reviewer', root, true);
   assert.strictEqual(fs.readdirSync(root).sort().join() + fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), before);
-}
+});
 
-console.log('scope-denial: ok');

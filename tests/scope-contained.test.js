@@ -4,6 +4,7 @@
 // the containment verdict of `plugin/lib/containment.js`, then the base it judged against, the remote, and how it
 // judged. Real git repositories and a real bare remote throughout. Each case copies one fixture built once per process.
 
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -14,6 +15,12 @@ const { scopePath, fetchBound, writeOperatorConfig } = require('./scope-setup');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { shq } = require('./spawn-verdict');
+
+after(() => {
+  process.on('exit', () => {
+    for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
 
 const made = [];
 
@@ -74,8 +81,7 @@ function contained(repo, args, env = {}) {
   return { status: r.status, lines: r.stdout.split('\n').filter(Boolean), out: r.stdout, err: r.stderr };
 }
 
-// #verdicts: each verdict, its exit status, and the lines after it.
-{
+test('#verdicts: each verdict, its exit status, and the lines after it.', () => {
   const repo = fixture();
   const mainTip = git(['rev-parse', 'main'], repo);
 
@@ -90,10 +96,9 @@ function contained(repo, args, env = {}) {
   const missing = contained(repo, ['main', 'fix/does-not-exist']);
   assert.deepStrictEqual(missing.lines, ['could-not-resolve', `base ${mainTip}`, 'remote origin', 'judged local'], `a branch naming no ref: ${missing.out}`);
   assert.strictEqual(missing.status, 4, 'could-not-resolve exits 4');
-}
+});
 
-// #remote: `--remote` wins; the default is code-management.md's `Remote:` value; with neither the verb refuses.
-{
+test('#remote: `--remote` wins; the default is code-management.md\'s `Remote:` value; with neither the verb refuses.', () => {
   const repo = fixture();
   git(['remote', 'rename', 'origin', 'upstream'], repo);
   const named = contained(repo, ['main', 'fix/open', '--remote', 'upstream']);
@@ -109,12 +114,11 @@ function contained(repo, args, env = {}) {
   assertSpawnDecided(fromSub, 'scope.js contained from a subdirectory');
   assert.strictEqual(fromSub.stdout.split('\n')[2], 'remote upstream', `a subdirectory call finds the Remote: value: ${fromSub.stdout}${fromSub.stderr}`);
 
-}
+});
 
-// #no-remote: with no --remote and no Remote: value the verb judges against the local base, fetches from no remote, and
-// prints `remote none`. A configured `origin` is never contacted: it points at an unreachable URL, and no FETCH_HEAD and
-// no refetch mark appear.
-{
+// A configured `origin` is never contacted: it points at an unreachable URL, and no FETCH_HEAD and no refetch mark
+// appear.
+test('#no-remote: with no --remote and no Remote: value the verb judges against the local base, fetches from no remote, and prints `remote none`.', () => {
   const repo = fixture();
   fs.rmSync(path.join(repo, 'docs', 'agents', 'code-management.md'));
   git(['remote', 'set-url', 'origin', 'https://unreachable.invalid/x.git'], repo);
@@ -130,12 +134,11 @@ function contained(repo, args, env = {}) {
   assert.deepStrictEqual(open.lines, ['not-contained', `base ${mainTip}`, 'remote none', 'judged local'], `an unmerged branch with no remote: ${open.out}${open.err}`);
   assert.strictEqual(open.status, 3, 'not-contained with no remote exits 3');
   assert.ok(!fs.existsSync(fetchHead), 'no remote was fetched: no FETCH_HEAD');
-}
+});
 
-// #refetch: a refetch that brought the base reads `judged refetched` with the fetched commit as the base, and a
-// squash-merge only the remote holds reads contained. A refetch that failed, or that its bound ended, leaves the
-// local not-contained answer standing, marked so a caller never reads it as evidence about the branch (INV-0009).
-{
+// A refetch that failed, or that its bound ended, leaves the local not-contained answer standing, marked so a caller
+// never reads it as evidence about the branch (INV-0009).
+test('#refetch: a refetch that brought the base reads `judged refetched` with the fetched commit as the base, and a squash-merge only the remote holds reads contained.', () => {
   const repo = fixture();
   // The remote gains a squash of `fix/open` that the local `main` lacks.
   const other = path.join(path.dirname(repo), 'other');
@@ -148,15 +151,16 @@ function contained(repo, args, env = {}) {
   const r = contained(repo, ['main', 'fix/open']);
   assert.deepStrictEqual(r.lines, ['contained', `base ${remoteTip}`, 'remote origin', 'judged refetched'], `a base only the remote holds: ${r.out}`);
   assert.strictEqual(r.status, 0, 'contained exits 0');
-}
-{
+});
+
+test('A refetch from a remote that does not exist fails, and the local answer stands with exit 3', () => {
   const repo = fixture();
   const failed = contained(repo, ['main', 'fix/open', '--remote', 'nowhere']);
   assert.deepStrictEqual(failed.lines.slice(0, 1).concat(failed.lines.slice(2)), ['not-contained', 'remote nowhere', 'judged local', 'refetch failed'], `a refetch that failed: ${failed.out}`);
   assert.strictEqual(failed.status, 3, 'the local answer stands with exit 3');
-}
-{
-  // A remote whose upload-pack never answers, under the bound the operator configuration sets: this run's `fetchBound()`.
+});
+
+test('A remote whose upload-pack never answers, under the bound the operator configuration sets: this run\'s `fetchBound()`.', () => {
   const repo = fixture();
   const bound = fetchBound();
   writeOperatorConfig(repo, { 'code-host': { pushTimeoutMs: bound } });
@@ -168,10 +172,10 @@ function contained(repo, args, env = {}) {
   assert.strictEqual(r.lines[3], 'judged local', 'the local base judged');
   assert.strictEqual(r.lines[4], 'refetch timed-out', `the marker names the bound: ${r.out}`);
   assert.strictEqual(r.status, 3, 'exits 3');
-}
+});
 
-// #fallback: a git without `--write-tree` judges by ancestry and says so.
-{
+
+test('#fallback: a git without `--write-tree` judges by ancestry and says so.', () => {
   const repo = fixture();
   const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
   const shim = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-contained-oldgit-'));
@@ -185,10 +189,9 @@ function contained(repo, args, env = {}) {
   assert.strictEqual(r.lines[0], 'contained', `a merge commit reads contained by ancestry: ${r.out}`);
   assert.strictEqual(r.lines[4], 'fallback ancestor', `the fallback is marked: ${r.out}`);
   assert.strictEqual(contained(repo, ['main', 'fix/merged']).lines.includes('fallback ancestor'), false, 'no marker where --write-tree ran');
-}
+});
 
-// #option-shaped: an option-shaped base or branch is an operand, never an option of the verb or of git.
-{
+test('#option-shaped: an option-shaped base or branch is an operand, never an option of the verb or of git.', () => {
   const repo = fixture();
   const marker = path.join(repo, '..', 'ran');
   const payload = `--upload-pack=touch ${marker}`;
@@ -199,11 +202,11 @@ function contained(repo, args, env = {}) {
   assert.notStrictEqual(asBase.status, 1, `an option-shaped base is no usage refusal: ${asBase.err}`);
   assert.strictEqual(asBase.lines[0], 'not-contained', `an option-shaped base never holds the branch: ${asBase.out}`);
   assert.strictEqual(fs.existsSync(marker), false, 'neither operand ran as --upload-pack');
-}
+});
 
-// #read-only: the verb changes no ref, index, or working tree, and creates no run state. It writes tree objects,
-// fetched objects, and `FETCH_HEAD` in git, and nothing else. The remote has moved, so one call refetches.
-{
+// It writes tree objects, fetched objects, and `FETCH_HEAD` in git, and nothing else. The remote has moved, so one
+// call refetches.
+test('#read-only: the verb changes no ref, index, or working tree, and creates no run state.', () => {
   const repo = fixture();
   const other = path.join(path.dirname(repo), 'other');
   git(['clone', '-q', path.join(path.dirname(repo), 'origin'), other], repo);
@@ -222,8 +225,5 @@ function contained(repo, args, env = {}) {
   contained(repo, ['main', 'fix/squashed']);
   assert.strictEqual(snapshot(), before, 'no ref (remote-tracking included), HEAD, index, or working tree changed');
   assert.strictEqual(fs.existsSync(path.join(repo, '.superdev')), false, 'no run state was created');
-}
-
-process.on('exit', () => {
-  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
 });
+

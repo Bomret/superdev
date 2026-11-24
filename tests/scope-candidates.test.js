@@ -4,6 +4,7 @@
 // under the main working tree's `.superdev/scopes/*/`, for the stages the caller names. The verb only reads, so each case builds
 // its own run roots under a repository made once and copied per case.
 
+const { test } = require('node:test');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const assert = require('node:assert');
 const { execFileSync } = require('node:child_process');
@@ -45,57 +46,47 @@ const run = (repo, stage, cwd) => {
   return r.out;
 };
 
-// One qualifying run root: `one <slug> <stage>`, whatever the other roots hold.
-{
+test('One qualifying run root: `one <slug> <stage>`, whatever the other roots hold.', () => {
   const repo = setup({ a: ledgerAt('merged'), b: ledgerAt('shipped') });
   assert.strictEqual(run(repo, 'merged,documented-unreviewed'), 'one a merged');
-}
+});
 
-// Two qualifying run roots: `several`, then one `<slug> <stage>` line each, in slug order.
-{
+test('Two qualifying run roots: `several`, then one `<slug> <stage>` line each, in slug order.', () => {
   const repo = setup({ b: ledgerAt('documented-unreviewed'), a: ledgerAt('merged'), c: ledgerAt('shipped') });
   assert.strictEqual(run(repo, 'merged,documented-unreviewed'), 'several\na merged\nb documented-unreviewed');
-}
+});
 
-// No qualifying run root: `none`, then every run root with its stage; a directory with no ledger is no run root.
-{
+test('No qualifying run root: `none`, then every run root with its stage; a directory with no ledger is no run root.', () => {
   const repo = setup({ a: ledgerAt('shipped'), b: ledgerAt('closed'), loose: null });
   assert.strictEqual(run(repo, 'merged'), 'none\na shipped\nb closed');
-}
+});
 
-// A repository with no run root at all: `none` alone.
-{
+test('A repository with no run root at all: `none` alone.', () => {
   const repo = setup({});
   assert.strictEqual(run(repo, 'merged'), 'none');
-}
+});
 
-// A ledger with no stage and an unreadable ledger never qualify, even beside the only other candidate, and are listed
-// as `absent` and `unreadable`.
-{
+test('A ledger with no stage and an unreadable ledger never qualify, even beside the only other candidate, and are listed as `absent` and `unreadable`.', () => {
   const repo = setup({ a: '# Run state\n\nno header here\n', b: 'unreadable', c: ledgerAt('merged') });
   assert.strictEqual(run(repo, 'merged'), 'one c merged');
   assert.strictEqual(run(repo, 'implementing'), 'none\na absent\nb unreadable\nc merged');
-}
+});
 
-// Every verdict word stays one token: a run root whose directory name fails the slug charset is left out, and a stage value
-// outside the ledger's stages reads `unreadable` and never qualifies.
-{
+test('Every verdict word stays one token: a run root whose directory name fails the slug charset is left out, and a stage value outside the ledger\'s stages reads `unreadable` and never qualifies.', () => {
   const repo = setup({ 'two words': ledgerAt('merged'), 'line\nbreak': ledgerAt('merged'), b: ledgerAt('implementing-ish'), c: ledgerAt('merged') });
   assert.strictEqual(run(repo, 'merged'), 'one c merged');
   assert.strictEqual(run(repo, 'implementing'), 'none\nb unreadable\nc merged');
-}
+});
 
-// An unknown stage name is refused, with no verdict printed.
-{
+test('An unknown stage name is refused, with no verdict printed.', () => {
   const repo = setup({ a: ledgerAt('merged') });
   const r = call(['candidates', '--stage', 'merged,bogus'], '', repo);
   assert.strictEqual(r.ok, false);
   assert.match(r.err, /bogus/);
   assert.strictEqual(r.out, '');
-}
+});
 
-// A missing or empty `--stage`, and a stray argument, are refused.
-{
+test('A missing or empty `--stage`, and a stray argument, are refused.', () => {
   const repo = setup({ a: ledgerAt('merged') });
   assert.strictEqual(call(['candidates'], '', repo).ok, false);
   assert.strictEqual(call(['candidates', '--stage', ''], '', repo).ok, false);
@@ -104,24 +95,21 @@ const run = (repo, stage, cwd) => {
     assert.strictEqual(r.ok, false, `${extra} refuses`);
     assert.strictEqual(r.out, '', `a refused ${extra} prints no verdict`);
   }
-}
+});
 
-// The same result from the main checkout and from a scopetree: the scan resolves through the main working tree.
-{
+test('The same result from the main checkout and from a scopetree: the scan resolves through the main working tree.', () => {
   const repo = setup({ a: ledgerAt('merged'), b: ledgerAt('merged') });
   const tree = path.join(repo, '.superdev', 'scopetrees', 'x');
   fs.mkdirSync(path.dirname(tree), { recursive: true });
   git(['worktree', 'add', '-q', '-b', 'feat/x', tree], repo);
   assert.strictEqual(run(repo, 'merged', tree), run(repo, 'merged'));
   assert.strictEqual(run(repo, 'merged', tree), 'several\na merged\nb merged');
-}
+});
 
-// The verb writes nothing: the run roots hold the same entries before and after.
-{
+test('The verb writes nothing: the run roots hold the same entries before and after.', () => {
   const repo = setup({ a: ledgerAt('merged') });
   const before = fs.readdirSync(path.join(repo, '.superdev', 'scopes', 'a')).join();
   run(repo, 'merged');
   assert.strictEqual(fs.readdirSync(path.join(repo, '.superdev', 'scopes', 'a')).join(), before);
-}
+});
 
-console.log('scope-candidates: ok');

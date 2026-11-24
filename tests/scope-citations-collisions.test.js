@@ -4,6 +4,7 @@
 // added, and a numbering collision, each found by number and never by a git conflict. Each case builds its own git
 // repository, so the suite needs only the `scope.js` path and `findCollisions`.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -13,8 +14,7 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 const { scopePath } = require('./scope-setup');
 const { findCollisions } = require(scopePath);
 
-// --- citations: a citation of an old number the range added, found by number (ADR 0156, INV-0134) ---
-{
+test('citations: a citation of an old number the range added, found by number (ADR 0156, INV-0134)', () => {
   const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-citations-')));
   const put = (file, text) => {
@@ -145,10 +145,9 @@ const { findCollisions } = require(scopePath);
   assert.equal(g(['status', '--porcelain'], repo), '', 'the verb leaves the working tree clean');
   fs.rmSync(repo, { recursive: true, force: true });
   fs.rmSync(subRepo, { recursive: true, force: true });
-}
+});
 
-// --- collisions: a numbering collision found by number, never by a git conflict (ADR 0126, INV-0134) ---
-{
+test('collisions: a numbering collision found by number, never by a git conflict (ADR 0126, INV-0134)', () => {
   const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-collisions-')));
   const put = (file, text) => {
@@ -397,4 +396,4 @@ const { findCollisions } = require(scopePath);
   // An invariant entry the scope took in from base, read against a stale range base, is no collision.
   const inv = (id, text) => (d, w) => w('docs/invariants.md', `### INV-0001\n\nStatement: 1.\n${id ? `\n### INV-${id}\n\n${text}\n` : ''}`);
   assert.deepEqual(edge(inv(), inv('0002', 'Statement: 2.'), inv('0002', 'Statement: 2.')), [], 'an identical entry on both sides is no collision');
-}
+});

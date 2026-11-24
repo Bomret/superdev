@@ -5,6 +5,7 @@
 // writing them in their production shapes, then the run root when that leaves it empty, and refuses a root outside the main
 // working tree's `.superdev/scopes/<scope>/` and a run whose stage is later than `planned`.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -42,36 +43,34 @@ function makeRun(scope, stage, extra) {
   return root;
 }
 
-// A planned run holding only the three files: all go, and the root with them.
-{
+test('A planned run holding only the three files: all go, and the root with them.', () => {
   const root = makeRun('a', 'planned');
   assert.ok(call(['discard', '--root', root]).ok, 'discard of a planned run succeeds');
   assert.equal(fs.existsSync(root), false, 'the emptied run root is removed');
   // Run twice, and on an absent root: exit 0.
   assert.ok(call(['discard', '--root', root]).ok, 'discard of an absent root succeeds');
-}
+});
 
-// Other content keeps the root.
 for (const extra of [['dod.md'], ['scopetree/']]) {
-  const root = makeRun('b', 'planned', extra);
-  assert.ok(call(['discard', '--root', root]).ok, 'discard with other content succeeds: ' + extra);
-  for (const f of RUN_FILES) assert.equal(fs.existsSync(path.join(root, f)), false, f + ' removed beside ' + extra);
-  assert.ok(fs.existsSync(path.join(root, extra[0])), 'the other content stays: ' + extra);
-  assert.ok(call(['discard', '--root', root]).ok, 'a second discard succeeds');
-  fs.rmSync(root, { recursive: true, force: true });
+  test(`Other content keeps the root. (${extra})`, () => {
+    const root = makeRun('b', 'planned', extra);
+    assert.ok(call(['discard', '--root', root]).ok, 'discard with other content succeeds: ' + extra);
+    for (const f of RUN_FILES) assert.equal(fs.existsSync(path.join(root, f)), false, f + ' removed beside ' + extra);
+    assert.ok(fs.existsSync(path.join(root, extra[0])), 'the other content stays: ' + extra);
+    assert.ok(call(['discard', '--root', root]).ok, 'a second discard succeeds');
+    fs.rmSync(root, { recursive: true, force: true });
+  });
 }
 
-// An absent file is no error: a root holding only the lock loses it and goes.
-{
+test('An absent file is no error: a root holding only the lock loses it and goes.', () => {
   const root = path.join(scopes, 'c');
   fs.mkdirSync(root, { recursive: true });
   fs.writeFileSync(path.join(root, 'run.lock'), 'x\n');
   assert.ok(call(['discard', '--root', root]).ok, 'discard with no ledger succeeds');
   assert.equal(fs.existsSync(root), false, 'the lock-only root is removed');
-}
+});
 
-// Refusals remove nothing.
-{
+test('Refusals remove nothing.', () => {
   const keep = makeRun('d', 'planned');
   const refused = (argv, why) => {
     const r = call(argv);
@@ -100,6 +99,5 @@ for (const extra of [['dod.md'], ['scopetree/']]) {
     for (const f of RUN_FILES) assert.ok(fs.existsSync(path.join(root, f)), f + ' kept at ' + stage);
     fs.rmSync(root, { recursive: true, force: true });
   }
-}
+});
 
-console.log('scope-discard tests ok');

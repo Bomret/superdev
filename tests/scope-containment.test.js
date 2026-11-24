@@ -5,6 +5,7 @@
 // thing under test, not a stub over it. The base repository, one commit on `main` with no remote, is built once per
 // process through tests/fixture-git.js, and each case works in its own copy and adds any remote or branch it needs.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -19,12 +20,9 @@ const { shq } = require('./spawn-verdict');
 // The real git a fake git on PATH forwards to.
 const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
 
-// --- testContainment: the exported containment test (ADR 0053, ADR 0065) ---------------------
-//
-// No CLI verb — a sibling script `require`s this directly, the same shape `readLedgerHeader` already
-// gives `hooks/scope-prune.js`. Real git repositories throughout, the same way tests/scope-prune-containment.test.js's
-// own containment fixtures do: the git plumbing is the thing under test, not a stub over it.
-{
+// Real git repositories throughout, the same way tests/scope-prune-containment.test.js's own containment fixtures do:
+// the git plumbing is the thing under test, not a stub over it.
+test('testContainment: the exported containment test (ADR 0053, ADR 0065) No CLI verb — a sibling script `require`s this directly, the same shape `readLedgerHeader` already gives `hooks/scope-prune.js`.', () => {
   function gitTest(args, cwd) {
     execFileSync('git', args, { cwd, stdio: 'ignore' });
   }
@@ -537,4 +535,4 @@ const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' 
   );
   fs.rmSync(squashShared, { recursive: true, force: true });
   fs.rmSync(probePayloadDir, { recursive: true, force: true });
-}
+});
