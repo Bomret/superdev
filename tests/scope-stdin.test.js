@@ -62,54 +62,48 @@ const root = path.join(tmp, '.superdev', 'scopes', 'demo');
 writeDod(root);
 const ledger = () => fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
 
-let cases, matchFile, noteFile, pipedOut;
-test('Each stdin verb\'s cases: argv, piped input, and the check that the verb acted on that input.', () => {
-  cases = {
-    init: [[['init', 'feat/demo', 'implementing'], sliceJson, () => assert.match(ledger(), /ledger-guard hook/, 'init wrote the piped slices')]],
-    degraded: [
-      [['degraded', 'add', '-', '--root', root], 'piped degraded text\n', () => assert.match(ledger(), /- piped degraded text/)],
-      [['degraded', 'add-denial', '-', '--root', root], 'piped denial text\n', () => assert.match(ledger(), /piped denial text/)],
-    ],
-    unresolved: [[['unresolved', 'add', '-', '--root', root], 'piped unresolved text\n', () => assert.match(ledger(), /- piped unresolved text/)]],
-    deferred: [
-      [['deferred', 'add', '-', '--root', root], 'piped deferred text\n', () => assert.match(ledger(), /- piped deferred text/)],
-      [['deferred', 'resolve', '-', '--root', root], 'piped deferred text\n', () => assert.doesNotMatch(ledger(), /piped deferred text/)],
-    ],
-    adopt: [], // filled below from publish's own output
-    'dod-merge': [[['dod-merge', '--root', root], '- [ ] a piped criterion\n', () => assert.match(fs.readFileSync(path.join(root, 'dod.md'), 'utf8'), /a piped criterion/)]],
-    'dod-line': [],
-    'dod-tags': [],
-    'dod-check': [],
-  };
-  matchFile = path.join(tmp, 'match.txt');
-  noteFile = path.join(tmp, 'note.txt');
-  fs.writeFileSync(matchFile, 'a piped criterion');
-  fs.writeFileSync(noteFile, 'seen');
-  pipedOut = '';
-  cases['dod-line'].push([
-    ['dod-line', '--match-file', matchFile, '--verdict', 'met', '--note-file', noteFile],
-    '- [ ] a piped criterion\n',
-    () => assert.match(pipedOut, /- \[x\] a piped criterion .*met: seen/, 'dod-line rewrote the piped line'),
-  ]);
-});
+// Each stdin verb's cases: argv, piped input, and the check that the verb acted on that input.
+const cases = {
+  init: [[['init', 'feat/demo', 'implementing'], sliceJson, () => assert.match(ledger(), /ledger-guard hook/, 'init wrote the piped slices')]],
+  degraded: [
+    [['degraded', 'add', '-', '--root', root], 'piped degraded text\n', () => assert.match(ledger(), /- piped degraded text/)],
+    [['degraded', 'add-denial', '-', '--root', root], 'piped denial text\n', () => assert.match(ledger(), /piped denial text/)],
+  ],
+  unresolved: [[['unresolved', 'add', '-', '--root', root], 'piped unresolved text\n', () => assert.match(ledger(), /- piped unresolved text/)]],
+  deferred: [
+    [['deferred', 'add', '-', '--root', root], 'piped deferred text\n', () => assert.match(ledger(), /- piped deferred text/)],
+    [['deferred', 'resolve', '-', '--root', root], 'piped deferred text\n', () => assert.doesNotMatch(ledger(), /piped deferred text/)],
+  ],
+  adopt: [], // filled below from publish's own output
+  'dod-merge': [[['dod-merge', '--root', root], '- [ ] a piped criterion\n', () => assert.match(fs.readFileSync(path.join(root, 'dod.md'), 'utf8'), /a piped criterion/)]],
+  'dod-line': [],
+  'dod-tags': [],
+  'dod-check': [],
+};
+const matchFile = path.join(tmp, 'match.txt');
+const noteFile = path.join(tmp, 'note.txt');
+fs.writeFileSync(matchFile, 'a piped criterion');
+fs.writeFileSync(noteFile, 'seen');
+let pipedOut = '';
+cases['dod-line'].push([
+  ['dod-line', '--match-file', matchFile, '--verdict', 'met', '--note-file', noteFile],
+  '- [ ] a piped criterion\n',
+  () => assert.match(pipedOut, /- \[x\] a piped criterion .*met: seen/, 'dod-line rewrote the piped line'),
+]);
 
-test('dod-tags rewrote the piped tag', () => {
-  const tagMap = path.join(tmp, 'tag-map.txt');
-  fs.writeFileSync(tagMap, '01 #7\n');
-  cases['dod-tags'].push([
-    ['dod-tags', '--map-file', tagMap],
-    '## Definition of Done\n\n- [ ] a piped criterion — 01\n',
-    () => assert.match(pipedOut, /a piped criterion — #7/, 'dod-tags rewrote the piped tag'),
-  ]);
-});
+const tagMap = path.join(tmp, 'tag-map.txt');
+fs.writeFileSync(tagMap, '01 #7\n');
+cases['dod-tags'].push([
+  ['dod-tags', '--map-file', tagMap],
+  '## Definition of Done\n\n- [ ] a piped criterion — 01\n',
+  () => assert.match(pipedOut, /a piped criterion — #7/, 'dod-tags rewrote the piped tag'),
+]);
 
-test('dod-check passed the piped body silently', () => {
-  cases['dod-check'].push([
-    ['dod-check'],
-    '## Definition of Done\n\n- [ ] a piped criterion (triage #3)\n- [ ] Reachable: piped\n- [ ] Release risk: rollback, deploy-window data compatibility, consumer compatibility, production visibility\n\n**Absorbs:** #3\n',
-    () => assert.strictEqual(pipedOut, '', 'dod-check passed the piped body silently'),
-  ]);
-});
+cases['dod-check'].push([
+  ['dod-check'],
+  '## Definition of Done\n\n- [ ] a piped criterion (triage #3)\n- [ ] Reachable: piped\n- [ ] Release risk: rollback, deploy-window data compatibility, consumer compatibility, production visibility\n\n**Absorbs:** #3\n',
+  () => assert.strictEqual(pipedOut, '', 'dod-check passed the piped body silently'),
+]);
 
 test('ci reads a commit of a repository of its own, named by --root, and judges the piped check status green.', () => {
   const ciRepo = path.join(tmp, 'ci-repo');
@@ -123,15 +117,13 @@ test('ci reads a commit of a repository of its own, named by --root, and judges 
   cases.ci = [[['ci', '--sha', 'HEAD', '--root', ciRepo], 'lint\tsuccess\n', () => assert.match(pipedOut, /^ci: green /, 'ci judged the piped status')]];
 });
 
-test('section prints the piped heading\'s section of the file it names.', () => {
-  const sectionFile = path.join(tmp, 'section.md');
-  fs.writeFileSync(sectionFile, '## A\na1\n## B\nb1\n');
-  cases.section = [[['section', sectionFile], '## B\n', () => assert.strictEqual(pipedOut, '## B\nb1\n', 'section printed the piped heading\'s section')]];
-});
+// section prints the piped heading's section of the file it names.
+const sectionFile = path.join(tmp, 'section.md');
+fs.writeFileSync(sectionFile, '## A\na1\n## B\nb1\n');
+cases.section = [[['section', sectionFile], '## B\n', () => assert.strictEqual(pipedOut, '## B\nb1\n', 'section printed the piped heading\'s section')]];
 
-test('route pairs the piped anchor lines with the run\'s dod.md: a piped line the dod.md lacks adds the hand-sync line.', () => {
-  cases.route = [[['route', '--root', root], '- [ ] a criterion the dod.md lacks\n', () => assert.match(pipedOut, /^verify-ship\nhand-sync/, 'route read the piped anchor')]];
-});
+// route pairs the piped anchor lines with the run's dod.md: a piped line the dod.md lacks adds the hand-sync line.
+cases.route = [[['route', '--root', root], '- [ ] a criterion the dod.md lacks\n', () => assert.match(pipedOut, /^verify-ship\nhand-sync/, 'route read the piped anchor')]];
 
 for (const verb of stdinVerbs) {
   test(`Every verb that reads piped input has a case in this suite (${verb})`, () => {
