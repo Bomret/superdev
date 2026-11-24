@@ -4,6 +4,7 @@
 // trace and git, and its refusals: each malformed invocation by its own message, and a tip whose verification configuration git
 // lists but cannot show. The fixtures are real git commits and raw trace lines; the suite runs in temporary directories.
 
+const { test } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -78,8 +79,7 @@ put(repo, 'src/a.js', 'a4\n');
 const c4 = commit(repo, 'test deletion and code');
 const any = [edit('src/a.js')];
 
-// #verdicts: each verdict prints for the range that produces it, with the deciding line's range and command.
-{
+test('#verdicts: each verdict prints for the range that produces it, with the deciding line\'s range and command.', () => {
   assert.equal(verdict(repo, `${c0}..${c1}`, runOf([...any, outcome(`${c0}..${c1}`, 'fail-to-pass', 'control=0,put-back=1')])),
     `fail-to-pass ${c0}..${c1} node tests/a.test.js`, 'a latest fail-to-pass line decides, its command decoded');
   assert.equal(verdict(repo, `${c0}..${c1}`, runOf([...any, outcome(`${c0}..${c1}`, 'fail-to-pass', 'control=0,put-back=1'), outcome(`${c0}..${c1}`, 'pass-to-pass', 'control=0,put-back=0')])),
@@ -91,10 +91,9 @@ const any = [edit('src/a.js')];
   assert.equal(verdict(repo, `${c0}..${c1}`, runOf(any)), 'missing', 'a test and code change with no outcome line is missing');
   assert.equal(verdict(repo, `${c1}..${c2}`, runOf(any)), 'test-only', 'test-path changes alone read test-only');
   assert.equal(verdict(repo, `${c2}..${c3}`, runOf(any)), 'no-test-change', 'code changes alone read no-test-change');
-}
+});
 
-// #rules: the grading rules the reviewer prose stated.
-{
+test('#rules: the grading rules the reviewer prose stated.', () => {
   assert.equal(verdict(repo, `${c0}..${c1}`, runOf([...any, outcome(`${c0}..${c1}`, 'pass-to-pass', 'control=0,put-back=0'), outcome(`${c0}..${c1}`, 'unknown', 'control=1')])).split(' ')[0],
     'pass-to-pass', 'a later unknown line does not hide an earlier pass-to-pass');
   assert.equal(verdict(repo, `${c0}..${c1}`, runOf([...any, outcome(`${c0}..${c1}`, 'fail-to-pass', 'settled-from-trace')])).split(' ')[0],
@@ -103,10 +102,9 @@ const any = [edit('src/a.js')];
     'fail-to-pass', 'an outcome from the slice\'s base covers a fix cycle\'s narrower range');
   assert.equal(verdict(repo, `${c3}..${c4}`, runOf(any)), 'no-test-change', 'test changes that are all deletions beside a code change read no-test-change, never missing');
   assert.equal(verdict(repo, `${c0}..${c1}`, runOf([`${ts} 01 main ledger slice 01 in-progress`])), 'missing', 'an untraced test write counts as a test change');
-}
+});
 
-// #range: a range spelled as a branch, HEAD, or a short commit reads as its full commits; malformed ranges are refused.
-{
+test('#range: a range spelled as a branch, HEAD, or a short commit reads as its full commits; malformed ranges are refused.', () => {
   git(repo, 'branch', 'at-c1', c1);
   const root = runOf([...any, outcome(`${c0}..${c1}`, 'pass-to-pass', 'control=0,put-back=0')]);
   const full = verdict(repo, `${c0}..${c1}`, root);
@@ -118,10 +116,9 @@ const any = [edit('src/a.js')];
   assert.ok(!bad.ok && /nowhere/.test(bad.err), 'an unresolvable side is refused naming it');
   const back = check(repo, `${c1}..${c0}`, root);
   assert.ok(!back.ok && /ancestor/.test(back.err), 'a base that is no ancestor of the tip is refused');
-}
+});
 
-// #refusals: each malformed invocation is refused by its own message, every other input valid.
-{
+test('#refusals: each malformed invocation is refused by its own message, every other input valid.', () => {
   const range = `${c0}..${c1}`;
   const root = runOf(any);
   const refused = (argv, re, why) => {
@@ -138,11 +135,10 @@ const any = [edit('src/a.js')];
   fs.mkdirSync(noLedger, { recursive: true });
   fs.writeFileSync(path.join(noLedger, 'trace.log'), any.join('\n') + '\n');
   refused([range, '--slice', '01', '--root', noLedger], /holds no ledger\.md, so it is no run root/, 'a run root holding no ledger');
-}
+});
 
-// #tip-config: a tip whose verification configuration git lists but cannot show is refused by its own message; the trace holds slice
-// lines and no covering outcome, so no earlier verdict returns first. A tip with no verification document gives a verdict.
-{
+// A tip with no verification document gives a verdict.
+test('#tip-config: a tip whose verification configuration git lists but cannot show is refused by its own message; the trace holds slice lines and no covering outcome, so no earlier verdict returns first.', () => {
   assert.equal(verdict(repo, `${c0}..${c1}`, runOf(any)), 'missing', 'a tip with no verification document gives a verdict');
   const r5 = repoOf('tip-config');
   put(r5, 'src/a.js', 'a0\n');
@@ -156,10 +152,9 @@ const any = [edit('src/a.js')];
   const r = check(r5, `${base}..${tip}`, runOf(any));
   assert.ok(!r.ok, 'a tip configuration git cannot show is refused');
   assert.match(r.err, /could not read the tip's verification configuration/, 'the refusal names the unreadable configuration');
-}
+});
 
-// #first-parent: a merged-in base commit adds no change.
-{
+test('#first-parent: a merged-in base commit adds no change.', () => {
   const r2 = repoOf('merged');
   put(r2, 'src/a.js', 'a0\n');
   put(r2, 'checks/a.js', 'c0\n');
@@ -175,10 +170,9 @@ const any = [edit('src/a.js')];
   git(r2, 'merge', '-q', '--no-edit', 'main');
   const tip = git(r2, 'rev-parse', 'HEAD');
   assert.equal(verdict(r2, `${base}..${tip}`, runOf(any)), 'test-only', 'the merged-in src/a.js adds no change to the range');
-}
+});
 
-// #tip-rule: the test-path rule at the range's tip classes the files.
-{
+test('#tip-rule: the test-path rule at the range\'s tip classes the files.', () => {
   const r3 = repoOf('tip-rule');
   put(r3, 'checks/a.js', 'c0\n');
   const base = commit(r3, 'base, default test paths');
@@ -186,11 +180,9 @@ const any = [edit('src/a.js')];
   put(r3, 'docs/agents/verification.md', '# V\n\n## Test paths\n\n- `checks/`\n');
   const tip = commit(r3, 'the tip names checks/ as tests');
   assert.equal(verdict(r3, `${base}..${tip}`, runOf(any)), 'missing', 'by the tip\'s rule checks/a.js is a test beside the code change in verification.md');
-}
+});
 
-// #gaps: an empty trace and a range with no change event print a reason, never missing; an unknown window is refused by name; no
-// file of the run root changes.
-{
+test('#gaps: an empty trace and a range with no change event print a reason, never missing; an unknown window is refused by name; no file of the run root changes.', () => {
   const empty = runOf([]);
   const before = Object.fromEntries(fs.readdirSync(empty).map((f) => [f, fs.readFileSync(path.join(empty, f), 'utf8')]));
   const e = verdict(repo, `${c0}..${c1}`, empty);
@@ -200,11 +192,9 @@ const any = [edit('src/a.js')];
   assert.ok(!w.ok && /nope/.test(w.err), 'an unknown window is refused by name');
   const after = Object.fromEntries(fs.readdirSync(empty).map((f) => [f, fs.readFileSync(path.join(empty, f), 'utf8')]));
   assert.deepEqual(after, before, 'the verb changes no file in the run root');
-}
+});
 
-// #window: with --window only the lines every run of that dispatch covers decide, and a closing line in a later window still
-// closes the window's pass-to-pass.
-{
+test('#window: with --window only the lines every run of that dispatch covers decide, and a closing line in a later window still closes the window\'s pass-to-pass.', () => {
   const root = runOf([
     `${ts} 01 main dispatch superdev:implementer tu1 build -`,
     outcome(`${c1}..${c3}`, 'pass-to-pass', 'control=0,put-back=0'),
@@ -221,6 +211,5 @@ const any = [edit('src/a.js')];
   ]);
   assert.equal(verdict(repo, `${c0}..${c1}`, later, '--window', 'tu1'), `closed ${c0}..${c3} node tests/a.test.js`,
     'a fail-to-pass line in a later window from the same base to a newer tip closes the window\'s pass-to-pass');
-}
+});
 
-console.log('scope fail-to-pass-check tests ok');

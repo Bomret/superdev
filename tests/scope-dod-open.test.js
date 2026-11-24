@@ -4,6 +4,7 @@
 // (INV-0190), the stage hold, the `docs` filter, and the refusals. The verb only reads, so every case shares one
 // temporary directory of run roots.
 
+const { test } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -37,8 +38,7 @@ const matchFile = (text) => {
   return file;
 };
 
-// Each label with both checkbox states: the note decides open or settled, the box decides nothing.
-{
+test('Each label with both checkbox states: the note decides open or settled, the box decides nothing.', () => {
   const lines = listing(
     [
       '## Definition of Done',
@@ -72,10 +72,9 @@ const matchFile = (text) => {
     ].map((f) => f.join(T)),
     'each label reads open or settled by its note, with either checkbox state'
   );
-}
+});
 
-// Tags: single, several, a store ref, `scope`, `docs`, and none.
-{
+test('Tags: single, several, a store ref, `scope`, `docs`, and none.', () => {
   const lines = listing(
     [
       '## Definition of Done',
@@ -94,10 +93,9 @@ const matchFile = (text) => {
     ['01', '01, 02', '#259', 'scope', 'docs', '-', 'docs', '-'],
     'the tag column carries the tag as written, and `-` where the line has none'
   );
-}
+});
 
-// The repair citation: only a `not met:` note ending in the observed citation carries it.
-{
+test('The repair citation: only a `not met:` note ending in the observed citation carries it.', () => {
   const lines = listing(
     [
       '## Definition of Done',
@@ -113,10 +111,9 @@ const matchFile = (text) => {
     ['repair-citation', 'repair-citation', '-', '-', '-'],
     'a `not met:` note with the observed citation carries repair-citation; any other note does not'
   );
-}
+});
 
-// stage-hold: an open line other than `ceiling`, `accepted`, and `docs` holds the stage.
-{
+test('stage-hold: an open line other than `ceiling`, `accepted`, and `docs` holds the stage.', () => {
   const hold = (...criteria) =>
     dodOpen(['## Definition of Done', ...criteria].join('\n')).out.split('\n').pop();
   assert.equal(hold('- [x] a — 01 — met: e', '- [ ] b — 01 — accepted: r'), 'stage-hold: no', 'settled lines hold nothing');
@@ -126,10 +123,9 @@ const matchFile = (text) => {
   assert.equal(hold('- [x] a — 01'), 'stage-hold: yes', 'a bare tick holds the stage');
   assert.equal(hold('- [ ] a — 01, docs'), 'stage-hold: yes', 'a line tagged `01, docs` is no docs line');
   assert.equal(hold('- [ ] a — scope — not met: r'), 'stage-hold: yes', 'a scope line holds the stage');
-}
+});
 
-// --tag docs: every open docs line in either open shape, nothing else.
-{
+test('--tag docs: every open docs line in either open shape, nothing else.', () => {
   const body = [
     '## Definition of Done',
     '- [ ] a — docs — not met: r',
@@ -148,24 +144,21 @@ const matchFile = (text) => {
       .join('\n'),
     'the docs filter prints each open docs line and no settled, other-tagged, or stage-hold line'
   );
-}
+});
 
-// Only the Definition-of-Done section is read, and a fenced checkbox is no criterion.
-{
+test('Only the Definition-of-Done section is read, and a fenced checkbox is no criterion.', () => {
   const lines = listing(
     ['- [ ] outside — 01', '## Definition of Done', '- [ ] a — 01 — met: e', '```', '- [ ] fenced — 01', '```', '## Next', '- [ ] after'].join('\n')
   );
   assert.deepEqual(lines, ['settled\tmet\t01\t-\ta'], 'a line outside the section or inside a fence is no criterion');
-}
+});
 
-// A body whose only fence closer is tab-indented is unterminated.
-{
+test('A body whose only fence closer is tab-indented is unterminated.', () => {
   const r = dodOpen('## Definition of Done\n- [ ] a — 01\n```\n- [ ] fenced — 01\n\t```\n');
   assert.ok(!r.ok && /unterminated/.test(r.err) && r.out === '', 'a tab-indented closer leaves the fence open: ' + r.err);
-}
+});
 
-// Refusals and the no-criteria line.
-{
+test('Refusals and the no-criteria line.', () => {
   let r = call(['dod-open', '--root', runRoot()]);
   assert.ok(!r.ok && !r.exitCode && /dod\.md/.test(r.err) && r.out === '', 'a missing dod.md is refused: ' + r.err);
   r = call(['dod-open', '--root', path.join(dir, 'nope')]);
@@ -188,10 +181,9 @@ const matchFile = (text) => {
   assert.ok(!r.ok && r.out === '', 'a --tag with no value is refused');
   r = dodOpen('## Definition of Done\n- [ ] a\n', 'stray');
   assert.ok(!r.ok && /stray/.test(r.err) && r.out === '', 'a stray argument is refused: ' + r.err);
-}
+});
 
-// dod-open and dod-line agree on every line of the mod's fixtures.
-{
+test('dod-open and dod-line agree on every line of the mod\'s fixtures.', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'dod-fixtures.ts'), 'utf8');
   const pinned = (name) => JSON.parse(src.slice(src.indexOf(`/* ${name}:start */`) + name.length + 12, src.indexOf(`/* ${name}:end */`)));
   const open = src.slice(src.indexOf('DOD_OPEN_LINES'));
@@ -224,10 +216,9 @@ const matchFile = (text) => {
     ['not-met', 'not-met', 'met', 'met'],
     'a look-alike label inside the note leaves the leftmost label'
   );
-}
+});
 
-// The verb writes nothing: the run root and the git state stay as they were.
-{
+test('The verb writes nothing: the run root and the git state stay as they were.', () => {
   const { execFileSync } = require('node:child_process');
   const root = runRoot('## Definition of Done\n- [ ] a — 01\n');
   fs.writeFileSync(path.join(root, 'ledger.md'), 'Stage: implement\n');
@@ -241,11 +232,9 @@ const matchFile = (text) => {
   assert.equal(snap(), before, 'no ledger, trace, digest, or dod.md byte changes');
   assert.equal(git(), gitBefore, 'the git state is unchanged');
   assert.ok(!fs.existsSync(path.join(root, 'trace.log')), 'no trace line is written');
-}
+});
 
-// A note quoting another line's tag-and-verdict text keeps the line's own reading (F59), and a line
-// separator in a criterion or note still reads as a criterion line (F60).
-{
+test('A note quoting another line\'s tag-and-verdict text keeps the line\'s own reading (F59), and a line separator in a criterion or note still reads as a criterion line (F60).', () => {
   const dod = (...l) => ['## Definition of Done', '', ...l, ''].join('\n');
   const E1 = '- [ ] Retries are capped — not met: earlier note read "x — 3 — met: y"';
   const r = dodOpen(dod(E1));
@@ -257,6 +246,5 @@ const matchFile = (text) => {
   assert.deepStrictEqual(crit, [['open', 'not-met', '01', '-', 'A\u2028b'].join(T), ['open', 'not-met', '02', '-', 'C'].join(T)]);
   assert.ok(dodOpen(dod('- [ ] A — 01 — ceiling: n\u2028m')).out.endsWith('stage-hold: no'));
   assert.ok(dodOpen(dod('- [ ] A\u2028b — 01 — not met: n')).out.endsWith('stage-hold: yes'));
-}
+});
 
-console.log('scope-dod-open tests passed');
