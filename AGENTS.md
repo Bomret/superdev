@@ -136,7 +136,7 @@ end of this document names the files that own each subtree's contracts.
   another suite could also use. A breach shows as a suite that fails only when another runs beside it. A suite builds each fixture
   repository once per process and copies it per case. A suite expresses each case as `test(name, fn)` from `node:test`, with a
   name unique within the suite. Module scope holds only requires, fixture building, and helpers, and an `after()` hook
-  removes the suite's temporary directories. A case leaves `process.exitCode` as it found it, reaches no `process.exit`,
+  removes the suite's temporary directories. A suite's cases run only after all of its module-scope code has run. A case leaves `process.exitCode` as it found it, reaches no `process.exit`,
   and awaits every piece of async work it starts. A shared helper registers no case and no hook. Each `run-tests: <label>: <ms> ms` line is wall clock including the wait for a CPU,
   so time one suite alone with `time node tests/<suite>.test.js` (`scripts/AGENTS.md` → run-tests.js; measured on Node v26.12.1, about 90 s for the full run, in `docs/agents/verification.md`). No roster needs an edit when a suite is added. The runner then runs `invariant-check.js` against this repository's own register, `drift-check`'s own
   `--selftest`, `drift-check` itself, and `claude plugin validate ./plugin` as a manifest-validation
