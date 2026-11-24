@@ -1,10 +1,15 @@
 'use strict';
 
 // ci.js: the `ci` verb, a commit's check status judged against the **Named check**s the `## CI` section of that commit's
-// `docs/agents/verification.md` lists (ADR 0255, INV-0191). It reads and writes nothing of a run.
+// `docs/agents/verification.md` lists (ADR 0255, INV-0191), and its `--wait` form, the one bounded wait on those checks
+// through a code-host read script (ADR 0280, INV-0192). It reads and writes nothing of a run.
 
+const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 const { fail } = require('./refusal.js');
+const { drivePath } = require('./drive-path.js');
+const { endRun } = require('./run-supervision.js');
 const { resolveCommit, fileAt } = require('./git-spawn.js');
 const { takeOption, takeRootOption } = require('./options.js');
 const { namedChecksOf } = require('./verification.js');
@@ -34,12 +39,147 @@ function verbCi(cwd, args, input) {
   const sha = takeOption(args, '--sha', 'ci: ', (v) => v === '--root');
   const root = takeRootOption(args, 'ci: ');
   if (!sha) fail('ci needs --sha <sha>');
+  if (args.includes('--read')) fail('ci: --read needs --wait');
   if (args.length) fail(`ci: unrecognized argument "${args[0]}"`);
   const repo = root ? path.resolve(cwd, root) : cwd;
-  const judged = ciJudgment(repo, sha, input);
+  printJudgment(ciJudgment(repo, sha, input));
+}
+
+// Prints a judgment as the plain verb does, its verdict line then one line per named check that is not green, and sets its exit status.
+function printJudgment(judged) {
   console.log(`ci: ${judged.kind} ${judged.at}${judged.reason ? ' ' + judged.reason : ''}`);
   process.exitCode = EXIT[judged.kind];
   for (const s of judged.standing) console.log([s.kind, s.name, s.state, ...(s.link ? [s.link] : [])].join('\t'));
+}
+
+// The exit status of a wait whose reads failed three times in a row, and of a wait a signal stopped.
+const READ_FAILED_EXIT = 5;
+const STOPPED_EXIT = 6;
+const INTERVAL_MS = 30000;
+const READ_MAX_MS = 120000;
+const READ_MIN_MS = 10000;
+const FAILED_READS_CAP = 3;
+
+// One read: the script text, its `<sha>` placeholders already filled, run by `sh` as the leader of its own process
+// group, so `stop` ends the read and every child it started, and does nothing once the read closed. A read past
+// `boundMs` is ended the same way. Returns `{ promise, stop }`, `promise` resolving `{ ok, out, err }`: `ok` only for a
+// read that exited 0 on its own. Its output is buffered whole: a check report runs to a few lines per check.
+function runRead(script, cwd, boundMs) {
+  let child;
+  try {
+    child = spawn('sh', ['-c', script], { cwd, detached: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+  } catch (e) {
+    return { promise: Promise.resolve({ ok: false, out: '', err: `the read could not start: ${e.message}` }), stop: () => {} };
+  }
+  let out = '';
+  let err = '';
+  let killed = false;
+  let closed = false;
+  const stop = () => { if (!closed) { killed = true; endRun(child.pid); } };
+  const promise = new Promise((resolve) => {
+    child.stdout.on('data', (c) => (out += c));
+    child.stderr.on('data', (c) => (err += c));
+    const timer = setTimeout(stop, boundMs);
+    child.on('error', (e) => { err += `the read could not start: ${e.message}\n`; });
+    child.on('close', (code, signal) => {
+      closed = true;
+      clearTimeout(timer);
+      if (killed) err += `the read was ended at its ${Math.round(boundMs / 1000)} s bound\n`;
+      else if (code !== 0) err += err ? '' : `the read exited ${signal || code}\n`;
+      resolve({ ok: !killed && code === 0, out, err });
+    });
+  });
+  return { promise, stop };
+}
+
+// `ci --sha <sha> --wait --read <script> [--timeout <s>] [--root <path>]`: re-runs the read script every 30 s and judges
+// each read like the plain verb, ending at the first green, failed, or cannot-judge verdict, as soon as no named check is
+// pending or missing, or with one final read at the deadline (default 3600 s). Three failed reads in a row exit 5 on a
+// `ci: read-failed <sha>` line with that read's stderr; SIGTERM, SIGINT, or SIGHUP ends the running read's process
+// group, prints `ci: stopped <sha>`, and exits 6. Reads no stdin.
+async function verbCiWait(cwd, args) {
+  const sha = takeOption(args, '--sha', 'ci: ', (v) => v === '--root');
+  const root = takeRootOption(args, 'ci: ');
+  const readPath = takeOption(args, '--read', 'ci: ');
+  const timeoutText = takeOption(args, '--timeout', 'ci: ');
+  const wi = args.indexOf('--wait');
+  if (wi >= 0) args.splice(wi, 1);
+  if (!sha) fail('ci needs --sha <sha>');
+  if (!readPath) fail('ci: --wait needs --read <script>');
+  if (args.length) fail(`ci: unrecognized argument "${args[0]}"`);
+  if (timeoutText !== undefined && !/^[1-9][0-9]*$/.test(timeoutText)) fail(`ci: --timeout needs a positive whole number of seconds, not "${timeoutText}"`);
+  let scriptText;
+  try { scriptText = fs.readFileSync(path.resolve(cwd, drivePath(readPath)), 'utf8'); } catch (e) { fail(`ci: --read "${readPath}" cannot be read (${e.code || e.message})`); }
+  const repo = root ? path.resolve(cwd, root) : cwd;
+
+  // A head or a configuration that no read can change is judged before the first read.
+  const before = ciJudgment(repo, sha, '');
+  if (before.kind === 'cannot-judge') return printJudgment(before);
+  const commit = before.at;
+  if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(commit)) return printJudgment({ ...before, kind: 'cannot-judge', standing: [], reason: `(${sha} resolves to no full commit)` });
+  const script = scriptText.split('<sha>').join(commit);
+
+  let stopRead = null;
+  let wake = null;
+  let stopped = false;
+  const onSignal = () => {
+    stopped = true;
+    if (stopRead) stopRead();
+    if (wake) wake();
+  };
+  const SIGNALS = ['SIGTERM', 'SIGINT', 'SIGHUP'];
+  for (const s of SIGNALS) process.on(s, onSignal);
+  try {
+    const deadline = Date.now() + Number(timeoutText || 3600) * 1000;
+    let failedInRow = 0;
+    let lastJudged = null;
+    let final = false;
+    for (;;) {
+      const left = deadline - Date.now();
+      if (left <= 0) final = true;
+      const bound = Math.min(READ_MAX_MS, Math.max(READ_MIN_MS, left));
+      const running = runRead(script, repo, bound);
+      stopRead = running.stop;
+      const read = await running.promise;
+      stopRead = null;
+      if (stopped) break;
+      if (read.ok) {
+        failedInRow = 0;
+        const judged = ciJudgment(repo, commit, read.out);
+        lastJudged = judged;
+        const settled = judged.kind !== 'not-green' || !judged.standing.some((s) => s.kind === 'pending');
+        if (settled || final) return printJudgment(judged);
+      } else {
+        failedInRow += 1;
+        if (failedInRow >= FAILED_READS_CAP) {
+          console.log(`ci: read-failed ${commit}`);
+          if (read.err.trim()) console.log(read.err.trimEnd());
+          process.exitCode = READ_FAILED_EXIT;
+          return;
+        }
+        if (final && lastJudged) return printJudgment(lastJudged);
+        if (final) {
+          // No check report was read at all: the verdict names that, and the read's stderr says why.
+          printJudgment(ciJudgment(repo, commit, ''));
+          if (read.err.trim()) console.log(read.err.trimEnd());
+          return;
+        }
+      }
+      const remaining = deadline - Date.now();
+      const pause = Math.min(INTERVAL_MS, remaining);
+      if (pause >= remaining) final = true;
+      await new Promise((resolve) => {
+        const t = setTimeout(resolve, pause);
+        wake = () => { clearTimeout(t); resolve(); };
+      });
+      wake = null;
+      if (stopped) break;
+    }
+    console.log(`ci: stopped ${commit}`);
+    process.exitCode = STOPPED_EXIT;
+  } finally {
+    for (const s of SIGNALS) process.removeListener(s, onSignal);
+  }
 }
 
 // The judgment of the check-status `input` lines (`name<TAB>state[<TAB>link]`) for commit `sha` in `repo`, against the named
@@ -73,4 +213,4 @@ function ciJudgment(repo, sha, input) {
   return { ...verdict(name, commit, read ? '' : '(no check report read)'), standing };
 }
 
-module.exports = { verbCi, ciJudgment };
+module.exports = { verbCi, verbCiWait, ciJudgment };

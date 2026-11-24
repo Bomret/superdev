@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0280](0280-ship-waits-for-the-named-checks-through-one-bounded-verb.md), whose ship waits on CI.
+
 **Supersedes:** [ADR 0254](0254-the-scope-review-runs-its-full-suite-at-the-exit-alone.md), whose exit run is withdrawn.
 
 **Amends:** [ADR 0025](0025-the-scope-review-owns-the-full-suite-run.md) and

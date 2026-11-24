@@ -60,20 +60,33 @@ The check-status read below degrades the same way: print the exact `gh api` call
 
 ## Check status
 
-`/superdev:ship`, `/superdev:review`, and `/superdev:setup` read the latest check status of one commit through this
-call, and `scope.js ci` judges it against the named checks the `## CI` section of `docs/agents/verification.md` lists (ADR 0255).
-The read emits one `name<TAB>state<TAB>link` line per latest check run and per latest commit-status context, across
-every page:
+`/superdev:ship`, `/superdev:review`, and `/superdev:setup` read the latest check status of one commit through the
+read script below, and `scope.js ci` judges it against the named checks the `## CI` section of
+`docs/agents/verification.md` lists (ADR 0255). The script prints one `name<TAB>state<TAB>link` line per latest check
+run and per latest commit-status context, across every page. It writes every line to a temporary file first and prints
+the file only once both reads succeeded, so a failed `gh api` call exits non-zero and prints no line. `<sha>` stays in
+the script: whoever runs it fills it with the commit.
 
-- **Check runs**: `gh api --paginate 'repos/<owner>/<repo>/commits/<sha>/check-runs?per_page=100' --jq '.check_runs[] | [.name, (if .status == "completed" then .conclusion else .status end), (.html_url // .details_url // "")] | @tsv'`.
-  The endpoint's default `filter=latest` keeps the latest run per name, and `--paginate` follows every page.
-- **Commit statuses**: `gh api --paginate 'repos/<owner>/<repo>/commits/<sha>/status?per_page=100' --jq '.statuses[] | [.context, .state, (.target_url // "")] | @tsv'`.
-  The combined status holds the latest status per context.
-- **Read into a file, then judge.** `c=$(mktemp) && gh api … > "$c" && gh api … >> "$c" && node
-  "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <sha> < "$c"`. A pipe drops the read's exit status, so a failed
-  read would reach the verdict as empty input. No `gh`, no login, a 401, 403, or 404, or a network error ends the chain
-  at the failed read with its error: report it, and pass nothing to `scope.js ci`.
-- Nothing here waits for a check, re-reads it on a timer, or starts, re-runs, or cancels a CI run.
+```sh
+set -eu
+c=$(mktemp)
+trap 'rm -f "$c"' EXIT
+gh api --paginate 'repos/<owner>/<repo>/commits/<sha>/check-runs?per_page=100' --jq '.check_runs[] | [.name, (if .status == "completed" then .conclusion else .status end), (.html_url // .details_url // "")] | @tsv' > "$c"
+gh api --paginate 'repos/<owner>/<repo>/commits/<sha>/status?per_page=100' --jq '.statuses[] | [.context, .state, (.target_url // "")] | @tsv' >> "$c"
+cat "$c"
+```
+
+- **Check runs.** The endpoint's default `filter=latest` keeps the latest run per name, and `--paginate` follows
+  every page.
+- **Commit statuses.** The combined status holds the latest status per context.
+- **A single read.** Write the script to a file with `<sha>` replaced by the commit, run it with `sh` into a second
+  file, then judge: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <sha> < "$c"`. Judge only when the script
+  exited 0. A pipe drops the read's exit status, so a failed read would reach the verdict as empty input. No `gh`, no
+  login, a 401, 403, or 404, or a network error ends the read with its error: report it, and pass nothing to
+  `scope.js ci`.
+- **A waiting read.** Write the script, `<sha>` left in place, to a file, and hand it to `node
+  "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <sha> --wait --read <file>`, which fills `<sha>` itself.
+- The only wait is `scope.js ci --wait`, bounded. Nothing here starts, re-runs, or cancels a CI run.
 
 ## Edit the pull request body
 
