@@ -10,10 +10,10 @@ joined by hyphens there as a check id, and fails an id that the registry does no
 ### INV-0001
 
 Class: architecture
-Statement: No superdev command commits to the base branch, with one exception: `/superdev:ship`'s merge of the pull request through the host's merge API, pinned to the tested head (ADR 0096). Every other write a run makes lands on that run's own scope branch, in its own scopetree. No command merges or pushes to the base branch with local git. The only local-git write to the base branch is implement's ref-only fast-forward of the local base ref to the fetched remote tip, `git fetch . <tip>:refs/heads/<base>`, which git refuses when the base is checked out in any worktree or the update is not a fast-forward (ADR 0120).
+Statement: No superdev command commits to the base branch, with two exceptions: `/superdev:ship`'s merge of the pull request through the host's merge API, pinned to the tested head (ADR 0096), and `/superdev:setup`'s push offer, which commits and pushes only the configuration files that run wrote, and only when the operator chooses the current branch (ADR 0282). Every other write a run makes lands on that run's own scope branch, in its own scopetree. No other command merges or pushes to the base branch with local git. The only local-git write to the base branch is implement's ref-only fast-forward of the local base ref to the fetched remote tip, `git fetch . <tip>:refs/heads/<base>`, which git refuses when the base is checked out in any worktree or the update is not a fast-forward (ADR 0120).
 Concepts: Base branch, Scope branch, Scopetree, Run root
 Breaks: silently
-Check: scripts/drift-check.js `no-base-branch-commit` — no shipped prose instructs a commit to the base branch
+Check: scripts/drift-check.js `no-base-branch-commit` — no shipped prose instructs a commit to the base branch, other than the two admitted sites
 Paths: plugin/skills/**, plugin/references/**
 
 ### INV-0002

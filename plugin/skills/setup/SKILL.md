@@ -360,7 +360,7 @@ Applies to the full interview. Scan these before any decision:
 - **A file already at that path** → keep it, or replace it only after you show a diff against the draft and the operator confirms. Never overwrite it silently.
 - **Untracked inputs** are named by variable or file name only. Setup reads no `.env` value.
 - **Setup runs no step of the skill** (`references/verify-skill.md`'s `## Setup runs no step`).
-- **After the write**, setup commits nothing. When `git check-ignore -q <path>` matches, or `git status --porcelain -- <path>` lists it untracked or modified, warn and tell the operator to commit the skill and land it on the remote base, through their usual route such as a pull request, before `/superdev:implement`. Its base step merges the fetched remote base into the scope branch, so a local-only commit never reaches the scopetree.
+- **After the write**, the skill file joins §4's **The push offer**. When `git check-ignore -q <path>` matches, warn that the offer cannot carry it, and tell the operator to land it on the remote base, through their usual route such as a pull request, before `/superdev:implement`. Its base step merges the fetched remote base into the scope branch, so a local-only commit never reaches the scopetree.
 - A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
 
 ### F — Toolchain (optional)
@@ -558,6 +558,14 @@ The focused command selects every test a changed path can affect.
 - They can edit `docs/agents/*.md` directly.
 - A re-run switches backends or picks up what a newer release added, by reconciling each document with its seed (§3).
 - The operator file is theirs alone and travels with no clone, so a fresh checkout configures it again or falls back to the API token's own identity.
+
+**The push offer.** Applies at the end of every run that wrote or changed a tracked file: a `docs/agents/*.md` document, the `## Agent skills` block, `.gitignore`, or the verify skill. Ask with `AskUserQuestion`, listing the changed paths `git status --porcelain` reports for those files, and offer three choices.
+
+- **Push to a new branch** `(Recommended)`. Create `superdev-setup` from `HEAD`, with a numeric suffix when that name exists locally or on the remote. Commit, push with upstream tracking, and say that `/superdev:implement` reads the configuration from the remote base, so the branch lands there through the operator's usual route, such as a pull request, before the first run.
+- **Push to the current branch.** Commit on the checked-out branch and push it, the base branch included (INV-0001, ADR 0282). When that branch is not the base branch decision B confirmed, say the same as for a new branch.
+- **Leave uncommitted.** Write nothing more, and say the files stay in the working tree.
+
+The commit holds only the paths setup wrote this run, staged by name, with the message `chore(setup): configure superdev`. The operator file stays out of it. Push with the Bash tool's `timeout` set to `code-host.pushTimeoutMs` of the operator file, or 60000 milliseconds when unset. A failed commit or push is reported with git's output, and the commit stays local.
 
 **Secrets.** Applies to every write. Record only env-var **names** for secrets, never token values. The operator file holds identifiers, display names, and time bounds only.
 

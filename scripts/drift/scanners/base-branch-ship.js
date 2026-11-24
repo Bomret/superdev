@@ -34,6 +34,11 @@ const BASE_BRANCH_VERB = '\\b(?:commit(?:s|ted|ting)?|push(?:es|ed|ing)?|merge(?
 // still fails.
 const SHIP_MERGE_ADMIT_FILE = path.join('skills', 'ship', 'SKILL.md');
 const SHIP_MERGE_ADMIT_PATTERN = /host'?s merge API/i;
+// The second admitted site: `/superdev:setup`'s push offer, which commits its own configuration files to the
+// current branch on the operator's choice, the base branch included (ADR 0282). Admitted the same way, by file
+// AND by the ADR citation within reach forward of the match.
+const SETUP_PUSH_ADMIT_FILE = path.join('skills', 'setup', 'SKILL.md');
+const SETUP_PUSH_ADMIT_PATTERN = /\bADR 0282\b/;
 const CODE_MANAGEMENT_DOC = path.join('docs', 'agents', 'code-management.md');
 // Sticky (`y`): the scan sets `lastIndex` to each verb position in turn and matches there, so every verb
 // in a window is tried as a start, one inside an earlier match's lazy span included.
@@ -92,6 +97,7 @@ function scanNoBaseBranchCommit(root) {
     for (const rel of files) {
       const source = path.join(dir, rel).split(path.sep).join('/');
       const isShipMergeAdmitFile = source === SHIP_MERGE_ADMIT_FILE;
+      const isSetupPushAdmitFile = source === SETUP_PUSH_ADMIT_FILE;
       const text = fs.readFileSync(path.join(dirPath, rel), 'utf8');
       const masked = maskFences(text);
       const lines = masked.split('\n');
@@ -126,6 +132,7 @@ function scanNoBaseBranchCommit(root) {
             // Tested against the whole document from the match's own absolute offset forward, never
             // against `window` alone: the admission wording can sit just past the window's edge.
             if (isShipMergeAdmitFile && SHIP_MERGE_ADMIT_PATTERN.test(masked.slice(absIndex, absIndex + 200))) continue;
+            if (isSetupPushAdmitFile && SETUP_PUSH_ADMIT_PATTERN.test(masked.slice(absIndex, absIndex + 200))) continue;
             reportedAt.add(targetEnd);
             const lineOffset = window.slice(0, match.index).split('\n').length - 1;
             gaps.push({ source, line: i + 1 + lineOffset });
