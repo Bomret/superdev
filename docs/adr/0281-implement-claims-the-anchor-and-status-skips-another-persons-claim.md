@@ -9,9 +9,10 @@ whoever implements. An anchor planned with `"assignee": "none"` names nobody.
 
 **Decision.** The anchor's assignee is the **Claim**. `/superdev:status` puts an anchor claimed by someone else in a
 `claimed` bucket that is never the recommended move. `/superdev:implement`, before it creates or adopts a run, stops
-on an anchor claimed by someone else and asks. Under `--unattended` it blocks. Otherwise, or on a yes, once the run's
-ledger stands, it replaces the assignees of the anchor and every open slice beneath it with the operator. A store
-document lacking the calls this needs skips the check and the claim with a gap line naming the `/superdev:setup` re-run.
+on an anchor claimed by someone else and asks. Under `--unattended` it blocks. Otherwise, or on a yes, it reads the
+anchor's assignees again just before it writes the ledger. It asks again when someone else now holds an assignee set it
+did not judge. Once the run's ledger stands, it replaces the assignees of the anchor and every open slice beneath it
+with the operator. A store document lacking the calls this needs skips the check and the claim with a gap line naming the `/superdev:setup` re-run.
 
 **Considered options.**
 
@@ -22,5 +23,6 @@ document lacking the calls this needs skips the check and the claim with a gap l
 - **Status only.** Rejected: `/superdev:implement <feature-label>` is reachable without running status first.
 
 **Consequences.** `/superdev:implement` writes to the slice store's assignees, which it never did before. Two
-operators starting the same unassigned anchor within the same moment can both claim it. The claim narrows that race
-to the seconds between the read and the write. Nothing closes it.
+operators starting the same unassigned anchor within the same moment can both claim it. The second read narrows
+that race to the time between it and the write. That time covers the ledger write and, on an adopted run, the bounded
+run-state fetch. Nothing closes it: no store offers a conditional assignee write.

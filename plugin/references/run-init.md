@@ -42,13 +42,14 @@ operator's own run past planning, so this step reads no assignee and writes none
 
 **Read the claim.** Applies to every run this step covers. Resolve the operator and read the scope anchor's assignees
 per `assignee.md`'s `## Claim`, through `docs/agents/issue-tracker.md`'s `## Claim` calls. This step writes nothing:
-step 8 writes the claim once the ledger stands.
+step 8 writes the claim once the ledger stands, as step 7's **Read the claim again** decides.
 
 - **Claimed by someone else** → stop before this run creates a run root or a branch, name the assignees, and ask
   whether to implement the feature anyway. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`, naming
   them. An empty argument whose one candidate is claimed reaches the same stop.
 - **The operator among the assignees** → step 8 writes nothing. Continue.
-- **Unassigned, or a yes to take it over** → carry it to step 8, and continue.
+- **Unassigned, or a yes to take it over** → carry it to step 8, subject to step 7's **Read the claim again**, and
+  continue.
 - **A gap** (`assignee.md`'s **A gap means no check**) → step 8 writes nothing. Continue.
 
 ### 4. The run root
@@ -98,6 +99,20 @@ checkable, to `<run-root>/dod.md` through a quoted heredoc (`<<'SUPERDEV_TEXT_EO
   criterion line, so write it first.
 
 ### 7. Create the ledger
+
+**Read the claim again.** Applies to a claim step 3 carried to step 8, an unassigned anchor or a yes, with or without
+`"assignee": "none"` configured, before any branch below writes, adopts, rotates over `closed`, re-inits, or runs
+`stage set implementing` on the ledger. Read the scope anchor's assignees again through the read call step 3 used
+(`assignee.md`'s **Read an issue's assignees**), and compare them with the set step 3 judged per `assignee.md`'s
+**Comparing identities**, as a set, order and login case ignored. This read decides what step 8 writes.
+
+- **The set step 3 judged, or unassigned** → step 8 writes as step 3 carried it. Continue.
+- **The operator among the assignees** → step 8 writes nothing. Continue.
+- **Someone else, in a set step 3 did not judge** → step 3's **Claimed by someone else** question, or its
+  `--unattended` block. A yes carries to step 8 with no third read. A no or a block stops before this step touches the
+  ledger, and names what steps 4 to 6 left: the run root, `dod.md`, and any design-doc commit step 5 made. A later
+  implement on the feature reaches step 3 again.
+- **A failed read** → `assignee.md`'s **A gap means no check**: step 8 writes nothing. Continue.
 
 **Create the ledger.** Applies to every run. Read `<run-root>/ledger.md`'s presence and take the matching branch
 below. `scope.js` owns the ledger schema (`run-state.md`'s `## The ledger`).
@@ -192,7 +207,9 @@ write made any other way as a `tamper` line.
 
 ### 8. Write the claim
 
-**Write the claim.** Applies once the ledger stands, to an anchor step 3 found unassigned and to a yes there. With
+**Write the claim.** Applies once the ledger stands. Step 8 writes for an anchor step 3 found unassigned, for a yes at step 3, and
+for a yes at step 7's **Read the claim again**. It writes nothing when that re-read finds the operator among the
+assignees or fails. With
 `"assignee": "none"` configured, no claim is written. Otherwise run **Replace an issue's assignees** with the operator
 on the scope anchor and on every open slice beneath it, a single-slice anchor written once, and leave a closed slice as
 it is. Name each assignee the write displaced in the report. A failed replace follows `assignee.md`'s **A replace is
