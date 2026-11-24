@@ -88,9 +88,9 @@ c=$(mktemp); r=$(mktemp); h=$(mktemp)
 trap 'rm -f "$c" "$r" "$h"' EXIT
 p=1
 while :; do
-  tea api -i --login <login> --repo <owner>/<repo> "/repos/{owner}/{repo}/commits/<sha>/status?page=$p&limit=50" > "$r" 2> "$h"
+  tea api -i --login <login> --repo <owner>/<repo> "/repos/{owner}/{repo}/commits/<sha>/status?page=$p&limit=50" > "$r" 2> "$h" || { cat "$h" >&2; exit 1; }
   grep -Eq '^HTTP/[0-9.]+ 200([^0-9]|$)' "$h" || { cat "$h" >&2; exit 1; }
-  jq -r '.statuses[] | [.context, .status, (.target_url // "")] | @tsv' "$r" >> "$c"
+  jq -r '(.statuses // [])[] | [.context, .status, (.target_url // "")] | @tsv' "$r" >> "$c"
   [ "$(jq '.statuses | length' "$r")" -lt 50 ] && break
   p=$((p + 1))
 done
@@ -100,7 +100,9 @@ cat "$c"
 - **The combined status.** It holds the latest status per context. The raw `/statuses` list holds every status ever
   posted, and is never read here.
 - **The HTTP status.** `tea api` exits 0 on a 4xx or 5xx answer, so the script reads the status line `-i` writes to
-  `"$h"`: anything but 200 is a failed read, which prints the answer on stderr and exits 1.
+  `"$h"`: anything but 200 is a failed read, which prints the answer on stderr and exits 1. A `tea api` call that
+  exits non-zero itself fails the read the same way, its error printed on stderr.
+- **No statuses.** A commit with none can answer `"statuses": null`, which the script reads as an empty list.
 - **The state.** A Forgejo commit status names its state `status`, one of `pending`, `success`, `error`, `failure`,
   `warning`, or `skipped`.
 - **Paging.** The script reads from page 1 until a page returns fewer than 50 statuses.
