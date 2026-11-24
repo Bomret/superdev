@@ -5,6 +5,7 @@
 // `classifyBackend` against stubbed `gh`, `tea`, and `curl` commands and a local wiki repository,
 // pinning which exit code each template produces.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -20,6 +21,11 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
 // run through the same pins.
 // The values file a backend command takes as `$1`, written under a directory this suite removes at its end.
 const valuesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-values-templates-'));
+const made = [];
+after(() => {
+  fs.rmSync(valuesDir, { recursive: true, force: true });
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 let valuesCount = 0;
 function valuesFile(values) {
   const file = path.join(valuesDir, `values-${valuesCount++}.json`);
@@ -38,6 +44,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   // stderr and the body to stdout. With TEA_STUB_PAGE_DIR set, a listing call answers the files
   // `<page>.body` and `<page>.status` there, `<page>` read from the URL's `page=` parameter.
   const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tea-stub-'));
+  made.push(stubDir);
   fs.writeFileSync(path.join(stubDir, 'tea'),
     '#!/bin/sh\n' +
     'if [ "$1" = login ]; then printf "%s" "$TEA_STUB_LOGINS"; exit 0; fi\n' +
@@ -258,6 +265,7 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   assert.doesNotMatch(realDoc, /GITEA_TOKEN|GH_TOKEN|GITHUB_TOKEN|Authorization|curl/, 'the knowledge-base config names no token env var, header, or curl');
 
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'gh-wiki-'));
+  made.push(work);
   const bare = path.join(work, 'wiki.git');
   const git = (args, cwd = work) => {
     const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -408,7 +416,8 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   }
   fs.rmSync(work, { recursive: true, force: true });
 }
-{
+
+test('this repository\'s own GitHub wiki templates clone, change, and push the wiki repository, and the filled GitHub wiki seed yields them', () => {
   const realDoc = fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'knowledge-base.md'), 'utf8');
   pinGithubWikiTemplates(realDoc, 'github.com', 'Bomret/superdev');
   const seedPath = path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-github-wiki.md');
@@ -424,8 +433,9 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   assert.ok(seed.includes('https://<host>/<owner>/<repo>/wiki/{sub_url}'), 'the seed carries the link line form under the wiki URL');
   assert.ok(filled.includes('https://git.example.org/acme/widgets/wiki/{sub_url}'), 'the filled seed link line names the host and repository');
   assert.doesNotMatch(seed, /GH_TOKEN|GITHUB_TOKEN|Authorization|curl/, 'the seed names no token env var, header, or curl');
-}
-{
+});
+
+test('the filled Forgejo seed names its host and repository only through the placeholders and pins its templates', () => {
   const seed = fs.readFileSync(path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-forgejo.md'), 'utf8');
   const filled = seed.replaceAll('<host>', 'https://forgejo.example.org').replaceAll('<owner>/<repo>', 'acme/widgets');
   assert.doesNotMatch(filled, /<host>|<owner>|<repo>|bomret\/superdev/, 'the seed names its host and repository only through the placeholders');
@@ -434,11 +444,9 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   assert.ok(seed.includes('- [<title>](<host>/<owner>/<repo>/wiki/{sub_url}): <one line>'), 'the seed carries the link line form under the wiki URL');
   assert.ok(seed.includes('-X PATCH -F has_wiki=true /repos/<owner>/<repo>'), 'the seed gives the re-enable command');
   assert.match(seed, /Gitea/, 'the seed names Gitea');
-}
+});
 
-// --- the real `### read` template in plugin/references/knowledge-base-confluence.md prints the -------
-// live storage-format body on stdout (ADR 0094, INV-0091, triage #677), never JSON.
-{
+test('the real `### read` template in plugin/references/knowledge-base-confluence.md prints the live storage-format body on stdout (ADR 0094, INV-0091, triage #677), never JSON.', () => {
   const confluenceDoc = fs.readFileSync(
     path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-confluence.md'),
     'utf8',
@@ -447,6 +455,7 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   assert.ok(readTemplate, 'the Confluence seed configures a read template');
 
   const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'curl-stub-'));
+  made.push(stubDir);
   fs.writeFileSync(path.join(stubDir, 'curl'), '#!/bin/sh\nprintf "%s" "$CURL_STUB_BODY"\n', { mode: 0o755 });
 
   function runReadTemplate(body) {
@@ -470,6 +479,5 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   assert.notEqual(malformed.status, 0, 'a jq parse failure must not answer 0 with no body');
 
   fs.rmSync(stubDir, { recursive: true, force: true });
-}
+});
 
-console.log('publish-kb-templates.test.js: all assertions passed');

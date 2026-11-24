@@ -59,10 +59,11 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   scripts/             — the runtime CLIs, entry points over `lib/`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable, named for it, plus a suite for a module or a
-                         maintainer-only script where one is named for it; framework-free `node:assert`,
-                         run under `node` by `node scripts/run-tests.js` (ADR 0059). A large entry point's
-                         suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
-                         `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151). A file that does not
+                         maintainer-only script where one is named for it; named `node:test` cases that
+                         assert with `node:assert`, run under `node` by `node scripts/run-tests.js`
+                         (ADR 0059). A large entry point's suite is split flat by topic into
+                         `tests/<entry>-<topic>.test.js` over one `<entry>-setup.js` that is no suite
+                         (ADR 0139, ADR 0151). A file that does not
                          end in `.test.js` is a shared helper, and its header comment states what it provides
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification, deployment)
@@ -133,7 +134,10 @@ end of this document names the files that own each subtree's contracts.
   `os.availableParallelism()` reports, so a suite must share no mutable state with another. A suite writes only inside a
   temporary directory it created itself, reads the repository's files without writing them, and uses no fixed path
   another suite could also use. A breach shows as a suite that fails only when another runs beside it. A suite builds each fixture
-  repository once per process and copies it per case. Each `run-tests: <label>: <ms> ms` line is wall clock including the wait for a CPU,
+  repository once per process and copies it per case. A suite expresses each case as `test(name, fn)` from `node:test`, with a
+  name unique within the suite. Module scope holds only requires, fixture building, and helpers, and an `after()` hook
+  removes the suite's temporary directories. A suite's cases run only after all of its module-scope code has run. A case leaves `process.exitCode` as it found it. A case reaches no `process.exit`.
+  A case awaits every piece of async work it starts. A shared helper registers no case and no hook. Each `run-tests: <label>: <ms> ms` line is wall clock including the wait for a CPU,
   so time one suite alone with `time node tests/<suite>.test.js` (`scripts/AGENTS.md` → run-tests.js; measured on Node v26.12.1, about 90 s for the full run, in `docs/agents/verification.md`). No roster needs an edit when a suite is added. The runner then runs `invariant-check.js` against this repository's own register, `drift-check`'s own
   `--selftest`, `drift-check` itself, and `claude plugin validate ./plugin` as a manifest-validation
   gate. A suite that commits in a fixture repository sets `commit.gpgsign=false`, `maintenance.auto=false`, and

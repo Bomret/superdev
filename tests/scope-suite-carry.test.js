@@ -3,14 +3,14 @@
 // Suite for plugin/scripts/scope.js's `suite reusable` carry across Markdown-only commits (ADR 0128, INV-0017): a green
 // record at R carries to a tip T when every path changed since R is Markdown and no run at T failed.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const { scopePath, call, gitOut: g, head, commitAll, fixtureRepo } = require('./scope-setup');
 const { appendTrace } = require(scopePath);
 
-// --- suite reusable: a green record carries across Markdown-only commits (ADR 0128, INV-0017) ----
-{
+test('suite reusable: a green record carries across Markdown-only commits (ADR 0128, INV-0017)', () => {
   const callIn = (argv, cwd) => call(argv, '', cwd);
   const traceRun = (rt, kind, result, sha, tree) => appendTrace(rt, { kind: 'run', fields: [kind, result, sha, tree] });
 
@@ -192,4 +192,4 @@ const { appendTrace } = require(scopePath);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
-}
+});

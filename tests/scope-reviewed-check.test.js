@@ -6,6 +6,7 @@
 // CLI with a `git` wrapper first on PATH, built in the fixture, that answers one call its own way and hands every other
 // to the real git.
 
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -36,8 +37,14 @@ const template = templateOnce((dir) => {
   assert.strictEqual(r.status, 0, 'fixture init: ' + r.stderr);
 }, 'scope-reviewed-check-');
 
+const made = [];
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 const fresh = () => {
   const repo = copyFixture(template(), 'scope-reviewed-check-case-');
+  made.push(repo, path.join(repo, '..', path.basename(repo) + '-bin'));
   const root = path.join(repo, '.superdev', 'scopes', 'demo');
   const sc = (argv, env) => {
     const r = spawnSync(process.execPath, [scopePath, ...argv], { cwd: repo, encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL', env: env || process.env });
@@ -56,12 +63,11 @@ const fresh = () => {
   return { repo, root, sc, rev, set, check };
 };
 
-// --- a recorded ancestor tip, unchanged criteria, and a recent git: the delta since that tip ------------------------
-{
+test('a recorded ancestor tip, unchanged criteria, and a recent git: the delta since that tip', () => {
   const f = fresh();
   f.set('feat/demo~1');
   assert.strictEqual(f.check(), `delta ${f.rev('feat/demo~1')} ${f.rev('main')}`, 'delta <recorded sha> <old range base>');
-}
+});
 
 const ledgerFile = (f) => path.join(f.root, 'ledger.md');
 const runFiles = (f) => ['ledger.md', 'trace.log', 'digest.json'].map((n) => (fs.existsSync(path.join(f.root, n)) ? fs.readFileSync(path.join(f.root, n), 'utf8') : null));
@@ -82,15 +88,13 @@ const wrapped = (f, { version, failSub }) => {
   return { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` };
 };
 
-// --- the branch tip equals the recorded tip: unchanged ---------------------------------------------------------
-{
+test('the branch tip equals the recorded tip: unchanged', () => {
   const f = fresh();
   f.set();
   assert.strictEqual(f.check(), `unchanged ${f.rev('feat/demo')}`, 'unchanged <recorded sha>');
-}
+});
 
-// --- each reason the record no longer holds reads the whole range, with its own reason, and writes nothing --------
-{
+test('each reason the record no longer holds reads the whole range, with its own reason, and writes nothing', () => {
   const cases = [
     ['no-record', () => {}],
     ['unreadable-record', (f) => { f.set('feat/demo~1'); writeRecord(f, 'not a record'); }],
@@ -127,10 +131,9 @@ const wrapped = (f, { version, failSub }) => {
     assert.strictEqual(r.stdout, `whole ${reason}\n`, `${reason}: one whole line naming the reason`);
     assert.deepStrictEqual(runFiles(f), before, `${reason}: no ledger change, no trace event, no digest seal`);
   }
-}
+});
 
-// --- a recorded tip reachable only through a second parent is no first-parent ancestor: rewritten -----------------
-{
+test('a recorded tip reachable only through a second parent is no first-parent ancestor: rewritten', () => {
   const f = fresh();
   git(f.repo, 'switch', '-q', '-c', 'side');
   fs.writeFileSync(path.join(f.repo, 's.txt'), 's\n');
@@ -144,29 +147,26 @@ const wrapped = (f, { version, failSub }) => {
   assert.strictEqual(f.check(), 'whole rewritten', 'an ancestor off the first-parent chain reads as rewritten');
   f.set('feat/demo~1');
   assert.strictEqual(f.check(), `delta ${f.rev('feat/demo~1')} ${f.rev('main')}`, 'its first-parent neighbour still reads as a delta');
-}
+});
 
-// --- the old range base: the recorded Base where it is an ancestor of the recorded tip, else the merge-base ---------
-{
+test('the old range base: the recorded Base where it is an ancestor of the recorded tip, else the merge-base', () => {
   const f = fresh();
   f.set('feat/demo~1');
   assert.strictEqual(f.sc(['base', 'set', 'feat/demo~1', '--root', f.root]).status, 0, 'base set at the recorded tip');
   assert.strictEqual(f.check(), `delta ${f.rev('feat/demo~1')} ${f.rev('feat/demo~1')}`, 'a recorded Base that is an ancestor of the recorded tip is the old range base');
   assert.strictEqual(f.sc(['base', 'set', 'feat/demo', '--root', f.root]).status, 0, 'base set past the recorded tip');
   assert.strictEqual(f.check(), `delta ${f.rev('feat/demo~1')} ${f.rev('main')}`, 'a recorded Base past the recorded tip gives way to the merge-base');
-}
+});
 
-// --- a vendor-suffixed git version reads as its numbers -----------------------------------------------------------
-{
+test('a vendor-suffixed git version reads as its numbers', () => {
   for (const version of ['git version 2.39.3 (Apple Git-146)', 'git version 2.45.1.windows.1']) {
     const f = fresh();
     f.set('feat/demo~1');
     assert.strictEqual(f.check(wrapped(f, { version })), `delta ${f.rev('feat/demo~1')} ${f.rev('main')}`, `${version} is recent enough`);
   }
-}
+});
 
-// --- the delta and unchanged verdicts write nothing either -------------------------------------------------------
-{
+test('the delta and unchanged verdicts write nothing either', () => {
   const f = fresh();
   f.set('feat/demo~1');
   const before = runFiles(f);
@@ -176,4 +176,4 @@ const wrapped = (f, { version, failSub }) => {
   const mid = runFiles(f);
   assert.match(f.check(), /^unchanged /, 'unchanged');
   assert.deepStrictEqual(runFiles(f), mid, 'unchanged writes nothing');
-}
+});

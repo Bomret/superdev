@@ -2,6 +2,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
+const { test } = require('node:test');
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `test` verb, a SIGTERM at the first moment the command is alive (ADR 0127, INV-0117,
@@ -11,4 +12,6 @@ require('./fixture-git');
 
 const { firstMoment } = require('./scope-setup');
 
-firstMoment('TERM');
+test('A SIGTERM at the first moment the command is alive leaves no process of its group running', () => {
+  firstMoment('TERM');
+});

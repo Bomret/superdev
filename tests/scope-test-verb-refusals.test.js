@@ -2,6 +2,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
+const { test, after } = require('node:test');
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `test` verb, what it refuses: the free-command form, run-field options, and an
@@ -12,21 +13,26 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { testVerbFixture } = require('./scope-setup');
 
-const { D, root, S, verif, sh, verb, lines, reset, end } = testVerbFixture();
-try {
-  verif('echo FULLRAN', 'echo FOCUSED {paths}', 'echo WHOLERAN');
+after(() => {
+  end();
+});
 
-  // `test path <file>... -- <command>` runs the command as given and records one path run (ADR 0227).
+const { D, root, S, verif, sh, verb, lines, reset, end } = testVerbFixture();
+verif('echo FULLRAN', 'echo FOCUSED {paths}', 'echo WHOLERAN');
+
+let r;
+test('`test path <file>... -- <command>` runs the command as given and records one path run (ADR 0227).', () => {
   reset();
-  let r = verb(['path', 'services/x/tests/a.bats', '--', 'bats', 'services/x/tests/a.bats']);
+  r = verb(['path', 'services/x/tests/a.bats', '--', 'bats', 'services/x/tests/a.bats']);
   assert.equal(r.status, 0, r.stderr);
   assert.match(lines()[0], /^03 main run path pass [0-9a-f]{40} clean services\/x\/tests\/a\.bats bats\\x20services\/x\/tests\/a\.bats \.$/, 'a path run records its file, its command, and the root');
   reset();
   r = verb(['path', 'services/x/tests/a.bats', '--', 'echo hi; exit 3']);
   assert.equal(r.status, 3, 'a failing command exits with its own status');
   assert.match(lines()[0], / run path fail /, 'and records fail');
+});
 
-  // No file, no `--`, or no command is refused and runs nothing; the old form names `test path`.
+test('No file, no `--`, or no command is refused and runs nothing; the old form names `test path`.', () => {
   reset();
   for (const argv of [['path', '--', 'echo', 'RAN'], ['path', 'a.bats', 'echo', 'RAN'], ['path', 'a.bats', '--'], ['path'], ['path', '--'], ['path', '', '--', 'echo', 'RAN'], ['path', 'a.bats', '', '--', 'echo', 'RAN']]) {
     r = verb(argv);
@@ -37,15 +43,17 @@ try {
   assert.notEqual(r.status, 0, 'files-less `test --` is refused');
   assert.match(r.stderr, /test path <file>… -- <command>/, 'the refusal names the new form');
   assert.deepEqual(lines(), [], 'and nothing is recorded');
+});
 
-  // A command `sh` cannot start exits 127, naming the failure, and records nothing.
+test('A command `sh` cannot start exits 127, naming the failure, and records nothing.', () => {
   reset();
   r = verb(['full'], { env: { PATH: '' } });
   assert.equal(r.status, 127, 'a missing sh exits 127');
   assert.match(r.stderr, /test: cannot run sh: /, 'and says so');
   assert.deepEqual(lines(), [], 'and records nothing');
+});
 
-  // A run line that cannot be written says so and leaves the command's own exit status.
+test('A run line that cannot be written says so and leaves the command\'s own exit status.', () => {
   reset();
   const traceDir = path.join(root, 'trace.log');
   fs.mkdirSync(traceDir);
@@ -57,8 +65,9 @@ try {
   } finally {
     fs.rmdirSync(traceDir);
   }
+});
 
-  // No option sets outcome, kind, slice, or tree state.
+test('No option sets outcome, kind, slice, or tree state.', () => {
   reset();
   for (const argv of [['--outcome', 'pass', 'full'], ['full', '--kind', 'whole'], ['--slice', '01', 'full'], ['bogus']]) {
     assert.notEqual(verb(argv).status, 0, argv.join(' ') + ' is refused');
@@ -67,9 +76,10 @@ try {
   const usage = require('../plugin/lib/usage.js').usage().split('\n').filter((l) => /^ {2}test\b/.test(l)).join('\n');
   assert.ok(usage, 'usage lists the verb');
   assert.ok(!/--(outcome|kind|slice|tree|status|root)/.test(usage), 'its usage names no option that sets a run field');
+});
 
-  // A focused argument holding several whitespace-joined paths is refused before anything runs: the command would read it
-  // as one path, select nothing, and pass. An argument with whitespace that names an existing file is one path.
+// An argument with whitespace that names an existing file is one path.
+test('A focused argument holding several whitespace-joined paths is refused before anything runs: the command would read it as one path, select nothing, and pass.', () => {
   reset();
   r = verb(['focused', 'AGENTS.md services/x/tests/a.bats ']);
   assert.notEqual(r.status, 0, 'a whitespace-joined path list is refused');
@@ -83,8 +93,9 @@ try {
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /FOCUSED has space\.md/, 'an existing file with a space in its name runs');
   fs.rmSync(path.join(S, 'has space.md'));
+});
 
-  // An unconfigured kind is refused, naming the missing command.
+test('An unconfigured kind is refused, naming the missing command.', () => {
   const root2 = path.join(D, '.superdev', 'scopes', 'bare');
   const S2 = path.join(root2, 'slicetrees', '01');
   fs.mkdirSync(S2, { recursive: true });
@@ -97,6 +108,4 @@ try {
   r = verb(['whole']);
   assert.match(r.stderr, /no whole command/, 'a missing whole command is named');
   assert.equal(fs.existsSync(path.join(root2, 'trace.log')), false);
-} finally {
-  end();
-}
+});

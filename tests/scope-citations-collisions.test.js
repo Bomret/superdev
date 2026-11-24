@@ -4,19 +4,25 @@
 // added, and a numbering collision, each found by number and never by a git conflict. Each case builds its own git
 // repository, so the suite needs only the `scope.js` path and `findCollisions`.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 const { scopePath } = require('./scope-setup');
 const { findCollisions } = require(scopePath);
 
-// --- citations: a citation of an old number the range added, found by number (ADR 0156, INV-0134) ---
-{
+test('citations: a citation of an old number the range added, found by number (ADR 0156, INV-0134)', () => {
   const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-citations-')));
+  made.push(repo);
   const put = (file, text) => {
     fs.mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
     fs.writeFileSync(path.join(repo, file), text);
@@ -108,6 +114,7 @@ const { findCollisions } = require(scopePath);
   assert.deepEqual(lines(res), ['b.bin:1 0131'], 'a citation inside a binary file is reported');
   // diff.submodule=diff prints a submodule's own changes inline; a citation added inside a submodule is no line of this repository.
   const subRepo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-citations-sub-')));
+  made.push(subRepo);
   g(['init', '-q', '-b', 'main'], subRepo);
   g(['config', 'user.email', 'test@example.com'], subRepo);
   g(['config', 'user.name', 'test'], subRepo);
@@ -145,12 +152,12 @@ const { findCollisions } = require(scopePath);
   assert.equal(g(['status', '--porcelain'], repo), '', 'the verb leaves the working tree clean');
   fs.rmSync(repo, { recursive: true, force: true });
   fs.rmSync(subRepo, { recursive: true, force: true });
-}
+});
 
-// --- collisions: a numbering collision found by number, never by a git conflict (ADR 0126, INV-0134) ---
-{
+test('collisions: a numbering collision found by number, never by a git conflict (ADR 0126, INV-0134)', () => {
   const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-collisions-')));
+  made.push(repo);
   const put = (file, text) => {
     fs.mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
     fs.writeFileSync(path.join(repo, file), text);
@@ -270,6 +277,7 @@ const { findCollisions } = require(scopePath);
 
   // A repository with no ADR directory and no invariant register has nothing to compare.
   const bare = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-collisions-bare-')));
+  made.push(bare);
   g(['init', '-q', '-b', 'main'], bare);
   g(['config', 'user.email', 'test@example.com'], bare);
   g(['config', 'user.name', 'test'], bare);
@@ -283,6 +291,7 @@ const { findCollisions } = require(scopePath);
   // A fresh fork for the edge cases: `scope` and `main` each diverge from `fork` once.
   const edge = (fork, onScope, onBase) => {
     const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-collisions-edge-')));
+    made.push(dir);
     const write = (file, text) => {
       fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
       fs.writeFileSync(path.join(dir, file), text);
@@ -397,4 +406,4 @@ const { findCollisions } = require(scopePath);
   // An invariant entry the scope took in from base, read against a stale range base, is no collision.
   const inv = (id, text) => (d, w) => w('docs/invariants.md', `### INV-0001\n\nStatement: 1.\n${id ? `\n### INV-${id}\n\n${text}\n` : ''}`);
   assert.deepEqual(edge(inv(), inv('0002', 'Statement: 2.'), inv('0002', 'Statement: 2.')), [], 'an identical entry on both sides is no collision');
-}
+});

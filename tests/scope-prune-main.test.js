@@ -3,6 +3,7 @@
 // Suite for plugin/hooks/scope-prune.js, `main()` end to end against real repositories: which run roots the hook
 // prunes and which it leaves standing. The entry guard that keeps a plain `require` from pruning is held in tests/plugin-layout.test.js.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -10,15 +11,18 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const { hook, gitTest, makeRepo, makeScope } = require('./scope-prune-setup');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 const { main } = hook;
 
-// --- smoke test: main() end to end, against a real repository ---
-//
-// Every pure case in `scope-prune.test.js` calls the pure functions directly, with hand-built Sets and string arrays — never
-// sh()/git()/main(). A shell-quoted git command that throws on every invocation (Critical 1: unquoted
-// `%(refname)` hitting /bin/sh) would still pass all of them, because main()'s try/catch swallows the
-// error and prunes nothing, silently. Only running main() against a real repository catches that.
-{
+// Every pure case in `scope-prune.test.js` calls the pure functions directly, with hand-built Sets and string arrays —
+// never sh()/git()/main(). A shell-quoted git command that throws on every invocation (Critical 1: unquoted
+// `%(refname)` hitting /bin/sh) would still pass all of them, because main()'s try/catch swallows the error and prunes
+// nothing, silently. Only running main() against a real repository catches that.
+test('smoke test: main() end to end, against a real repository', () => {
   // #gone-and-closed: no branch named for this scope anywhere in the repo, ledger stage `closed`,
   // mtime past the TTL → main() removes the run root.
   const goneRepo = makeRepo();
@@ -64,6 +68,7 @@ const { main } = hook;
   // arm; `#remote-only-branch-contained` below is the other.
   const remoteRepo = makeRepo();
   const originDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-origin-'));
+  made.push(originDir);
   gitTest(['init', '-q', '--bare', '-b', 'main'], originDir);
   gitTest(['remote', 'add', 'origin', originDir], remoteRepo);
   gitTest(['checkout', '-q', '-b', 'fix/onremote'], remoteRepo);
@@ -92,6 +97,7 @@ const { main } = hook;
   // every byte (ADR 0053, Important 3).
   const remoteContainedRepo = makeRepo();
   const remoteContainedOriginDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-origin-'));
+  made.push(remoteContainedOriginDir);
   gitTest(['init', '-q', '--bare', '-b', 'main'], remoteContainedOriginDir);
   gitTest(['remote', 'add', 'origin', remoteContainedOriginDir], remoteContainedRepo);
   gitTest(['checkout', '-q', '-b', 'fix/onremote-squashed'], remoteContainedRepo);
@@ -248,6 +254,7 @@ const { main } = hook;
   const failRepo = makeRepo();
   const failScopeDir = makeScope(failRepo, 'branch-read-fails');
   const fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-fakebin-'));
+  made.push(fakeBinDir);
   const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
   fs.writeFileSync(
     path.join(fakeBinDir, 'git'),
@@ -268,13 +275,12 @@ const { main } = hook;
   );
   fs.rmSync(failRepo, { recursive: true, force: true });
   fs.rmSync(fakeBinDir, { recursive: true, force: true });
-}
+});
 
-// --- the session directory: the hook acts on the main working tree's runs from wherever the session stands ---
 // Each session directory is a checkout or folder of one repository: its root, a subdirectory, a scopetree, a
-// slicetree. The two worktrees sit beside an unrelated live run, so the scope under test holds no `scopetree/`
-// or `slicetrees/` entry that would stop its prune. The same closed run, whose branch is gone, is pruned from each.
-{
+// slicetree. The two worktrees sit beside an unrelated live run, so the scope under test holds no `scopetree/` or `slicetrees/`
+// entry that would stop its prune. The same closed run, whose branch is gone, is pruned from each.
+test('the session directory: the hook acts on the main working tree\'s runs from wherever the session stands', () => {
   const sessions = {
     'the repository root': () => '',
     'a subdirectory': (repo) => {
@@ -323,6 +329,7 @@ const { main } = hook;
     gitTest(['merge', '-q', '--ff-only', 'feat/merged'], repo);
     const mergedDir = makeScope(repo, 'merged', '**Stage:** closed\n**Branch:** feat/merged\n');
     const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-scopetree-')));
+    made.push(outside);
     const wt = path.join(outside, 'wt');
     gitTest(['worktree', 'add', '-q', wt, 'feat/work'], repo);
     main(wt);
@@ -332,6 +339,5 @@ const { main } = hook;
     fs.rmSync(outside, { recursive: true, force: true });
     fs.rmSync(repo, { recursive: true, force: true });
   }
-}
+});
 
-console.log('scope-prune-main tests ok');

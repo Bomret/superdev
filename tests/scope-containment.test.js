@@ -5,12 +5,18 @@
 // thing under test, not a stub over it. The base repository, one commit on `main` with no remote, is built once per
 // process through tests/fixture-git.js, and each case works in its own copy and adds any remote or branch it needs.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { copyFixture, templateOnce } = require('./fixture-git');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 const { scopePath, fetchBound } = require('./scope-setup');
 const { testContainment, baseHistoryHasPatch } = require(scopePath);
 const { judgeContainment } = require('../plugin/lib/containment.js');
@@ -19,12 +25,10 @@ const { shq } = require('./spawn-verdict');
 // The real git a fake git on PATH forwards to.
 const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
 
-// --- testContainment: the exported containment test (ADR 0053, ADR 0065) ---------------------
-//
-// No CLI verb — a sibling script `require`s this directly, the same shape `readLedgerHeader` already
-// gives `hooks/scope-prune.js`. Real git repositories throughout, the same way tests/scope-prune-containment.test.js's
-// own containment fixtures do: the git plumbing is the thing under test, not a stub over it.
-{
+// Real git repositories throughout, the same way tests/scope-prune-containment.test.js's own containment fixtures do:
+// the git plumbing is the thing under test, not a stub over it.
+// No CLI verb — a sibling script `require`s this directly, the same shape `readLedgerHeader` already gives `hooks/scope-prune.js`.
+test('testContainment: the exported containment test (ADR 0053, ADR 0065)', () => {
   function gitTest(args, cwd) {
     execFileSync('git', args, { cwd, stdio: 'ignore' });
   }
@@ -39,7 +43,9 @@ const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' 
   }, 'scope-containment-template-');
 
   function makeRepo() {
-    return copyFixture(template(), 'scope-containment-');
+    const copy = copyFixture(template(), 'scope-containment-');
+    made.push(copy);
+    return copy;
   }
 
   function makeWorkBranch(repoDir, branch, file, body) {
@@ -70,6 +76,7 @@ const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' 
   // the one observable trace of the attempt.
   const unmergedRepo = makeRepo();
   const unmergedOrigin = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-origin-'));
+  made.push(unmergedOrigin);
   gitTest(['init', '-q', '--bare', '-b', 'main'], unmergedOrigin);
   gitTest(['remote', 'add', 'origin', unmergedOrigin], unmergedRepo);
   gitTest(['push', '-q', 'origin', 'main'], unmergedRepo);
@@ -98,6 +105,7 @@ const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' 
   // 3), so without qualifyBranch this reads could-not-resolve however completely base holds the work.
   const remoteOnlyRepo = makeRepo();
   const remoteOnlyOrigin = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-origin-'));
+  made.push(remoteOnlyOrigin);
   gitTest(['init', '-q', '--bare', '-b', 'main'], remoteOnlyOrigin);
   gitTest(['remote', 'add', 'origin', remoteOnlyOrigin], remoteOnlyRepo);
   gitTest(['checkout', '-q', '-b', 'fix/onremote-squashed'], remoteOnlyRepo);
@@ -173,6 +181,7 @@ const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' 
     const hungRepo = makeRepo();
     makeWorkBranch(hungRepo, 'fix/hung', 'app.txt', 'v2\n');
     const hungOrigin = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-origin-'));
+    made.push(hungOrigin);
     gitTest(['init', '-q', '--bare', '-b', 'main'], hungOrigin);
     gitTest(['remote', 'add', 'origin', hungOrigin], hungRepo);
     const hungPidFile = path.join(hungOrigin, 'uploadpack.pid');
@@ -237,9 +246,11 @@ const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' 
   const injectionRepo = makeRepo();
   makeWorkBranch(injectionRepo, 'fix/injected', 'app.txt', 'v2\n');
   const injectionOrigin = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-origin-'));
+  made.push(injectionOrigin);
   gitTest(['init', '-q', '--bare', '-b', 'main'], injectionOrigin);
   gitTest(['remote', 'add', 'origin', injectionOrigin], injectionRepo);
   const payloadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-payload-'));
+  made.push(payloadDir);
   const markerFile = path.join(payloadDir, 'marker');
   const payloadScript = path.join(payloadDir, 'evil.sh');
   fs.writeFileSync(payloadScript, `#!/bin/sh\ntouch ${shq(markerFile)}\n`, { mode: 0o755 });
@@ -457,6 +468,7 @@ const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' 
   // only a candidate comparison passes; the fixture is one only the third tier reads contained.
   const tierCapRepo = makeMovedSquashRepo();
   const tierCapDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-tier-cap-'));
+  made.push(tierCapDir);
   const tierCapMarker = path.join(tierCapDir, 'candidate-compared');
   const tierCapVerdict = withFakeGit(
     'if [ "$1" = "rev-list" ] && [ "$2" = "--count" ]; then echo 999999; exit 0; fi\n' +
@@ -472,6 +484,7 @@ const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' 
   // of commits, so the fake git reports the count instead and marks any `git log` that runs — the
   // assertion is that none does.
   const capDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-cap-'));
+  made.push(capDir);
   const capMarker = path.join(capDir, 'log-ran');
   const capVerdict = withFakeGit(
     'if [ "$1" = "rev-list" ]; then echo 999999; exit 0; fi\n' +
@@ -517,6 +530,7 @@ const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' 
   // #probe-argument-injection: an option-shaped `base` reaches the probe, because the tree comparison
   // it follows cannot resolve one either. No probe call may run it as a git option.
   const probePayloadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-payload-'));
+  made.push(probePayloadDir);
   const probeMarker = path.join(probePayloadDir, 'marker');
   const probePayload = path.join(probePayloadDir, 'evil.sh');
   fs.writeFileSync(probePayload, `#!/bin/sh\ntouch ${shq(probeMarker)}\n`, { mode: 0o755 });
@@ -537,4 +551,4 @@ const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' 
   );
   fs.rmSync(squashShared, { recursive: true, force: true });
   fs.rmSync(probePayloadDir, { recursive: true, force: true });
-}
+});

@@ -4,11 +4,17 @@
 // `stage set implementing` on a `planned` run, `adopt` of an `implementing`-or-later snapshot) refuses while
 // `<run-root>/dod.md` is missing, empty, not a regular file, or holds no criterion line, and writes nothing.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { call, sliceJson, cleanup } = require('./scope-setup');
+
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+  cleanup();
+});
 
 const made = [];
 const fresh = () => {
@@ -43,8 +49,8 @@ const snapshot = (dir) => {
   return out;
 };
 
-try {
-  for (const [state, setup] of Object.entries(BAD)) {
+for (const [state, setup] of Object.entries(BAD)) {
+  test(`A bad dod.md refuses every entry to implementing and writes nothing (${state})`, () => {
     // init … implementing
     {
       const cwd = fresh();
@@ -96,83 +102,90 @@ try {
       assert.ok(!r.ok && r.err.includes(path.join(root, 'dod.md')), `adopt implementing refuses on dod.md ${state}: ${r.err}`);
       assert.deepStrictEqual(snapshot(cwd), before, `adopt writes nothing on dod.md ${state}`);
     }
-  }
+  });
+}
 
-  // The gate passes with a criterion line, bare or under the heading.
-  for (const dod of [GOOD, `# Anchor\n\n## Definition of Done\n\n${GOOD}\n## Next\n`]) {
+for (const dod of [GOOD, `# Anchor\n\n## Definition of Done\n\n${GOOD}\n## Next\n`]) {
+  test(`The gate passes with a criterion line, bare or under the heading (${JSON.stringify(dod)})`, () => {
     const cwd = fresh();
     const root = rootOf(cwd, 'gate');
     fs.mkdirSync(root, { recursive: true });
     fs.writeFileSync(path.join(root, 'dod.md'), dod);
     assert.ok(call(['init', 'feat/gate', 'implementing'], sliceJson, cwd).ok, 'init implementing passes with a criterion line');
     assert.ok(fs.existsSync(path.join(root, 'ledger.md')), 'init wrote the ledger');
-  }
-  {
-    const cwd = fresh();
-    assert.ok(call(['init', 'feat/gate', 'planned'], sliceJson, cwd).ok, 'init planned passes with no dod.md');
-    const root = rootOf(cwd, 'gate');
-    assert.ok(call(['stage', 'set', 'implementing', '--root', root], '', cwd).ok === false);
-    fs.writeFileSync(path.join(root, 'dod.md'), GOOD);
-    assert.ok(call(['stage', 'set', 'implementing', '--root', root], '', cwd).ok, 'stage set implementing passes with a criterion line');
-    // Other stage writes carry no gate: a later move needs no dod.md.
-    fs.rmSync(path.join(root, 'dod.md'));
-    assert.ok(call(['stage', 'set', 'merged', '--root', root], '', cwd).ok, 'implementing to merged needs no dod.md');
-    assert.ok(call(['stage', 'set', 'merged', '--root', root], '', cwd).ok, 'a same-stage write needs no dod.md');
-  }
-  {
-    const cwd = fresh();
-    assert.ok(call(['init', 'feat/gate', 'planned'], sliceJson, cwd).ok);
-    const root = rootOf(cwd, 'gate');
-    assert.ok(call(['stage', 'set', 'planned', '--root', root], '', cwd).ok, 'a planned same-stage write needs no dod.md');
-  }
-  // The re-init run-init.md names: `init … implementing` over a `planned` ledger with no dod.md refuses and leaves the run as it was.
-  {
-    const cwd = fresh();
-    assert.ok(call(['init', 'feat/gate', 'planned'], sliceJson, cwd).ok);
-    const root = rootOf(cwd, 'gate');
-    const before = snapshot(cwd);
-    const r = call(['init', 'feat/gate', 'implementing'], sliceJson, cwd);
-    assert.ok(!r.ok && r.err.includes(path.join(root, 'dod.md')), `re-init implementing refuses over a planned ledger: ${r.err}`);
-    assert.deepStrictEqual(snapshot(cwd), before, 'the planned ledger, its standing step, and the run root stay unchanged');
-    assert.match(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), /\*\*Stage:\*\* planned/, 'the ledger still reads planned');
-  }
-  // adopt: passes with a criterion line; a planned snapshot needs none; a later stage is gated too.
-  {
-    const cwd = fresh();
-    const root = path.join(cwd, 'elsewhere', 'gate');
-    fs.mkdirSync(root, { recursive: true });
-    fs.writeFileSync(path.join(root, 'dod.md'), GOOD);
-    assert.ok(call(['adopt', '--root', root], ADOPT('implementing'), cwd).ok, 'adopt implementing passes with a criterion line');
-  }
-  {
-    const cwd = fresh();
-    const root = path.join(cwd, 'elsewhere', 'gate');
-    assert.ok(call(['adopt', '--root', root], ADOPT('planned'), cwd).ok, 'adopt planned needs no dod.md');
-  }
-  {
-    // shipped-run.md writes dod.md after `adopt --shipped`, so that path carries no gate.
-    const cwd = fresh();
-    const root = path.join(cwd, 'elsewhere', 'gate');
-    assert.ok(call(['adopt', '--shipped', '--root', root], ADOPT('shipped'), cwd).ok, 'adopt --shipped needs no dod.md');
-  }
-  for (const stage of ['merged', 'reviewed', 'documented', 'submitted']) {
+  });
+}
+
+test('init planned passes with no dod.md, and stage set implementing is gated on a criterion line; other stage writes carry no gate', () => {
+  const cwd = fresh();
+  assert.ok(call(['init', 'feat/gate', 'planned'], sliceJson, cwd).ok, 'init planned passes with no dod.md');
+  const root = rootOf(cwd, 'gate');
+  assert.ok(call(['stage', 'set', 'implementing', '--root', root], '', cwd).ok === false);
+  fs.writeFileSync(path.join(root, 'dod.md'), GOOD);
+  assert.ok(call(['stage', 'set', 'implementing', '--root', root], '', cwd).ok, 'stage set implementing passes with a criterion line');
+  // Other stage writes carry no gate: a later move needs no dod.md.
+  fs.rmSync(path.join(root, 'dod.md'));
+  assert.ok(call(['stage', 'set', 'merged', '--root', root], '', cwd).ok, 'implementing to merged needs no dod.md');
+  assert.ok(call(['stage', 'set', 'merged', '--root', root], '', cwd).ok, 'a same-stage write needs no dod.md');
+});
+
+test('A planned same-stage write needs no dod.md', () => {
+  const cwd = fresh();
+  assert.ok(call(['init', 'feat/gate', 'planned'], sliceJson, cwd).ok);
+  const root = rootOf(cwd, 'gate');
+  assert.ok(call(['stage', 'set', 'planned', '--root', root], '', cwd).ok, 'a planned same-stage write needs no dod.md');
+});
+
+test('The re-init run-init.md names: `init … implementing` over a `planned` ledger with no dod.md refuses and leaves the run as it was', () => {
+  const cwd = fresh();
+  assert.ok(call(['init', 'feat/gate', 'planned'], sliceJson, cwd).ok);
+  const root = rootOf(cwd, 'gate');
+  const before = snapshot(cwd);
+  const r = call(['init', 'feat/gate', 'implementing'], sliceJson, cwd);
+  assert.ok(!r.ok && r.err.includes(path.join(root, 'dod.md')), `re-init implementing refuses over a planned ledger: ${r.err}`);
+  assert.deepStrictEqual(snapshot(cwd), before, 'the planned ledger, its standing step, and the run root stay unchanged');
+  assert.match(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), /\*\*Stage:\*\* planned/, 'the ledger still reads planned');
+});
+
+test('adopt implementing passes with a criterion line', () => {
+  const cwd = fresh();
+  const root = path.join(cwd, 'elsewhere', 'gate');
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(path.join(root, 'dod.md'), GOOD);
+  assert.ok(call(['adopt', '--root', root], ADOPT('implementing'), cwd).ok, 'adopt implementing passes with a criterion line');
+});
+
+test('adopt planned needs no dod.md', () => {
+  const cwd = fresh();
+  const root = path.join(cwd, 'elsewhere', 'gate');
+  assert.ok(call(['adopt', '--root', root], ADOPT('planned'), cwd).ok, 'adopt planned needs no dod.md');
+});
+
+test('shipped-run.md writes dod.md after `adopt --shipped`, so that path carries no gate', () => {
+  // shipped-run.md writes dod.md after `adopt --shipped`, so that path carries no gate.
+  const cwd = fresh();
+  const root = path.join(cwd, 'elsewhere', 'gate');
+  assert.ok(call(['adopt', '--shipped', '--root', root], ADOPT('shipped'), cwd).ok, 'adopt --shipped needs no dod.md');
+});
+
+for (const stage of ['merged', 'reviewed', 'documented', 'submitted']) {
+  test(`adopt of a later stage refuses with no dod.md (${stage})`, () => {
     const cwd = fresh();
     const root = path.join(cwd, 'elsewhere', 'gate');
     const r = call(['adopt', '--root', root], ADOPT(stage), cwd);
     assert.ok(!r.ok && /dod\.md/.test(r.err), `adopt ${stage} refuses with no dod.md`);
-  }
-  // A criterion line holding U+2028 in its criterion, or in its note, is a criterion line the gate counts.
-  for (const [where, line] of [['criterion', '- [ ] The gate\u2028counts — 07\n'], ['note', '- [ ] The gate counts — 07 — not met: n\u2028m\n']]) {
+  });
+}
+
+for (const [where, line] of [['criterion', '- [ ] The gate\u2028counts — 07\n'], ['note', '- [ ] The gate counts — 07 — not met: n\u2028m\n']]) {
+  test(`A criterion line holding U+2028 in its criterion, or in its note, is a criterion line the gate counts (${where})`, () => {
     const cwd = fresh();
     const root = rootOf(cwd, 'gate');
     fs.mkdirSync(root, { recursive: true });
     fs.writeFileSync(path.join(root, 'dod.md'), '## Definition of Done\n\n' + line);
     const r = call(['init', 'feat/gate', 'implementing'], sliceJson, cwd);
     assert.ok(r.ok, `init implementing counts a line with U+2028 in its ${where}: ${r.err}`);
-  }
-} finally {
-  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
-  cleanup();
+  });
 }
 
 function ADOPT(stage) {

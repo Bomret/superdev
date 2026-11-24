@@ -2,6 +2,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
+const { test, after } = require('node:test');
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `test focused --since <ref>` and `test path --since <ref> -- <command>`: the changed-path
@@ -13,45 +14,50 @@ const path = require('node:path');
 const { testVerbFixture } = require('./scope-setup');
 const { readTrace, decodePaths } = require('../plugin/lib/trace-log.js');
 
+after(() => {
+  end();
+});
+
 const { S, verif, sh, verb, lines, reset, traceFile, end } = testVerbFixture();
 const write = (rel, text = 'x') => {
   fs.mkdirSync(path.dirname(path.join(S, rel)), { recursive: true });
   fs.writeFileSync(path.join(S, rel), text);
 };
 const lastRun = () => readTrace(fs.readFileSync(traceFile, 'utf8')).filter((e) => e.kind === 'run').pop();
-try {
-  // The focused command prints each path it got on its own line, so the substituted set reads back exactly.
-  verif('echo FULLRAN', "printf 'F<%s>\\n' {paths}");
-  write('.gitignore', 'ignored.txt\n');
-  write('lib/old.js');
-  write('tests/old.test.js');
-  write('tests/gone.test.js');
-  sh(S, ['add', '-A']);
-  sh(S, ['commit', '-q', '-m', 'base']);
-  const base = sh(S, ['rev-parse', 'HEAD']);
-  // A committed change, a test file deleted, an uncommitted tracked change, an untracked file, and an ignored one.
-  write('lib/committed.js');
-  write('tests/new.test.js');
-  fs.rmSync(path.join(S, 'tests', 'gone.test.js'));
-  sh(S, ['add', '-A']);
-  sh(S, ['commit', '-q', '-m', 'slice']);
-  write('lib/old.js', 'changed');
-  write('lib/un tracked.js');
-  write('lib/ünï.js');
-  write('ignored.txt');
-  const want = ['lib/committed.js', 'lib/old.js', 'lib/un tracked.js', 'lib/ünï.js', 'tests/gone.test.js', 'tests/new.test.js'];
-  const got = (r) => r.stdout.split('\n').filter((l) => l.startsWith('F<')).map((l) => l.slice(2, -1)).sort();
+// The focused command prints each path it got on its own line, so the substituted set reads back exactly.
+verif('echo FULLRAN', "printf 'F<%s>\\n' {paths}");
+write('.gitignore', 'ignored.txt\n');
+write('lib/old.js');
+write('tests/old.test.js');
+write('tests/gone.test.js');
+sh(S, ['add', '-A']);
+sh(S, ['commit', '-q', '-m', 'base']);
+const base = sh(S, ['rev-parse', 'HEAD']);
+// A committed change, a test file deleted, an uncommitted tracked change, an untracked file, and an ignored one.
+write('lib/committed.js');
+write('tests/new.test.js');
+fs.rmSync(path.join(S, 'tests', 'gone.test.js'));
+sh(S, ['add', '-A']);
+sh(S, ['commit', '-q', '-m', 'slice']);
+write('lib/old.js', 'changed');
+write('lib/un tracked.js');
+write('lib/ünï.js');
+write('ignored.txt');
+const want = ['lib/committed.js', 'lib/old.js', 'lib/un tracked.js', 'lib/ünï.js', 'tests/gone.test.js', 'tests/new.test.js'];
+const got = (r) => r.stdout.split('\n').filter((l) => l.startsWith('F<')).map((l) => l.slice(2, -1)).sort();
 
-  // `focused --since` runs over every changed path, committed, uncommitted, and untracked, and records them; ignored files stay out.
+let r, e;
+test('`focused --since` runs over every changed path, committed, uncommitted, and untracked, and records them; ignored files stay out.', () => {
   reset();
-  let r = verb(['focused', '--since', base]);
+  r = verb(['focused', '--since', base]);
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(got(r), want, 'the focused command gets every changed path, shell-quoted, and no ignored file');
-  let e = lastRun();
+  e = lastRun();
   assert.equal(e.fields[0], 'focused', 'a ref-given run records kind focused');
   assert.deepEqual(decodePaths(e.fields[4]).slice().sort(), want, 'and names the paths it resolved');
+});
 
-  // From a subdirectory, and with `diff.relative=true`, the set is the same tree-root-relative one.
+test('From a subdirectory, and with `diff.relative=true`, the set is the same tree-root-relative one.', () => {
   sh(S, ['config', 'diff.relative', 'true']);
   sh(S, ['config', 'core.quotePath', 'true']);
   reset();
@@ -61,8 +67,9 @@ try {
   assert.deepEqual(decodePaths(lastRun().fields[4]).slice().sort(), want, 'and records it');
   sh(S, ['config', '--unset', 'diff.relative']);
   sh(S, ['config', '--unset', 'core.quotePath']);
+});
 
-  // `path --since` runs over the changed test-path files that exist, appended to the command, and records them.
+test('`path --since` runs over the changed test-path files that exist, appended to the command, and records them.', () => {
   reset();
   r = verb(['path', '--since', base, '--', 'printf', 'P<%s>\\n']);
   assert.equal(r.status, 0, r.stderr);
@@ -77,8 +84,9 @@ try {
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(r.stdout.split('\n').filter(Boolean), ['P<../tests/new.test.js>'], 'the path is reachable from the cwd');
   assert.equal(lastRun().fields[7], 'lib');
+});
 
-  // Each refusal exits nonzero with its own message, runs nothing, and records nothing.
+test('Each refusal exits nonzero with its own message, runs nothing, and records nothing.', () => {
   const refusals = [
     [['focused', '--since', base, 'lib/old.js'], /--since takes no paths/],
     [['path', '--since', base, 'tests/new.test.js', '--', 'echo', 'RAN'], /--since takes no paths/],
@@ -115,11 +123,10 @@ try {
   assert.match(r.stderr, /no test file changed since/);
   assert.ok(!r.stdout.includes('RAN'));
   assert.deepEqual(lines(), []);
+});
 
-  // The usage lists both forms.
+test('The usage lists both forms.', () => {
   const usage = require('../plugin/lib/usage.js').usage();
   assert.match(usage, /test focused --since <ref>/);
   assert.match(usage, /test path --since <ref> -- <command>/);
-} finally {
-  end();
-}
+});

@@ -4,6 +4,7 @@
 // (ADR 0022), a ledger an editor left behind (CRLF), and a
 // comma inside a bullet. The shared directory, `call`, and the init payload come from tests/scope-setup.js.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -13,81 +14,93 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 const { tmp, call, scopePath, cleanup } = require('./scope-setup');
 const { readLedgerHeader } = require(scopePath);
 
-try {
-  // --- readLedgerHeader: one reader, normalisation per header kind (ADR 0022) ---
-  //
-  // `hooks/scope-prune.js` carried its own copy of this and drifted on four axes. The hook now
-  // requires the export below, so these cases are the definition for both readers.
+const made = [];
+after(() => {
+  cleanup();
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
-  // Token headers — `Stage` and `Branch` — are single tokens. A hand-written ledger may wrap one in
-  // markup or leave a period behind; every spelling reads as the bare token.
-  for (const [line, expected, label] of [
-    ['**Stage:** shipped', 'shipped', 'a plain value'],
-    ['**Stage:** `shipped`', 'shipped', 'a backticked value'],
-    ['**Stage:** **shipped**', 'shipped', 'an emphasised value'],
-    ['**Stage:** `shipped`.', 'shipped', 'a backticked value with a trailing period'],
-    ['**Stage:** shipped.', 'shipped', 'a plain value with a trailing period'],
-  ]) {
+// --- readLedgerHeader: one reader, normalisation per header kind (ADR 0022) ---
+//
+// `hooks/scope-prune.js` carried its own copy of this and drifted on four axes. The hook now
+// requires the export below, so these cases are the definition for both readers.
+
+// A hand-written ledger may wrap one in markup or leave a period behind; every spelling reads as the bare token.
+for (const [line, expected, label] of [
+  ['**Stage:** shipped', 'shipped', 'a plain value'],
+  ['**Stage:** `shipped`', 'shipped', 'a backticked value'],
+  ['**Stage:** **shipped**', 'shipped', 'an emphasised value'],
+  ['**Stage:** `shipped`.', 'shipped', 'a backticked value with a trailing period'],
+  ['**Stage:** shipped.', 'shipped', 'a plain value with a trailing period'],
+]) {
+  test(`Token headers — \`Stage\` and \`Branch\` — are single tokens. (${line})`, () => {
     assert.strictEqual(readLedgerHeader(`# ledger\n\n${line}\n`, 'Stage'), expected, `Stage: ${label}`);
-  }
+  });
+}
 
-  // The strip must never turn one stage into another.
-  for (const [line, expected] of [
-    ['**Stage:** documented-unreviewed', 'documented-unreviewed'],
-    ['**Stage:** `reviewed`', 'reviewed'],
-    ['**Stage:** not-shipped', 'not-shipped'],
-  ]) {
+for (const [line, expected] of [
+  ['**Stage:** documented-unreviewed', 'documented-unreviewed'],
+  ['**Stage:** `reviewed`', 'reviewed'],
+  ['**Stage:** not-shipped', 'not-shipped'],
+]) {
+  test(`The strip must never turn one stage into another. (${line})`, () => {
     assert.strictEqual(readLedgerHeader(`# ledger\n\n${line}\n`, 'Stage'), expected, `Stage stays ${expected}`);
     assert.notStrictEqual(readLedgerHeader(`# ledger\n\n${line}\n`, 'Stage'), 'shipped', `${expected} is never shipped`);
-  }
+  });
+}
 
+test('Branch is a token header too', () => {
   assert.strictEqual(
     readLedgerHeader('# ledger\n\n**Branch:** `fix/x`\n', 'Branch'),
     'fix/x',
     'Branch is a token header too'
   );
+});
 
-  // A TOKEN header value is one word — git forbids whitespace in a refname — so trailing content after
-  // the first whitespace run is never part of the value. A hand-written ledger that tacks on a
-  // parenthetical or a comment must not widen the capture past that token: a value carrying trailing
-  // content matches nothing in a branch set, and the veto that reads it (`branchPresent` in
-  // hooks/scope-prune.js) reads a live, unmerged branch as gone.
-  for (const [line, expected, label] of [
-    ['**Branch:** fix/demo (PR #99 open)', 'fix/demo', 'a trailing parenthetical'],
-    // A tab, not only a space: `split(' ')` passes every other row here and reads this one as the
-    // whole line, which lands back on the delete path as a branch that matches nothing.
-    ['**Branch:** fix/demo\t(PR open)', 'fix/demo', 'a tab-separated trailing note'],
-    ['**Branch:** fix/demo   # note', 'fix/demo', 'a trailing comment'],
-  ]) {
+// A hand-written ledger that tacks on a parenthetical or a comment must not widen the capture past that token: a
+// value carrying trailing content matches nothing in a branch set, and the veto that reads it (`branchPresent` in
+// hooks/scope-prune.js) reads a live, unmerged branch as gone.
+for (const [line, expected, label] of [
+  ['**Branch:** fix/demo (PR #99 open)', 'fix/demo', 'a trailing parenthetical'],
+  // A tab, not only a space: `split(' ')` passes every other row here and reads this one as the
+  // whole line, which lands back on the delete path as a branch that matches nothing.
+  ['**Branch:** fix/demo\t(PR open)', 'fix/demo', 'a tab-separated trailing note'],
+  ['**Branch:** fix/demo   # note', 'fix/demo', 'a trailing comment'],
+]) {
+  test(`A TOKEN header value is one word — git forbids whitespace in a refname — so trailing content after the first whitespace run is never part of the value. (${line})`, () => {
     assert.strictEqual(readLedgerHeader(`# ledger\n\n${line}\n`, 'Branch'), expected, `Branch: ${label}`);
-  }
+  });
+}
 
-  // Prose headers — `Anchor` — carry a title that reaches a pull request through /superdev:review.
-  // Take the rest of the line and trim; a uniform strip would eat the last character of a title
-  // ending in punctuation.
+// Take the rest of the line and trim; a uniform strip would eat the last character of a title ending in punctuation.
+test('Prose headers — `Anchor` — carry a title that reaches a pull request through /superdev:review.', () => {
   assert.strictEqual(
     readLedgerHeader('# ledger\n\n**Anchor:** #208 — Epic: one reader, shared.\n', 'Anchor'),
     '#208 — Epic: one reader, shared.',
     'Anchor keeps its internal colon and its trailing period'
   );
+});
 
-  // A header line present but empty is absent, for every header — and never reaches past its own
-  // line. `\s` matches a newline, so a reader that is not line-anchored captures the NEXT header's
-  // token here, which on `Branch` reads as a branch that exists nowhere.
-  const valueless = '# ledger\n\n**Stage:** shipped\n**Branch:**\n**Anchor:** #208 — Epic\n';
+// `\s` matches a newline, so a reader that is not line-anchored captures the NEXT header's token here, which on
+// `Branch` reads as a branch that exists nowhere.
+let valueless;
+test('A header line present but empty is absent, for every header — and never reaches past its own line.', () => {
+  valueless = '# ledger\n\n**Stage:** shipped\n**Branch:**\n**Anchor:** #208 — Epic\n';
   assert.strictEqual(readLedgerHeader(valueless, 'Branch'), null, 'an empty Branch line is absent');
   assert.strictEqual(readLedgerHeader(valueless, 'Stage'), 'shipped', 'and its neighbours still read');
   assert.strictEqual(readLedgerHeader(valueless, 'Anchor'), '#208 — Epic', 'including the one after it');
   assert.strictEqual(readLedgerHeader('# ledger\n\n**Stage:**   \n', 'Stage'), null, 'whitespace-only is absent');
   assert.strictEqual(readLedgerHeader('# ledger\n', 'Stage'), null, 'a missing line is absent');
+});
 
-  // The verbs report an empty header as `absent`, not as an empty line.
+test('The verbs report an empty header as `absent`, not as an empty line.', () => {
   const emptyRoot = path.join(tmp, '.superdev', 'scopes', 'emptyhdr');
   fs.mkdirSync(emptyRoot, { recursive: true });
   fs.writeFileSync(path.join(emptyRoot, 'ledger.md'), valueless, 'utf8');
   assert.strictEqual(call(['get', 'branch', '--root', emptyRoot]).out, 'absent', 'get branch reports absent');
+});
 
-  // `status` collapses a shipped scope whose stage line carries markup — it does not today.
+test('`status` collapses a shipped scope whose stage line carries markup — it does not today.', () => {
   const markupRoot = path.join(tmp, '.superdev', 'scopes', 'markupstage');
   fs.mkdirSync(markupRoot, { recursive: true });
   fs.writeFileSync(
@@ -102,12 +115,14 @@ try {
     call(['status']).out.includes('| markupstage | shipped |'),
     'a backticked stage still collapses: ' + call(['status']).out
   );
+});
 
-  // Requiring the module must run no CLI code. Unguarded, `main()` parses the *caller's* argv and a
-  // refusal calls process.exit — measured, a requiring process dies with `unknown verb ""` and exit 1.
-  // A subprocess, because the running suite has already required scope.js once — Node's require
-  // cache would hand back that cached module instead of re-executing its top-level guard.
+// Unguarded, `main()` parses the *caller's* argv and a refusal calls process.exit — measured, a requiring process
+// dies with `unknown verb ""` and exit 1. A subprocess, because the running suite has already required scope.js once
+// — Node's require cache would hand back that cached module instead of re-executing its top-level guard.
+test('Requiring the module must run no CLI code.', () => {
   const requirer = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-require-'));
+  made.push(requirer);
   const probe = path.join(requirer, 'probe.js');
   fs.writeFileSync(
     probe,
@@ -121,40 +136,45 @@ try {
   assert.strictEqual(required.stdout, 'function|shipped', 'the export works from a requiring process');
   assert.strictEqual(required.stderr, '', 'requiring the module prints no usage and no refusal');
   fs.rmSync(requirer, { recursive: true, force: true });
+});
 
-  // --- CRLF: a ledger an editor or `core.autocrlf` wrote reads exactly like an LF one ---
-  //
-  // Splitting on `'\n'` alone leaves a trailing `\r` on every line, and `headerRe`'s `(.*)$` cannot
-  // span it — JavaScript's `.` excludes `\r` as a line terminator. Every header then reads as the
-  // missing-optional-field case: `get stage` prints `absent`, `/superdev:ship` sees no stage, and
-  // `hooks/scope-prune.js` never sees `shipped`, so it never reaps that run root. Silently, since the
-  // Stop hook prints nothing either way. Nothing superdev writes is CRLF — `writeLines` joins with
-  // `'\n'` — so this only reaches a maintainer whose editor or git config produced the file.
-  const ledgerBody = (nl) =>
-    ['# Ledger — crlf', '', '**Stage:** shipped', '**Branch:** fix/crlf', '**Anchor:** #219 — Epic: a title.',
-     '**Degraded:**', '- a denied pass', '**Unresolved:**', '- suite still red at the cap', '',
-     '| id | issue | title | type | depends-on | status | range |',
-     '|---|---|---|---|---|---|---|',
-     '| 01 | #219 | one | behavior | — | merged | a..b |', ''].join(nl);
+// --- CRLF: a ledger an editor or `core.autocrlf` wrote reads exactly like an LF one ---
+//
+// Splitting on `'\n'` alone leaves a trailing `\r` on every line, and `headerRe`'s `(.*)$` cannot
+// span it — JavaScript's `.` excludes `\r` as a line terminator. Every header then reads as the
+// missing-optional-field case: `get stage` prints `absent`, `/superdev:ship` sees no stage, and
+// `hooks/scope-prune.js` never sees `shipped`, so it never reaps that run root. Silently, since the
+// Stop hook prints nothing either way. Nothing superdev writes is CRLF — `writeLines` joins with
+// `'\n'` — so this only reaches a maintainer whose editor or git config produced the file.
+const ledgerBody = (nl) =>
+  ['# Ledger — crlf', '', '**Stage:** shipped', '**Branch:** fix/crlf', '**Anchor:** #219 — Epic: a title.',
+   '**Degraded:**', '- a denied pass', '**Unresolved:**', '- suite still red at the cap', '',
+   '| id | issue | title | type | depends-on | status | range |',
+   '|---|---|---|---|---|---|---|',
+   '| 01 | #219 | one | behavior | — | merged | a..b |', ''].join(nl);
 
-  for (const [label, nl] of [['CRLF', '\r\n'], ['LF', '\n']]) {
+for (const [label, nl] of [['CRLF', '\r\n'], ['LF', '\n']]) {
+  test(`readLedgerHeader reads every header of a ${label} ledger, and the Unresolved line itself carries no value (${label})`, () => {
     const text = ledgerBody(nl);
     assert.strictEqual(readLedgerHeader(text, 'Stage'), 'shipped', `${label}: Stage reads`);
     assert.strictEqual(readLedgerHeader(text, 'Branch'), 'fix/crlf', `${label}: Branch reads`);
     assert.strictEqual(readLedgerHeader(text, 'Anchor'), '#219 — Epic: a title.', `${label}: Anchor reads whole`);
     assert.strictEqual(readLedgerHeader(text, 'Unresolved'), null, `${label}: the Unresolved header line itself carries no value — its bullets are read separately`);
-  }
+  });
+}
 
-  // A ledger mixing both endings — a file half-rewritten by a different editor.
+test('A ledger mixing both endings — a file half-rewritten by a different editor.', () => {
   const mixed = '# Ledger — crlf\r\n\r\n**Stage:** shipped\n**Branch:** fix/crlf\r\n';
   assert.strictEqual(readLedgerHeader(mixed, 'Stage'), 'shipped', 'mixed endings: LF line reads');
   assert.strictEqual(readLedgerHeader(mixed, 'Branch'), 'fix/crlf', 'mixed endings: CRLF line reads');
+});
 
-  // Through the verbs and the report, not only the reader: the table and the degrade list too.
-  const crlfRoot = path.join(tmp, '.superdev', 'scopes', 'crlfscope');
+let crlfRoot, CR, crlfStatus;
+test('Through the verbs and the report, not only the reader: the table and the degrade list too.', () => {
+  crlfRoot = path.join(tmp, '.superdev', 'scopes', 'crlfscope');
   fs.mkdirSync(crlfRoot, { recursive: true });
   fs.writeFileSync(path.join(crlfRoot, 'ledger.md'), ledgerBody('\r\n'), 'utf8');
-  const CR = ['--root', crlfRoot];
+  CR = ['--root', crlfRoot];
   assert.strictEqual(call(['get', 'stage', ...CR]).out, 'shipped', 'get stage on a CRLF ledger');
   assert.strictEqual(call(['get', 'branch', ...CR]).out, 'fix/crlf', 'get branch on a CRLF ledger');
   assert.strictEqual(call(['get', 'anchor', ...CR]).out, '#219 — Epic: a title.', 'get anchor on a CRLF ledger');
@@ -163,7 +183,7 @@ try {
     '01\t#219\tone\tbehavior\t—\tmerged\ta..b',
     'the slice table parses under CRLF, with no stray carriage return in the last cell'
   );
-  const crlfStatus = call(['status']).out;
+  crlfStatus = call(['status']).out;
   assert.ok(crlfStatus.includes('| crlfscope | shipped |'), 'status reads the stage of a CRLF ledger: ' + crlfStatus);
   // `includes` cannot see a trailing `\r`, so assert on the whole line: a stray carriage return in the
   // degrade bullet would leave the line unequal while still "including" the text.
@@ -175,9 +195,10 @@ try {
     crlfStatus.split('\n').includes('| crlfscope | unresolved | suite still red at the cap |'),
     'its unresolved record renders as an exact line too, with no stray carriage return: ' + JSON.stringify(crlfStatus)
   );
+});
 
-  // A shipped scope collapses and carries no tally, so the criterion "its stage AND its tally" needs a
-  // scope that is still in flight. Same ledger, one stage earlier.
+// Same ledger, one stage earlier.
+test('A shipped scope collapses and carries no tally, so the criterion "its stage AND its tally" needs a scope that is still in flight.', () => {
   const crlfLive = path.join(tmp, '.superdev', 'scopes', 'crlflive');
   fs.mkdirSync(crlfLive, { recursive: true });
   fs.writeFileSync(path.join(crlfLive, 'ledger.md'), ledgerBody('\r\n').replace('**Stage:** shipped', '**Stage:** merged'), 'utf8');
@@ -186,22 +207,24 @@ try {
     liveStatus.includes('| crlflive | merged | 1 | 0 | 0 | 0 | 0 | 1 |'),
     'an in-flight CRLF scope keeps its row and its tally, byte-identical to the LF rendering: ' + liveStatus.join(' / ')
   );
+});
 
-  // A write leaves the file readable, and normalises it to LF.
+test('A write leaves the file readable, and normalises it to LF.', () => {
   assert.ok(call(['slice', '01', 'merged', '--range', 'c..d', ...CR]).ok, 'a verb writes to a CRLF ledger');
   const rewritten = fs.readFileSync(path.join(crlfRoot, 'ledger.md'), 'utf8');
   assert.ok(!rewritten.includes('\r'), 'a ledger scope.js wrote carries LF endings only');
   assert.strictEqual(call(['get', 'stage', ...CR]).out, 'shipped', 'and it still reads afterwards');
+});
 
-  // a bullet containing a comma survives intact through `get unresolved` — a status report that joins
-  // bullets with `, ` corrupts a comma-bearing bullet on the read side; `get` must not do that. A
-  // fresh scope, added last, so it doesn't show up in an earlier `status` scan of `tmp` that asserts no
-  // scope carries an unresolved line.
-  // An anchor title holding a Unicode line or paragraph separator records and reads back.
+// A fresh scope, added last, so it doesn't show up in an earlier `status` scan of `tmp` that asserts no scope carries
+// an unresolved line. An anchor title holding a Unicode line or paragraph separator records and reads back.
+test('a bullet containing a comma survives intact through `get unresolved` — a status report that joins bullets with `, ` corrupts a comma-bearing bullet on the read side; `get` must not do that.', () => {
   const sepJson = JSON.stringify({ anchor: '#2 — a\u2028b\u2029c', slices: [{ id: '01', issue: '#2', title: 'a', type: 'behavior' }] });
   assert.ok(call(['init', 'feat/sep-anchor', 'planned'], sepJson).ok);
   assert.strictEqual(call(['get', 'anchor', '--root', path.join(tmp, '.superdev', 'scopes', 'sep-anchor')]).out, '#2 — a b c');
+});
 
+test('A bullet holding commas reads back whole', () => {
   const commaJson = JSON.stringify({ anchor: '#1 — anchor', slices: [{ id: '01', issue: '#1', title: 'a', type: 'behavior' }] });
   assert.ok(call(['init', 'feat/comma-bullet', 'planned'], commaJson).ok);
   const commaRoot = path.join(tmp, '.superdev', 'scopes', 'comma-bullet');
@@ -212,6 +235,4 @@ try {
     'suite red: a, b, and c all fail',
     'a comma inside a bullet survives intact'
   );
-} finally {
-  cleanup();
-}
+});

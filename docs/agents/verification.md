@@ -49,7 +49,11 @@ dependencies serve the release toolchain only (`docs/agents/toolchain.md`).
 ## One-suite run
 
 While working on one suite, run it alone: `node tests/<suite>.test.js` from the repo root, for example
-`node tests/merge-guard.test.js`. It runs that suite and no tail, and its exit code is the verdict. To time
+`node tests/merge-guard.test.js`. It runs that suite and no tail, prints one line per case and a summary, and its exit
+code is the verdict. To run one case, pass a pattern that matches its name: `node --test-name-pattern="<pattern>"
+tests/<suite>.test.js`. The pattern is a regular expression, so escape a character such as `(`, `.`, or `?` that the
+name holds literally. The other cases of the suite are skipped. A case that uses state from an earlier case can fail
+when it runs alone. To time
 one suite alone, run it the same way under `time`, for example `time node tests/merge-guard.test.js`: no
 other step shares the machine with it. A one-suite run does not replace the focused command before the merge. `package.json` carries no test script,
 so every test run names exactly what it runs (ADR 0166).

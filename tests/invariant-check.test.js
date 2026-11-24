@@ -5,6 +5,7 @@
 // `check(root)` in-process; the cases that pin the CLI contract (exit codes, usage, the summary
 // line) spawn the CLI with --root, the same way the maintainer runs it against another repository.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -15,8 +16,14 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 const CLI = path.join(__dirname, '..', 'scripts', 'invariant-check.js');
 const { check } = require(CLI);
 
+const made = [];
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 function repo(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'invariant-check-'));
+  made.push(root);
   for (const [rel, content] of Object.entries(files)) {
     const file = path.join(root, rel);
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -56,8 +63,7 @@ const GOOD = [
 ];
 const register = (...entries) => `# Invariant register\n\n${entries.join('\n')}`;
 
-// --- the CLI contract: usage, a repository with no register, a clean register. ---
-{
+test('the CLI contract: usage, a repository with no register, a clean register.', () => {
   const r = run([], 'no --root');
   assert.notEqual(r.status, 0, 'a missing --root exits non-zero');
   assert.match(r.stderr, /usage/i, 'a missing --root prints usage');
@@ -109,7 +115,7 @@ const register = (...entries) => `# Invariant register\n\n${entries.join('\n')}`
   assert.match(r5.stdout, /^INV-0002: Class: /m, 'a failure prints as `id: field: reason`');
   assert.match(r5.stdout, /^invariant-check: 1 failure\(s\) in 2 entries$/m, 'a failing run ends on the summary line');
   assert.equal(inProcess(dirty).stdout, r5.stdout, 'the in-process rendering the field cases read equals the CLI output');
-}
+});
 
 function failuresFor(files, label) {
   const r = inProcess(repo(files));
@@ -117,18 +123,18 @@ function failuresFor(files, label) {
 }
 const without = (key) => GOOD.filter((l) => !l.startsWith(`${key}:`));
 
-// --- mandatory fields: each missing one is named with the entry's id. ---
 for (const key of ['Class', 'Concepts', 'Statement', 'Breaks']) {
-  const { status, out } = failuresFor(
-    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0007', without(key))) },
-    `missing ${key}`,
-  );
-  assert.equal(status, 1, `an entry missing ${key} fails`);
-  assert.match(out, new RegExp(`^INV-0007: ${key}: `, 'm'), `the failure names INV-0007 and ${key}`);
+  test(`mandatory fields: each missing one is named with the entry's id. (${key})`, () => {
+    const { status, out } = failuresFor(
+      { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0007', without(key))) },
+      `missing ${key}`,
+    );
+    assert.equal(status, 1, `an entry missing ${key} fails`);
+    assert.match(out, new RegExp(`^INV-0007: ${key}: `, 'm'), `the failure names INV-0007 and ${key}`);
+  });
 }
 
-// --- Check on a silently breaking entry: required, and `none` carries a reason. ---
-{
+test('Check on a silently breaking entry: required, and `none` carries a reason.', () => {
   const noCheck = failuresFor(
     { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0002', without('Check'))) },
     'silent without Check',
@@ -154,10 +160,9 @@ for (const key of ['Class', 'Concepts', 'Statement', 'Breaks']) {
     'loud without Check',
   );
   assert.equal(loud.status, 0, `an entry that breaks loudly needs no Check (got: ${loud.out})`);
-}
+});
 
-// --- ids: a duplicate is reported once; a gap is legal. ---
-{
+test('ids: a duplicate is reported once; a gap is legal.', () => {
   const dup = failuresFor(
     {
       'CONTEXT.md': GLOSSARY,
@@ -173,12 +178,11 @@ for (const key of ['Class', 'Concepts', 'Statement', 'Breaks']) {
     'id gap',
   );
   assert.equal(gap.status, 0, `a gap in the id sequence is legal (got: ${gap.out})`);
-}
+});
 
 const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Concepts: ${value}` : l));
 
-// --- Concepts: an exact bold term, unioned over every CONTEXT.md the walk reaches. ---
-{
+test('Concepts: an exact bold term, unioned over every CONTEXT.md the walk reaches.', () => {
   const unknown = failuresFor(
     { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0005', withConcepts('Order, Invoice'))) },
     'unknown concept',
@@ -242,10 +246,9 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
   assert.equal(noGlossary.status, 1, 'a register with no glossary fails');
   assert.match(noGlossary.out, /^INV-0011: Concepts: .*Order/m, 'with no glossary, Order is unresolved');
   assert.match(noGlossary.out, /^INV-0011: Concepts: .*Tier/m, 'with no glossary, Tier is unresolved');
-}
+});
 
-// --- layout: any field order, a heading straight after a field line, CRLF. ---
-{
+test('layout: any field order, a heading straight after a field line, CRLF.', () => {
   const reordered = [GOOD[2], GOOD[4], GOOD[0], GOOD[3], GOOD[1]];
   const tight = `# Invariant register\n\n### INV-0001\n\n${GOOD.join('\n')}\n### INV-0002\n\n${reordered.join('\n')}\n`;
   const lf = failuresFor({ 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': tight }, 'layout');
@@ -274,10 +277,9 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
     /^INV-0012: Concepts: `Invoice` is not a glossary term\n/m,
     'a CRLF failure reports the value without a stray carriage return',
   );
-}
+});
 
-// --- headings: an id-shaped heading that is not exactly `### INV-NNNN` is reported, not dropped. ---
-{
+test('headings: an id-shaped heading that is not exactly `### INV-NNNN` is reported, not dropped.', () => {
   const level2 = failuresFor(
     { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': `# Invariant register\n\n## INV-0001\n\n${without('Concepts').join('\n')}\n` },
     'level-2 heading',
@@ -325,10 +327,9 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
     'title and intro prose',
   );
   assert.equal(clean.status, 0, `the title and its intro paragraph produce no failure (got: ${clean.out})`);
-}
+});
 
-// --- a `Key: value` line outside any entry, or a field key none of the seven names, is reported. ---
-{
+test('a `Key: value` line outside any entry, or a field key none of the seven names, is reported.', () => {
   const stray = failuresFor(
     {
       'CONTEXT.md': GLOSSARY,
@@ -358,10 +359,9 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
   );
   assert.equal(misspelledSymbol.status, 1, 'a misspelled Symbols key fails too');
   assert.match(misspelledSymbol.out, /^INV-0008: Symbol: /m, 'the failure names the entry and the unrecognised key');
-}
+});
 
-// --- Breaks: silently/loudly match case-insensitively; any other value is reported. ---
-{
+test('Breaks: silently/loudly match case-insensitively; any other value is reported.', () => {
   const capitalised = failuresFor(
     { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0009', [...without('Check').filter((l) => !l.startsWith('Breaks')), 'Breaks: Silently'])) },
     'capitalised silently, no Check',
@@ -381,21 +381,19 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
   );
   assert.equal(other.status, 1, 'a Breaks value that is neither silently nor loudly fails');
   assert.match(other.out, /^INV-0011: Breaks: /m, 'the failure names the entry and Breaks');
-}
+});
 
 
-// --- wiring: `node scripts/run-tests.js` validates this repository's own register. ---
-{
+test('wiring: `node scripts/run-tests.js` validates this repository\'s own register.', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   assert.strictEqual(pkg.scripts.test, undefined, 'package.json carries no test script: tests run through node scripts/run-tests.js');
   assert.ok(
     require('../scripts/run-tests').TAIL.some(([cmd, args]) => cmd === process.execPath && args.join(' ') === 'scripts/invariant-check.js --root .'),
     'the runner\'s tail runs the validator against this repository',
   );
-}
+});
 
-// --- INV-0051: nothing in the shipped tree names or requires the validator. ---
-{
+test('INV-0051: nothing in the shipped tree names or requires the validator.', () => {
   const shipped = path.join(__dirname, '..', 'plugin');
   const hits = [];
   const visit = (dir) => {
@@ -407,10 +405,9 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
   };
   visit(shipped);
   assert.deepEqual(hits, [], 'no file under plugin/ names scripts/invariant-check.js');
-}
+});
 
-// --- INV-0088 (spawned: it asserts the CLI's own stdout): a run prints failures and one summary, never a selected subset of entries. ---
-{
+test('INV-0088 (spawned: it asserts the CLI\'s own stdout): a run prints failures and one summary, never a selected subset of entries.', () => {
   const root = repo({
     'CONTEXT.md': GLOSSARY,
     'docs/invariants.md': register(entry('INV-0001', GOOD), entry('INV-0002', withConcepts('Invoice'))),
@@ -420,9 +417,8 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
   assert.match(lines.pop(), /^invariant-check: \d+ failure\(s\) in \d+ entries$/, 'the last line is the summary');
   for (const line of lines) assert.match(line, /^INV-\d+: \w+: /, `every other line is a failure: ${line}`);
   assert.doesNotMatch(out, /INV-0001/, 'an entry that holds is not printed');
-}
+});
 
-// --- Paths: every glob matches at least one walked file. ---
 const TREE = {
   'CONTEXT.md': GLOSSARY,
   'plugin/skills/plan/SKILL.md': 'Plan decides the order total.\n',
@@ -432,7 +428,7 @@ const TREE = {
   'node_modules/dep/index.js': 'function hidden() {}\n',
 };
 const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`)), `${key}: ${value}`];
-{
+test('Paths: every glob matches at least one walked file.', () => {
   const good = failuresFor(
     {
       ...TREE,
@@ -464,10 +460,9 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   assert.match(bad.out, /^INV-0005: Paths: /m, 'a * glob matching nothing fails');
   assert.match(bad.out, /^INV-0006: Paths: /m, 'a skipped tree matches nothing');
   assert.match(bad.out, /^INV-0007: Paths: /m, '* stays inside one path segment');
-}
+});
 
-// --- separators: the walk yields forward-slash paths, and a backslash path matches the same glob. ---
-{
+test('separators: the walk yields forward-slash paths, and a backslash path matches the same glob.', () => {
   const { walk, globMatcher } = require(CLI);
   const files = walk(repo(TREE));
   assert.ok(files.includes('plugin/skills/plan/SKILL.md'), 'the walk yields repo-relative paths');
@@ -476,10 +471,9 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   assert.ok(matches('plugin/skills/plan/SKILL.md'), 'a forward-slash path matches');
   assert.ok(matches('plugin\\skills\\plan\\SKILL.md'), 'the same path with backslash separators matches');
   assert.ok(!matches('plugin\\hooks\\a.js'), 'a backslash path outside the glob does not');
-}
+});
 
-// --- Symbols: a whole word inside the entry's governed files. ---
-{
+test('Symbols: a whole word inside the entry\'s governed files.', () => {
   const scoped = [...withField('Paths', 'tests/**'), 'Symbols: orderTotal, invoiceTotal'];
   const unscoped = [...GOOD, 'Symbols: invoiceTotal, Billing.decided, onlyInRegister'];
   const dotted = [...withField('Paths', 'src/**'), 'Symbols: `Billing.invoiceTotal`, decide'];
@@ -497,10 +491,9 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   assert.match(out, /^INV-0002: Symbols: `onlyInRegister` /m, 'the register itself resolves no symbol');
   assert.doesNotMatch(out, /INV-0003: Symbols: `Billing\.invoiceTotal`/, 'a dotted symbol resolves on its last segment');
   assert.match(out, /^INV-0003: Symbols: `decide` /m, '`decide` does not match `decided`');
-}
+});
 
-// --- Check: a path-shaped token names a file that exists; prose around it is not checked. ---
-{
+test('Check: a path-shaped token names a file that exists; prose around it is not checked.', () => {
   const good = withField('Check', 'tests/order.test.js ("sums the lines"); `scripts/drift-check.js` `order-total` row');
   const bad = withField('Check', '`tests/gone.test.js` and src/billing.js:12 (the `#no-fetch` case)');
   const { status, out } = failuresFor(
@@ -513,11 +506,9 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   assert.doesNotMatch(out, /order-total|sums the lines/, 'drift ids and quoted test names are not checked');
   assert.match(out, /^INV-0002: Check: `tests\/gone\.test\.js` names no file$/m, 'names the entry and the path');
   assert.doesNotMatch(out, /src\/billing\.js|#no-fetch/, 'an existing path with a line suffix passes');
-}
+});
 
-// --- I-1: a non-field line inside an entry fails, naming the entry and the line; a duplicate field
-// key fails too, keeping the first value rather than overwriting it. ---
-{
+test('I-1: a non-field line inside an entry fails, naming the entry and the line; a duplicate field key fails too, keeping the first value rather than overwriting it.', () => {
   const { parseEntries } = require(CLI);
   const stray = `${entry('INV-0001', GOOD)}###INV-0002\n\nStatement: second rule\nBreaks: loudly\n`;
   const { entries, failures } = parseEntries(stray);
@@ -558,11 +549,9 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
     'unspaced heading',
   );
   assert.equal(tight.status, 1, 'an unspaced ###INV-0002 heading inside an entry fails rather than silently reparenting fields');
-}
+});
 
-// --- m-A: a field key matching one of the seven case-insensitively, but written in the wrong case,
-// is reported as a wrong-case key rather than an unrecognised one or silently ignored. ---
-{
+test('m-A: a field key matching one of the seven case-insensitively, but written in the wrong case, is reported as a wrong-case key rather than an unrecognised one or silently ignored.', () => {
   const wrongCase = failuresFor(
     { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0014', [...GOOD, 'paths: nowhere/**'])) },
     'wrong-case Paths key',
@@ -584,11 +573,9 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
     /^INV-0015: symbols: .*wrong case.*`Symbols`/m,
     'the failure names the wrong-case key and the correct spelling',
   );
-}
+});
 
-// --- I-1: a backticked `Check:` value is unquoted before the missing-proof and `none` tests, so
-// `` `none` `` and empty backticks on a silently breaking entry fail like their bare forms. ---
-{
+test('I-1: a backticked `Check:` value is unquoted before the missing-proof and `none` tests, so `` `none` `` and empty backticks on a silently breaking entry fail like their bare forms.', () => {
   const backtickedNone = failuresFor(
     {
       'CONTEXT.md': GLOSSARY,
@@ -608,11 +595,10 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   );
   assert.equal(emptyBackticks.status, 1, 'empty backticks fail like a missing Check');
   assert.match(emptyBackticks.out, /^INV-0017: Check: /m, 'the failure names the entry and Check');
-}
+});
 
-// --- I-2: a register that exists but parses to zero entries fails, rather than passing as
-// "0 entries hold". An empty file, a UTF-16LE file, and a blockquoted-only register all trigger it. ---
-{
+// An empty file, a UTF-16LE file, and a blockquoted-only register all trigger it.
+test('I-2: a register that exists but parses to zero entries fails, rather than passing as "0 entries hold".', () => {
   const empty = failuresFor({ 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': '' }, 'empty register');
   assert.equal(empty.status, 1, 'an empty register file fails rather than passing as 0 entries');
   assert.match(empty.out, /^\(register\): id: no `### INV-NNNN` entry found$/m, 'names the missing-entry reason');
@@ -638,11 +624,10 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   const noRegRun = inProcess(noRegisterFile);
   assert.equal(noRegRun.status, 0, 'a repository with no register file at all still passes');
   assert.match(noRegRun.stdout, /no register/i, 'and still says no register was found');
-}
+});
 
-// --- m-1: a line outside any entry that carries an invariant id is reported, even after a non-INV
-// heading (e.g. `## Retired`), while the register's own title and intro prose stay legal. ---
-{
+// `## Retired`), while the register's own title and intro prose stay legal.
+test('m-1: a line outside any entry that carries an invariant id is reported, even after a non-INV heading (e.g.', () => {
   const retired = failuresFor(
     {
       'CONTEXT.md': GLOSSARY,
@@ -662,11 +647,9 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   );
   assert.equal(indentedRetired.status, 1, 'an indented heading-shaped INV line outside any entry fails');
   assert.match(indentedRetired.out, /^\(register\): id: /m, 'the failure names the offending line');
-}
+});
 
-// --- m-2: `Breaks:` is anchored, so `Breaks: loudly, silently` is not accepted as a loudly entry
-// that skips the Check requirement. ---
-{
+test('m-2: `Breaks:` is anchored, so `Breaks: loudly, silently` is not accepted as a loudly entry that skips the Check requirement.', () => {
   const trailing = failuresFor(
     {
       'CONTEXT.md': GLOSSARY,
@@ -676,11 +659,10 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   );
   assert.equal(trailing.status, 1, '`Breaks: loudly, silently` fails rather than passing as loudly');
   assert.match(trailing.out, /^INV-0018: Breaks: /m, 'the failure names the entry and Breaks');
-}
+});
 
-// --- m-3: a `Check:` value with no word characters once unquoted (e.g. `-` or empty) fails on a
-// silently breaking entry, the same as a missing Check; `TBD` stays legal content. ---
-{
+// `-` or empty) fails on a silently breaking entry, the same as a missing Check; `TBD` stays legal content.
+test('m-3: a `Check:` value with no word characters once unquoted (e.g.', () => {
   const dash = failuresFor(
     {
       'CONTEXT.md': GLOSSARY,
@@ -699,23 +681,20 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
     'TBD Check',
   );
   assert.equal(tbd.status, 0, `\`Check: TBD\` stays legal content (got: ${tbd.out})`);
-}
+});
 
-// --- class sweep: a `Concepts` value that is present but resolves to no list item (`,` or
-// whitespace) passes the mandatory-field check yet names nothing to resolve, so it fails too. ---
-{
+test('class sweep: a `Concepts` value that is present but resolves to no list item (`,` or whitespace) passes the mandatory-field check yet names nothing to resolve, so it fails too.', () => {
   const commaOnly = failuresFor(
     { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0021', withConcepts(','))) },
     'comma-only Concepts',
   );
   assert.equal(commaOnly.status, 1, 'a Concepts value with no real item fails');
   assert.match(commaOnly.out, /^INV-0021: Concepts: names no concept$/m, 'names the entry and the reason');
-}
+});
 
-// --- inbound citations (#689): an id cited outside the register must name an entry it carries.
-// STALE is built at runtime so this file's own source never cites a missing id — the repository's
-// own `invariant-check --root .` walks tests/ too. ---
-{
+// STALE is built at runtime so this file's own source never cites a missing id — the repository's own
+// `invariant-check --root .` walks tests/ too.
+test('inbound citations (#689): an id cited outside the register must name an entry it carries.', () => {
   const STALE = ['INV', '9999'].join('-');
   const base = { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0001', GOOD)) };
 
@@ -758,77 +737,82 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   const noRegister = inProcess(repo({ 'CONTEXT.md': GLOSSARY, 'README.md': `${STALE}\n` }));
   assert.equal(noRegister.status, 0, 'a repository with no register still passes, whatever it cites');
   assert.match(noRegister.stdout, /no register/i, 'and says there is nothing to check');
-}
+});
 
-// --- #724 residuals from #691's final review. ---
-// A reasonless `none` wrapped in any punctuation fails like a backticked bare `none`; a reason passes.
+// #724 residuals from #691's final review.
 for (const wrapped of ['*none*', '**none**', '"none"', '(none)', '_none_']) {
-  const r = failuresFor(
-    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0022', [...without('Check'), `Check: ${wrapped}`])) },
-    `wrapped none ${wrapped}`,
-  );
-  assert.equal(r.status, 1, `\`Check: ${wrapped}\` fails on a silently breaking entry (got: ${r.out})`);
-  assert.match(r.out, /^INV-0022: Check: `none` needs the reason/m, 'naming the entry and Check');
+  test(`A reasonless \`none\` wrapped in any punctuation fails like a backticked bare \`none\` (${wrapped})`, () => {
+    const r = failuresFor(
+      { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0022', [...without('Check'), `Check: ${wrapped}`])) },
+      `wrapped none ${wrapped}`,
+    );
+    assert.equal(r.status, 1, `\`Check: ${wrapped}\` fails on a silently breaking entry (got: ${r.out})`);
+    assert.match(r.out, /^INV-0022: Check: `none` needs the reason/m, 'naming the entry and Check');
+  });
 }
-{
+test('A wrapped `none` followed by a reason passes', () => {
   const reasoned = failuresFor(
     { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0022', [...without('Check'), 'Check: *none* — nothing cheaply tests it'])) },
     'wrapped none with a reason',
   );
   assert.equal(reasoned.status, 0, `a wrapped none followed by a reason passes (got: ${reasoned.out})`);
-}
+});
 
-// A mandatory field whose value carries no word character fails, naming the entry and the field.
 for (const [key, value] of [['Class', '-'], ['Statement', '—'], ['Class', '``']]) {
-  const r = failuresFor(
-    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0023', [...without(key), `${key}: ${value}`])) },
-    `wordless ${key}`,
-  );
-  assert.equal(r.status, 1, `\`${key}: ${value}\` fails (got: ${r.out})`);
-  assert.match(r.out, new RegExp(`^INV-0023: ${key}: `, 'm'), 'naming the entry and the field');
+  test(`A mandatory field whose value carries no word character fails, naming the entry and the field. (${key}: ${value})`, () => {
+    const r = failuresFor(
+      { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0023', [...without(key), `${key}: ${value}`])) },
+      `wordless ${key}`,
+    );
+    assert.equal(r.status, 1, `\`${key}: ${value}\` fails (got: ${r.out})`);
+    assert.match(r.out, new RegExp(`^INV-0023: ${key}: `, 'm'), 'naming the entry and the field');
+  });
 }
 
-// A present `Paths:` or `Symbols:` value that names nothing fails; omitting either still passes.
 for (const key of ['Paths', 'Symbols']) {
-  const r = failuresFor(
-    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0024', [...GOOD, `${key}: ,`])) },
-    `comma-only ${key}`,
-  );
-  assert.equal(r.status, 1, `\`${key}: ,\` fails (got: ${r.out})`);
-  assert.match(r.out, new RegExp(`^INV-0024: ${key}: names no `, 'm'), 'naming the entry and the field');
+  test(`A present \`Paths:\` or \`Symbols:\` value that names nothing fails; omitting either still passes. (${key})`, () => {
+    const r = failuresFor(
+      { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0024', [...GOOD, `${key}: ,`])) },
+      `comma-only ${key}`,
+    );
+    assert.equal(r.status, 1, `\`${key}: ,\` fails (got: ${r.out})`);
+    assert.match(r.out, new RegExp(`^INV-0024: ${key}: names no `, 'm'), 'naming the entry and the field');
+  });
 }
 
-// A byte-order mark directly before a first-line entry heading parses like the same text without it.
-{
+test('A byte-order mark directly before a first-line entry heading parses like the same text without it.', () => {
   const text = `${entry('INV-0025', GOOD)}\n${entry('INV-0026', GOOD)}`;
   const bom = failuresFor({ 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': `\uFEFF${text}` }, 'BOM before first heading');
   const plain = failuresFor({ 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': text }, 'no BOM');
   assert.equal(bom.status, 0, `a leading BOM before \`### INV-0025\` passes (got: ${bom.out})`);
   assert.equal(bom.out, plain.out, 'and reports exactly what the same text without the mark reports');
-}
+});
 
-// Bulleted and numbered heading-shaped lines outside any entry fail, as blockquoted and indented ones do.
 for (const line of ['- ### INV-0005', '1. ### INV-0005', '- > ### INV-0005']) {
-  const r = failuresFor(
-    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': `${register(entry('INV-0001', GOOD))}\n## Retired\n\n${line}\n` },
-    `marked heading ${line}`,
-  );
-  assert.equal(r.status, 1, `\`${line}\` outside any entry fails`);
-  assert.match(r.out, /^\(register\): id: .*mentions INV-0005 outside any entry/m, 'the failure names the offending line');
+  test(`Bulleted and numbered heading-shaped lines outside any entry fail, as blockquoted and indented ones do. (${line})`, () => {
+    const r = failuresFor(
+      { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': `${register(entry('INV-0001', GOOD))}\n## Retired\n\n${line}\n` },
+      `marked heading ${line}`,
+    );
+    assert.equal(r.status, 1, `\`${line}\` outside any entry fails`);
+    assert.match(r.out, /^\(register\): id: .*mentions INV-0005 outside any entry/m, 'the failure names the offending line');
+  });
 }
 
-// --- #741: an underscore is not a word. A value made only of `_` and punctuation names nothing, while
+// #741: an underscore is not a word. A value made only of `_` and punctuation names nothing, while
 // a real proof or statement carrying underscores, or written in non-English script, still passes. A
-// citation glued to a trailing letter or `_` is still read, and a longer digit run never as a shorter id. ---
+// citation glued to a trailing letter or `_` is still read, and a longer digit run never as a shorter id.
 for (const value of ['_', '__', '_-_']) {
-  const r = failuresFor(
-    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0027', [...without('Check'), `Check: ${value}`])) },
-    `underscore Check ${value}`,
-  );
-  assert.equal(r.status, 1, `\`Check: ${value}\` fails on a silently breaking entry (got: ${r.out})`);
-  assert.match(r.out, /^INV-0027: Check: names no proof$/m, 'naming the entry and Check');
+  test(`A \`Check:\` value made only of \`_\` and punctuation names no proof (${value})`, () => {
+    const r = failuresFor(
+      { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0027', [...without('Check'), `Check: ${value}`])) },
+      `underscore Check ${value}`,
+    );
+    assert.equal(r.status, 1, `\`Check: ${value}\` fails on a silently breaking entry (got: ${r.out})`);
+    assert.match(r.out, /^INV-0027: Check: names no proof$/m, 'naming the entry and Check');
+  });
 }
-{
+test('A real proof carrying underscores passes', () => {
   const real = failuresFor(
     {
       'CONTEXT.md': GLOSSARY,
@@ -838,23 +822,27 @@ for (const value of ['_', '__', '_-_']) {
     'Check with underscores in a real proof',
   );
   assert.equal(real.status, 0, `a real proof carrying underscores passes (got: ${real.out})`);
-}
+});
 for (const key of ['Class', 'Statement']) {
-  const r = failuresFor(
-    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0028', [...without(key), `${key}: _`])) },
-    `underscore ${key}`,
-  );
-  assert.equal(r.status, 1, `\`${key}: _\` fails (got: ${r.out})`);
-  assert.match(r.out, new RegExp(`^INV-0028: ${key}: carries no word$`, 'm'), 'naming the entry and the field');
+  test(`A \`Class:\` or \`Statement:\` value of \`_\` carries no word (${key})`, () => {
+    const r = failuresFor(
+      { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0028', [...without(key), `${key}: _`])) },
+      `underscore ${key}`,
+    );
+    assert.equal(r.status, 1, `\`${key}: _\` fails (got: ${r.out})`);
+    assert.match(r.out, new RegExp(`^INV-0028: ${key}: carries no word$`, 'm'), 'naming the entry and the field');
+  });
 }
 for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
-  const r = failuresFor(
-    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0028', [...without('Statement'), `Statement: ${statement}`])) },
-    `non-English Statement ${statement}`,
-  );
-  assert.equal(r.status, 0, `a Statement in non-English script passes (got: ${r.out})`);
+  test(`A Statement in non-English script passes (${statement})`, () => {
+    const r = failuresFor(
+      { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0028', [...without('Statement'), `Statement: ${statement}`])) },
+      `non-English Statement ${statement}`,
+    );
+    assert.equal(r.status, 0, `a Statement in non-English script passes (got: ${r.out})`);
+  });
 }
-{
+test('A citation glued to a letter or `_` is still read, and a longer digit run never as a shorter id', () => {
   const STALE = ['INV', '9998'].join('-');
   const LONGER = ['INV', '99981'].join('-');
   const base = { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0001', GOOD)) };
@@ -863,11 +851,11 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
   assert.match(glued.out, new RegExp(`^${STALE}: citation: .*README\\.md:1`, 'm'), 'and reported with its file and line');
   const longer = failuresFor({ ...base, 'README.md': `See ${LONGER}.\n` }, 'longer digit run');
   assert.equal(longer.status, 0, `a longer digit run is never read as a shorter id (got: ${longer.out})`);
-}
+});
 
-// --- #744: only a letter or digit directly before `INV-` stops a citation. An underscore or punctuation
-// in front no longer hides a stale one; a letter or digit in any script still keeps an unrelated id out. ---
-{
+// An underscore or punctuation in front no longer hides a stale one; a letter or digit in any script still keeps an
+// unrelated id out.
+test('#744: only a letter or digit directly before `INV-` stops a citation.', () => {
   const STALE = ['INV', '9997'].join('-');
   const base = { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0001', GOOD)) };
   const lead = failuresFor({ ...base, 'README.md': `See FOO_${STALE}.\n` }, 'citation with a leading underscore');
@@ -882,10 +870,9 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
     const r = failuresFor({ ...base, 'README.md': `See ${prefix}${STALE}.\n` }, `id glued to ${prefix}`);
     assert.equal(r.status, 0, `\`${prefix}\` directly in front keeps it from being read as a citation (got: ${r.out})`);
   }
-}
+});
 
-// --- #342 F92: a field that is present but empty names nothing, and is reported; an absent one is not. ---
-{
+test('#342 F92: a field that is present but empty names nothing, and is reported; an absent one is not.', () => {
   const r = failuresFor(
     {
       ...TREE,
@@ -901,10 +888,9 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
   assert.match(r.out, /^INV-0001: Paths: /m, 'an empty Paths: names the entry and the field');
   assert.match(r.out, /^INV-0002: Symbols: /m, 'an empty Symbols: beside a non-empty Paths: names the entry and the field');
   assert.doesNotMatch(r.out, /^INV-0003: /m, 'an entry with no Paths: line still passes');
-}
+});
 
-// --- #342 F92: a symbol with an empty name segment names nothing; its pattern would match any file. ---
-{
+test('#342 F92: a symbol with an empty name segment names nothing; its pattern would match any file.', () => {
   const r = failuresFor(
     {
       ...TREE,
@@ -922,10 +908,9 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
     assert.match(r.out, new RegExp(`^${id}: Symbols: .*empty`, 'm'), `${id}'s empty symbol segment names the entry and the field`);
   }
   assert.doesNotMatch(r.out, /^INV-0004: /m, 'a dotted symbol whose segments all carry a name passes');
-}
+});
 
-// --- #342 F92: a silent-break reason after the dash carries a word; bare `silently` still passes. ---
-{
+test('#342 F92: a silent-break reason after the dash carries a word; bare `silently` still passes.', () => {
   const withBreaks = (value) => GOOD.map((l) => (l.startsWith('Breaks:') ? `Breaks: ${value}` : l));
   const r = failuresFor(
     {
@@ -944,11 +929,11 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
   assert.match(r.out, /^INV-0002: Breaks: /m, 'a dash followed by punctuation alone names the entry and the field');
   assert.doesNotMatch(r.out, /^INV-0003: /m, 'a bare `Breaks: silently` passes');
   assert.doesNotMatch(r.out, /^INV-0004: /m, 'a reason that carries words passes');
-}
+});
 
-// --- #342 F92: a Check: path is a literal file inside the repository. A glob-shaped one, or one that leads
-// outside the root, is reported; bold prose inside the value and a directory inside the repo are not. ---
-{
+// A glob-shaped one, or one that leads outside the root, is reported; bold prose inside the value and a directory
+// inside the repo are not.
+test('#342 F92: a Check: path is a literal file inside the repository.', () => {
   const withCheck = (value) => GOOD.map((l) => (l.startsWith('Check:') ? `Check: ${value}` : l));
   const outer = repo({ 'x.test.js': '' });
   const root = path.join(outer, 'repo');
@@ -977,10 +962,9 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
   assert.doesNotMatch(r.stdout, /^INV-0006: /m, 'bold `**Branch:**` prose in a Check: value is no glob');
   assert.doesNotMatch(r.stdout, /^INV-0007: /m, 'a literal path inside the repository passes');
   assert.doesNotMatch(r.stdout, /^INV-0008: /m, 'a Check: naming a folder inside the repository keeps its passing verdict');
-}
+});
 
-// --- an absolute Check: path, rooted at `/`, at `~/`, or at a drive, leads outside the repository. ---
-{
+test('an absolute Check: path, rooted at `/`, at `~/`, or at a drive, leads outside the repository.', () => {
   const r = failuresFor(
     {
       ...TREE,
@@ -1001,10 +985,9 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
   assert.match(r.out, /^INV-0004: Check: `C:\\Windows\\x\.js` leads outside the repository$/m, 'a backslash drive path is reported');
   assert.doesNotMatch(r.out, /^INV-000[1-4]: Check: `tests\/order\.test\.js`/m, 'the relative neighbour keeps passing');
   assert.doesNotMatch(r.out, /^INV-0005: /m, 'relative paths and a URL in a Check: value pass');
-}
+});
 
-// --- a Check: path rooted at a variable gives one failure naming the whole token, neither a glob nor an absolute path. ---
-{
+test('a Check: path rooted at a variable gives one failure naming the whole token, neither a glob nor an absolute path.', () => {
   const r = failuresFor(
     {
       ...TREE,
@@ -1032,10 +1015,9 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
     ['INV-0003: Check: `$HOME/scripts/a.js` starts at a variable; name the path from the repository root'],
     'a $VAR-rooted path gives one failure',
   );
-}
+});
 
-// --- a bold path or a markdown link naming a path in a Check: value is no glob; a real glob still is. ---
-{
+test('a bold path or a markdown link naming a path in a Check: value is no glob; a real glob still is.', () => {
   const r = failuresFor(
     {
       ...TREE,
@@ -1052,6 +1034,5 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
   assert.doesNotMatch(r.out, /^INV-0002: /m, 'a markdown link whose text is a path is no glob');
   assert.match(r.out, /^INV-0003: Check: `tests\/\*\.test\.js` is a glob/m, 'a bold glob is still reported');
   assert.match(r.out, /^INV-0004: Check: `tests\/\*\.test\.js` is a glob/m, 'a link target holding a glob is still reported');
-}
+});
 
-console.log('invariant-check tests ok');

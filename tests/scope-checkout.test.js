@@ -3,6 +3,7 @@
 // Suite for plugin/scripts/scope.js's `checkout` verb (INV-0196): one scope-checkout verdict from the scope branch's resolution,
 // `git worktree list`, and the ledger's stage. The verb only reads, so each case builds its own repository copy and run root.
 
+const { test, after } = require('node:test');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const assert = require('node:assert');
 const { execFileSync } = require('node:child_process');
@@ -22,7 +23,7 @@ const template = templateOnce((dir) => {
 }, 'scope-checkout-template-');
 
 const copies = [];
-process.on('exit', () => copies.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
+after(() => copies.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
 
 // A repository copy with branch `feat/x` and a run root `x` whose ledger carries `stage`.
 function setup({ stage = 'implementing' } = {}) {
@@ -41,15 +42,13 @@ const verdict = (s, root = s.root) => {
 };
 const real = (p) => fs.realpathSync(p);
 
-// A registered scopetree on the scope branch is present, and the path is the scopetree.
-{
+test('A registered scopetree on the scope branch is present, and the path is the scopetree.', () => {
   const s = setup();
   git(['worktree', 'add', '-q', s.tree, 'feat/x'], s.repo);
   assert.strictEqual(verdict(s), `present ${real(s.tree)}`, 'a registered scopetree on the branch prints present');
-}
+});
 
-// A scopetree reached through a symlinked prefix still reads present.
-{
+test('A scopetree reached through a symlinked prefix still reads present.', () => {
   const s = setup();
   git(['worktree', 'add', '-q', s.tree, 'feat/x'], s.repo);
   const link = path.join(path.dirname(s.repo), path.basename(s.repo) + '-link');
@@ -57,67 +56,70 @@ const real = (p) => fs.realpathSync(p);
   copies.push(link);
   const out = verdict(s, path.join(link, '.superdev', 'scopes', 'x'));
   assert.ok(out.startsWith('present '), 'a symlinked prefix reads present, got: ' + out);
-}
+});
 
-// A missing scopetree is absent before shipped, and absent-terminal at shipped and closed.
-assert.strictEqual(verdict(setup()), 'absent', 'a missing scopetree at implementing prints absent');
-assert.strictEqual(verdict(setup({ stage: 'shipped' })), 'absent-terminal shipped', 'absent at shipped is terminal');
-assert.strictEqual(verdict(setup({ stage: 'closed' })), 'absent-terminal closed', 'absent at closed is terminal');
+test('A missing scopetree is absent before shipped, and absent-terminal at shipped and closed.', () => {
+  assert.strictEqual(verdict(setup()), 'absent', 'a missing scopetree at implementing prints absent');
+  assert.strictEqual(verdict(setup({ stage: 'shipped' })), 'absent-terminal shipped', 'absent at shipped is terminal');
+  assert.strictEqual(verdict(setup({ stage: 'closed' })), 'absent-terminal closed', 'absent at closed is terminal');
+});
 
-// Another working tree holding the branch prints its path.
-{
+test('Another working tree holding the branch prints its path.', () => {
   const s = setup();
   const other = path.join(path.dirname(s.repo), path.basename(s.repo) + '-other');
   git(['worktree', 'add', '-q', other, 'feat/x'], s.repo);
   copies.push(other);
   assert.strictEqual(verdict(s), `held-elsewhere ${real(other)}`, 'a branch held by another tree prints held-elsewhere and its path');
-}
+});
 
-// A leftover directory, a tree on another branch or detached, and a registration whose directory is gone are unregistered.
-{
+test('A leftover directory, a tree on another branch or detached, and a registration whose directory is gone are unregistered.', () => {
   const s = setup();
   fs.mkdirSync(s.tree);
   assert.ok(/^unregistered .*not a registered/.test(verdict(s)), 'a leftover directory prints unregistered');
-}
-{
+});
+
+test('a scopetree on another branch prints unregistered naming it', () => {
   const s = setup();
   git(['worktree', 'add', '-q', '-b', 'other', s.tree], s.repo);
   assert.ok(/^unregistered .*other/.test(verdict(s)), 'a scopetree on another branch prints unregistered naming it');
-}
-{
+});
+
+test('a detached scopetree prints unregistered', () => {
   const s = setup();
   git(['worktree', 'add', '-q', '--detach', s.tree], s.repo);
   assert.ok(/^unregistered .*detached/.test(verdict(s)), 'a detached scopetree prints unregistered');
-}
-{
+});
+
+test('a registration whose directory is gone prints unregistered', () => {
   const s = setup();
   git(['worktree', 'add', '-q', s.tree, 'feat/x'], s.repo);
   fs.rmSync(s.tree, { recursive: true, force: true });
   assert.ok(/^unregistered .*gone/.test(verdict(s)), 'a registration whose directory is gone prints unregistered');
-}
+});
 
-// Branch verdicts pass through; a guess names the branch it checks.
-{
+
+test('Branch verdicts pass through; a guess names the branch it checks.', () => {
   const s = setup();
   git(['branch', '-D', 'feat/x'], s.repo);
   assert.strictEqual(verdict(s), 'none', 'no branch prints none');
-}
-{
+});
+
+test('several shape matches print ambiguous', () => {
   const s = setup();
   git(['branch', 'fix/x'], s.repo);
   fs.writeFileSync(path.join(s.root, 'ledger.md'), '# Run state\n\n**Stage:** implementing\n');
   assert.strictEqual(verdict(s), 'ambiguous feat/x fix/x', 'several shape matches print ambiguous');
-}
-{
+});
+
+test('a guessed branch is the branch checked', () => {
   const s = setup();
   fs.writeFileSync(path.join(s.root, 'ledger.md'), '# Run state\n\n**Stage:** implementing\n');
   git(['worktree', 'add', '-q', s.tree, 'feat/x'], s.repo);
   assert.strictEqual(verdict(s), `present ${real(s.tree)}`, 'a guessed branch is the branch checked');
-}
+});
 
-// A path holding a newline keeps the verdict on one line: a registered scopetree there reads unregistered naming the line break,
-// and a holder there reads held-elsewhere with no path.
-{
+
+test('A path holding a newline keeps the verdict on one line: a registered scopetree there reads unregistered naming the line break, and a holder there reads held-elsewhere with no path.', () => {
   const s = setup();
   const root = path.join(s.repo, '.superdev', 'odd\ndir', 'x');
   fs.mkdirSync(root, { recursive: true });
@@ -125,38 +127,37 @@ assert.strictEqual(verdict(setup({ stage: 'closed' })), 'absent-terminal closed'
   git(['worktree', 'add', '-q', path.join(root, 'scopetree'), 'feat/x'], s.repo);
   const out = verdict(s, root);
   assert.ok(/^unregistered .*line break/.test(out) && !out.includes('\n'), 'a newline in the scopetree path prints one unregistered line, got: ' + out);
-}
-{
+});
+
+test('a newline in the holder path prints one held-elsewhere line', () => {
   const s = setup();
   const holder = path.join(s.repo, '..', path.basename(s.repo) + '-odd\nholder');
   git(['worktree', 'add', '-q', holder, 'feat/x'], s.repo);
   copies.push(holder);
   const out = verdict(s);
   assert.strictEqual(out, 'held-elsewhere a working tree whose path holds a line break', 'a newline in the holder path prints one held-elsewhere line');
-}
+});
 
-// A git failure passes through as git-failed, from the run read outside any repository.
-{
+
+test('A git failure passes through as git-failed, from the run read outside any repository.', () => {
   const s = setup();
   const outside = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'scope-checkout-outside-'));
   copies.push(outside);
   const r = call(['checkout', '--root', s.root], '', outside);
   assert.ok(r.ok, 'checkout should not refuse: ' + r.err);
   assert.ok(/^git-failed /.test(r.out), 'a failing git prints git-failed, got: ' + r.out);
-}
+});
 
-// The verb changes no ref, registration, or file.
-{
+test('The verb changes no ref, registration, or file.', () => {
   const s = setup();
   fs.mkdirSync(s.tree);
   const snap = () => [git(['worktree', 'list', '--porcelain'], s.repo), git(['for-each-ref'], s.repo), git(['status', '--porcelain', '-uall'], s.repo), fs.readdirSync(s.root).join()].join('\n');
   const before = snap();
   verdict(s);
   assert.strictEqual(snap(), before, 'the verb writes nothing');
-}
+});
 
-// Argument handling matches the branch verb.
-{
+test('Argument handling matches the branch verb.', () => {
   const s = setup();
   for (const extra of ['extra', '--bogus']) {
     const r = call(['checkout', '--root', s.root, extra], '', s.repo);
@@ -164,6 +165,5 @@ assert.strictEqual(verdict(setup({ stage: 'closed' })), 'absent-terminal closed'
     assert.strictEqual(r.out, '', `a refused ${extra} prints no verdict`);
   }
   assert.ok(!call(['checkout', '--root', path.join(s.root, 'nope')], '', s.repo).ok, 'a root that is no directory is refused');
-}
+});
 
-console.log('scope-checkout: ok');

@@ -4,6 +4,7 @@
 // `get reviewed`, the ledger's `**Reviewed:**` record of the scope tip a clean scope review judged beside a digest of
 // `dod.md`'s criterion texts and tags. The git repository is built once and copied per case.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -28,14 +29,19 @@ const template = templateOnce((dir) => {
   assert.ok(call(['init', 'feat/demo', 'implementing'], sliceJson, dir).ok, 'fixture init');
 }, 'scope-reviewed-');
 
+const made = [];
+after(() => {
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 const fresh = () => {
   const repo = copyFixture(template(), 'scope-reviewed-case-');
+  made.push(repo);
   const root = path.join(repo, '.superdev', 'scopes', 'demo');
   return { repo, root, R: ['--root', root], at: (cwdArgs) => call(cwdArgs, '', repo) };
 };
 
-// --- reviewed set records the branch tip and the digest; get reviewed reads both back ---------------------------
-{
+test('reviewed set records the branch tip and the digest; get reviewed reads both back', () => {
   const { repo, R, at } = fresh();
   const tip = git(repo, 'rev-parse', 'feat/demo');
   const r = at(['reviewed', 'set', '--branch', 'feat/demo', ...R]);
@@ -44,22 +50,20 @@ const fresh = () => {
   assert.strictEqual(got.length, 2, 'get reviewed prints <sha> <digest>: ' + got.join(' '));
   assert.strictEqual(got[0], tip, 'the recorded sha is the full branch tip');
   assert.match(got[1], /^[0-9a-f]{64}$/, 'the digest is a hex hash');
-}
+});
 
 const ledgerOf = (root) => fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
 const traceOf = (root) => fs.readFileSync(path.join(root, 'trace.log'), 'utf8');
 const digestOf = (at, R) => at(['get', 'reviewed', ...R]).out.split(' ')[1];
 
-// --- reviewed set --tip records that ancestor's full sha --------------------------------------------------------
-{
+test('reviewed set --tip records that ancestor\'s full sha', () => {
   const { repo, R, at } = fresh();
   const parent = git(repo, 'rev-parse', 'feat/demo~1');
   assert.ok(at(['reviewed', 'set', '--branch', 'feat/demo', '--tip', 'feat/demo~1', ...R]).ok, 'reviewed set --tip <ancestor>');
   assert.strictEqual(at(['get', 'reviewed', ...R]).out.split(' ')[0], parent, 'the recorded sha is the ancestor\'s full sha');
-}
+});
 
-// --- every refusal names one reason and writes nothing ----------------------------------------------------------
-{
+test('every refusal names one reason and writes nothing', () => {
   const cases = [
     ['dod.md missing', (f) => fs.rmSync(path.join(f.root, 'dod.md')), [], /dod\.md is missing or unreadable/],
     ['dod.md unreadable', (f) => { fs.rmSync(path.join(f.root, 'dod.md')); fs.mkdirSync(path.join(f.root, 'dod.md')); }, [], /dod\.md is missing or unreadable/],
@@ -87,10 +91,9 @@ const digestOf = (at, R) => at(['get', 'reviewed', ...R]).out.split(' ')[1];
     assert.strictEqual(ledgerOf(f.root), before, `${name}: the ledger is unchanged`);
     assert.strictEqual(traceOf(f.root), traceBefore, `${name}: no trace event`);
   }
-}
+});
 
-// --- reviewed clear removes the header; an absent header is no error and writes nothing ---------------------------
-{
+test('reviewed clear removes the header; an absent header is no error and writes nothing', () => {
   const { root, R, at } = fresh();
   assert.ok(at(['reviewed', 'set', '--branch', 'feat/demo', ...R]).ok, 'set before clear');
   assert.ok(at(['reviewed', 'clear', ...R]).ok, 'reviewed clear');
@@ -101,10 +104,9 @@ const digestOf = (at, R) => at(['get', 'reviewed', ...R]).out.split(' ')[1];
   assert.ok(at(['reviewed', 'clear', ...R]).ok, 'clearing an absent header succeeds');
   assert.strictEqual(ledgerOf(root), before, 'clearing an absent header leaves the ledger unchanged');
   assert.strictEqual(traceOf(root), traceBefore, 'clearing an absent header writes no trace event');
-}
+});
 
-// --- the digest ignores ticks, notes, and line endings, and follows every criterion change --------------------------
-{
+test('the digest ignores ticks, notes, and line endings, and follows every criterion change', () => {
   const base = '## Definition of Done\n\n- [ ] The first thing holds — #1\n- [ ] The second thing holds — scope\n- [ ] A third, untagged\n';
   const variants = {
     tick: '## Definition of Done\n\n- [x] The first thing holds — #1 — met: seen in the suite\n- [ ] The second thing holds — scope\n- [ ] A third, untagged\n',
@@ -128,10 +130,9 @@ const digestOf = (at, R) => at(['get', 'reviewed', ...R]).out.split(' ')[1];
   const d0 = digestWith(base);
   for (const [name, text] of Object.entries(variants)) assert.strictEqual(digestWith(text), d0, `a ${name} leaves the digest unchanged`);
   for (const [name, text] of Object.entries(changes)) assert.notStrictEqual(digestWith(text), d0, `a ${name} criterion changes the digest`);
-}
+});
 
-// --- a ledger without the header reads absent, and set inserts it without disturbing the other headers -------------
-{
+test('a ledger without the header reads absent, and set inserts it without disturbing the other headers', () => {
   const { root, R, at } = fresh();
   assert.ok(at(['pr', 'set', '7', ...R]).ok, 'a header past the others');
   assert.strictEqual(at(['get', 'reviewed', ...R]).out, 'absent', 'an earlier release\'s ledger reads absent');
@@ -141,10 +142,9 @@ const digestOf = (at, R) => at(['get', 'reviewed', ...R]).out.split(' ')[1];
   const i = after.findIndex((l) => l.startsWith('**Reviewed:** '));
   assert.ok(i > after.findIndex((l) => l.startsWith('**PR:** ')), 'Reviewed lands after the last appended header');
   assert.deepStrictEqual(after.filter((_, k) => k !== i), before, 'every other line stays as it was');
-}
+});
 
-// --- both writes check the run digest first and trace the change they make -------------------------------------
-{
+test('both writes check the run digest first and trace the change they make', () => {
   const { root, R, at } = fresh();
   fs.appendFileSync(path.join(root, 'ledger.md'), '\nan outside edit\n');
   const origErr = process.stderr.write;
@@ -164,12 +164,9 @@ const digestOf = (at, R) => at(['get', 'reviewed', ...R]).out.split(' ')[1];
   assert.strictEqual(traceOf(root).trim().split('\n').length, count, 'a set that changes nothing writes no trace event');
   assert.ok(at(['reviewed', 'clear', ...R]).ok, 'reviewed clear');
   assert.match(traceOf(root).trim().split('\n').pop(), / ledger reviewed clear$/, 'reviewed clear traces its write');
-}
+});
 
-// --- the run-status pane's fixtures hold what scope.js writes (INV-0144) -----------------------------------------
-// mods/superdev-view/hooks/ledger-fixtures.ts and trace-fixtures.ts carry the record with a placeholder sha and digest;
-// the pins put this run's own sha and digest in their place and compare every line.
-{
+test('the run-status pane\'s fixtures hold what scope.js writes (INV-0144) mods/superdev-view/hooks/ledger-fixtures.ts and trace-fixtures.ts carry the record with a placeholder sha and digest; the pins put this run\'s own sha and digest in their place and compare every line.', () => {
   const hooks = path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks');
   const between = (file, marker) => {
     const src = fs.readFileSync(path.join(hooks, file), 'utf8');
@@ -197,4 +194,4 @@ const digestOf = (at, R) => at(['get', 'reviewed', ...R]).out.split(' ')[1];
   assert.ok(call(['reviewed', 'clear', '--root', root], '', repo).ok, 'reviewed clear');
   const traced = traceOf(root).trim().split('\n').slice(-2).map((l) => l.replace(/^\S+ /, ''));
   assert.deepStrictEqual(traced, fill(between('trace-fixtures.ts', 'trace-reviewed')), 'scope.js traces the record\'s writes as superdev-view\'s fixture holds them');
-}
+});

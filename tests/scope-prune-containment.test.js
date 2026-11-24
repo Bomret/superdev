@@ -4,11 +4,17 @@
 // present locally whose content base holds (ADR 0053), the second tier of the patch probe (ADR 0082), the third
 // tier of a base commit holding the branch (ADR 0248), and a git without `--write-tree`.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 const {
   hook,
@@ -22,13 +28,11 @@ const {
 } = require('./scope-prune-setup');
 const { main } = hook;
 
-{
-  // --- Containment end to end: the branch is still present locally, and base holds its content ---
-  //
-  // Every case below keeps the scope branch standing, which is this repository's own steady state:
-  // `/superdev:ship` leaves it (the pull request is open from it) and nothing later returns for it, so
-  // the absence arm never fires and containment is the only thing that can (ADR 0053). Each fixture
-  // reaches git for real, so it exercises `containedInBase` rather than a stub.
+// Every case below keeps the scope branch standing, which is this repository's own steady state: `/superdev:ship`
+// leaves it (the pull request is open from it) and nothing later returns for it, so the absence arm never fires and
+// containment is the only thing that can (ADR 0053). Each fixture reaches git for real, so it exercises
+// `containedInBase` rather than a stub.
+test('Containment end to end: the branch is still present locally, and base holds its content', () => {
 
   // #squash-merged-branch-present: the epic's own red-capable case. `git branch --merged` lists `main`
   // alone here, and the branch is present, so both arms of the old test fail together and the run root
@@ -197,6 +201,7 @@ const { main } = hook;
     // One Stop with every git call logged; returns the logged argument lines.
     const stop = (repo, extra = '') => {
       const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-gitlog-')), 'log');
+      made.push(path.dirname(log));
       fs.writeFileSync(log, '');
       withFakeGit(`printf '%s\\n' "$*" >> "${log}"\n${extra}`, () => main(repo));
       const lines = fs.readFileSync(log, 'utf8').split('\n').filter(Boolean);
@@ -322,6 +327,7 @@ const { main } = hook;
   // shim: the merge-commit scope still prunes (ancestry finds it), and the squash-merged one does not
   // (ancestry never did) — which is precisely "current behaviour".
   const oldGitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-oldgit-'));
+  made.push(oldGitDir);
   const realGitPath = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
   fs.writeFileSync(
     path.join(oldGitDir, 'git'),
@@ -371,6 +377,5 @@ const { main } = hook;
   fs.rmSync(oldMergeRepo, { recursive: true, force: true });
   fs.rmSync(oldSquashRepo, { recursive: true, force: true });
   fs.rmSync(oldGitDir, { recursive: true, force: true });
-}
+});
 
-console.log('scope-prune-containment tests ok');

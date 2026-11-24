@@ -5,6 +5,7 @@
 // range base, `references/scope-mode.md` `## The scope's range base`). Each case builds its own git repository,
 // so the suite needs only `run` from tests/scope-setup.js.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -12,8 +13,12 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { run } = require('./scope-setup');
 
-// --- root: the run-root path resolver, anchored to the main working tree (ADR 0080) -----------
-{
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('root: the run-root path resolver, anchored to the main working tree (ADR 0080)', () => {
   // `call` in tests/scope-setup.js fixes cwd at its temporary directory; `root` resolves relative to cwd, so it needs its own.
   const callIn = (argv, cwd, stdinJson) => {
     const logged = [];
@@ -36,6 +41,7 @@ const { run } = require('./scope-setup');
   // realpathSync: git resolves symlinks (e.g. macOS's /tmp -> /private/tmp) when it reports paths,
   // so the expectation below has to compare against the same resolved path.
   const mainRepo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-root-')));
+  made.push(mainRepo);
   gitRoot(['init', '-q', '-b', 'main'], mainRepo);
   gitRoot(['config', 'user.email', 'test@example.com'], mainRepo);
   gitRoot(['config', 'user.name', 'test'], mainRepo);
@@ -52,6 +58,7 @@ const { run } = require('./scope-setup');
 
   // A linked worktree (a scopetree or a slicetree) resolves the same run root.
   const worktreeDir = path.join(mainRepo, '..', path.basename(mainRepo) + '-wt');
+  made.push(worktreeDir);
   gitRoot(['worktree', 'add', '-q', '-b', 'feat/wt', worktreeDir], mainRepo);
   assert.strictEqual(
     callIn(['root', 'demo'], worktreeDir).out,
@@ -70,6 +77,7 @@ const { run } = require('./scope-setup');
 
   // Inside a submodule the run root lives under the submodule's own checkout, never `.git/modules`.
   const subSource = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-root-subsrc-')));
+  made.push(subSource);
   gitRoot(['init', '-q', '-b', 'main'], subSource);
   gitRoot(['config', 'user.email', 'test@example.com'], subSource);
   gitRoot(['config', 'user.name', 'test'], subSource);
@@ -87,6 +95,7 @@ const { run } = require('./scope-setup');
 
   // Outside a git repository entirely.
   const noGitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-root-nogit-'));
+  made.push(noGitDir);
   const noGit = callIn(['root', 'demo'], noGitDir);
   assert.ok(!noGit.ok && /not inside a git repository/.test(noGit.err), 'root refuses outside a git repository: ' + (noGit.err || ''));
   fs.rmSync(noGitDir, { recursive: true, force: true });
@@ -103,6 +112,7 @@ const { run } = require('./scope-setup');
   // scopetree under the main working tree while run init's own `init` call, made from inside it,
   // would otherwise write the ledger one level too deep.
   const wtRoot = path.join(mainRepo, '..', path.basename(mainRepo) + '-init-wt');
+  made.push(wtRoot);
   gitRoot(['worktree', 'add', '-q', '-b', 'feat/init-wt', wtRoot], mainRepo);
   const initFromWt = callIn(
     ['init', 'feat/init-wt-scope', 'planned'],
@@ -133,6 +143,7 @@ const { run } = require('./scope-setup');
   // checkout, and `status` counts the pages staged there from a linked worktree too (ADR 0119,
   // INV-0121).
   const stagingWt = path.join(mainRepo, '..', path.basename(mainRepo) + '-staging-wt');
+  made.push(stagingWt);
   gitRoot(['worktree', 'add', '-q', '-b', 'feat/staging-wt', stagingWt], mainRepo);
   const expectedStaging = path.join(mainRepo, '.superdev', 'kb-pending', 'demo');
   fs.mkdirSync(expectedStaging, { recursive: true });
@@ -156,6 +167,7 @@ const { run } = require('./scope-setup');
     assert.ok(!r3.ok && r3.out === '', `staging refuses ${JSON.stringify(bad)} with nothing on stdout`);
   }
   const stagingNoGit = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-staging-nogit-'));
+  made.push(stagingNoGit);
   const ng = callIn(['staging', 'demo'], stagingNoGit);
   assert.ok(!ng.ok && ng.out === '' && /not inside a git repository/.test(ng.err), 'staging refuses outside a git repository: ' + (ng.err || ''));
   fs.rmSync(stagingNoGit, { recursive: true, force: true });
@@ -167,11 +179,9 @@ const { run } = require('./scope-setup');
   fs.rmSync(stagingWt, { recursive: true, force: true });
 
   fs.rmSync(mainRepo, { recursive: true, force: true });
-}
+});
 
-// --- base: the scope's range base — the recorded merged base tip and the rule that picks the newest
-// of it and merge-base(<base>, <branch>) (`references/scope-mode.md` `## The scope's range base`) ---
-{
+test('base: the scope\'s range base — the recorded merged base tip and the rule that picks the newest of it and merge-base(<base>, <branch>) (`references/scope-mode.md` `## The scope\'s range base`)', () => {
   const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
   const callIn = (argv, cwd, stdin) => {
     const logged = [];
@@ -188,6 +198,7 @@ const { run } = require('./scope-setup');
     }
   };
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-base-')));
+  made.push(repo);
   g(['init', '-q', '-b', 'main'], repo);
   g(['config', 'user.email', 'test@example.com'], repo);
   g(['config', 'user.name', 'test'], repo);
@@ -296,4 +307,4 @@ const { run } = require('./scope-setup');
     'adopt reconstructs the Base line'
   );
   fs.rmSync(repo, { recursive: true, force: true });
-}
+});

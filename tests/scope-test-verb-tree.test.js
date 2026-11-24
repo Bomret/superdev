@@ -2,6 +2,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
+const { test, after } = require('node:test');
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `test` verb, where it runs: a signal-ended command, a failed trace write, outside
@@ -12,24 +13,32 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { testVerbFixture } = require('./scope-setup');
 
-const { D, S, verif, verb, lines, reset, traceFile, end } = testVerbFixture();
-try {
+after(() => {
+  end();
+});
+
+let D, S, verif, verb, lines, reset, traceFile, end;
+test('a signal-ended command records nothing', () => {
+  ({ D, S, verif, verb, lines, reset, traceFile, end } = testVerbFixture());
   // A command ended by a signal writes no line.
   reset();
   verif('kill -TERM $$', 'true');
   assert.notEqual(verb(['full']).status, 0);
   assert.deepEqual(lines(), [], 'a signal-ended command records nothing');
+});
 
-  // A failed trace write prints a note on stderr and leaves the exit status alone.
+let r;
+test('A failed trace write prints a note on stderr and leaves the exit status alone.', () => {
   verif('exit 7', 'true');
   reset();
   fs.mkdirSync(traceFile);
-  let r = verb(['full']);
+  r = verb(['full']);
   assert.equal(r.status, 7, 'the exit status is unchanged');
   assert.match(r.stderr, /trace/, 'a note names the failed write');
   fs.rmdirSync(traceFile);
+});
 
-  // Outside every run tree the verb runs the command, passes the status through, and writes nothing.
+test('Outside every run tree the verb runs the command, passes the status through, and writes nothing.', () => {
   const free = path.join(D, 'free');
   fs.mkdirSync(path.join(free, 'docs', 'agents'), { recursive: true });
   fs.writeFileSync(path.join(free, 'docs', 'agents', 'verification.md'), '# V\n\n```sh\necho FREE; exit 4\n```\n');
@@ -59,8 +68,9 @@ try {
   assert.deepEqual(lines(), [], 'and records nothing');
   fs.rmSync(path.join(free, 'tests'), { recursive: true });
   assert.deepEqual(fs.readdirSync(free).sort(), ['docs'], 'and no file appears');
+});
 
-  // A configured kind runs at the tree root, from any subdirectory of the tree.
+test('A configured kind runs at the tree root, from any subdirectory of the tree.', () => {
   reset();
   fs.writeFileSync(path.join(S, 'rootfile.txt'), 'ROOTMARK\n');
   fs.mkdirSync(path.join(S, 'sub'), { recursive: true });
@@ -68,6 +78,4 @@ try {
   r = verb(['full'], { cwd: path.join(S, 'sub') });
   assert.equal(r.stdout.trim(), 'ROOTMARK', 'a root-relative command runs from a subdirectory');
   assert.equal(r.status, 0);
-} finally {
-  end();
-}
+});
