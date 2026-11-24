@@ -167,6 +167,39 @@ cases.push(async () => {
   assert.ok(timed.some((l) => /^run-tests: tests\/a\.test\.js: \d+ ms$/.test(l)), 'the line carries the step label');
 });
 
+// A suite step runs under node:test's dot reporter, the flag before the suite path so the suite's own `process.argv`
+// is unchanged, and no tail step carries the flag.
+cases.push(async () => {
+  const record = (name) =>
+    `require('node:fs').writeFileSync(require('node:path').join(${JSON.stringify('ROOT')}, '${name}.argv'), JSON.stringify({ execArgv: process.execArgv, argv: process.argv.slice(1) }));`;
+  const root = tree({});
+  const write = (rel, content) => fs.writeFileSync(path.join(root, rel), content.split(JSON.stringify('ROOT')).join(JSON.stringify(root)));
+  fs.mkdirSync(path.join(root, 'tests'));
+  write('tests/a.test.js', record('suite'));
+  const r = await go(root, [[process.execPath, ['-e', record('tail').split(JSON.stringify('ROOT')).join(JSON.stringify(root))]]]);
+  assert.strictEqual(r.status, 0, r.out);
+  const suiteArgs = JSON.parse(fs.readFileSync(path.join(root, 'suite.argv'), 'utf8'));
+  assert.deepStrictEqual(suiteArgs.execArgv, ['--test-reporter=dot'], 'the suite step carries the dot-reporter flag');
+  assert.deepStrictEqual(suiteArgs.argv, [path.join(root, 'tests', 'a.test.js')], 'the flag sits before the suite path');
+  const tailArgs = JSON.parse(fs.readFileSync(path.join(root, 'tail.argv'), 'utf8'));
+  assert.ok(!tailArgs.execArgv.includes('--test-reporter=dot'), 'a tail step carries no flag');
+});
+
+// A suite with one passing and one failing `test()` case fails the run, and the runner output names the failing case.
+cases.push(async () => {
+  const root = tree({
+    'tests/a.test.js':
+      "const { test } = require('node:test');\n" +
+      "test('passing case', () => {});\n" +
+      "test('failing case', () => { throw new Error('the failing case error'); });\n",
+  });
+  const r = await go(root, []);
+  assert.notStrictEqual(r.status, 0, 'a failing case fails the run');
+  assert.match(r.out, /failing case/, 'the output names the failing case');
+  assert.match(r.out, /the failing case error/, 'the output carries its error');
+  assert.match(r.out, /^run-tests: FAILED tests\/a\.test\.js \(exit 1\)$/m);
+});
+
 // A failing step still reports its wall clock and names itself on the FAILED line.
 cases.push(async () => {
   const root = tree({ 'tests/a.test.js': suite('a', 2) });

@@ -4,7 +4,10 @@
 // run-tests: the maintainer-only test runner; `package.json` carries no test script. It finds the suites under tests/ by
 // their `*.test.js` name, so a suite added to the tree runs with no roster edit, runs each
 // under `node` (the hooks' production runtime), and then the fixed tail: the invariant
-// register check, the drift selftest, drift-check, and plugin manifest validation. The steps run as many at once as
+// register check, the drift selftest, drift-check, and plugin manifest validation. A suite step runs as
+// `node --test-reporter=dot <suite>`, the flag before the suite path so the suite's own `process.argv` is unchanged: a
+// suite's `node:test` cases print as one dot each, and a failing case prints its name and error. The tail steps and the
+// mod suite step run with no flag. The steps run as many at once as
 // `os.availableParallelism()` reports, each in its own process group, and each prints its output whole with one
 // `run-tests: <label>: <ms> ms` line, so a test audit ranks measured cost. The first failure ends the steps still
 // running with their processes, starts no further step, and exits nonzero, naming what failed. `--related <path>...` runs the tail plus only the
@@ -495,7 +498,7 @@ function runAll({ root, tail = TAIL, modSuite = MOD_SUITE, out = console.log, re
   const mod = related && related.some((p) => path.posix.normalize(p.split(path.sep).join('/')).startsWith(MOD_DIR));
   const before = readDurations(root);
   const known = (label) => (Number.isFinite(before[label]) ? before[label] : Infinity);
-  const suiteSteps = suites.map((file) => [process.execPath, [file], path.relative(root, file)]);
+  const suiteSteps = suites.map((file) => [process.execPath, ['--test-reporter=dot', file], path.relative(root, file)]);
   suiteSteps.sort((a, b) => known(b[2]) - known(a[2]) || 0);
   const steps = [
     ...suiteSteps,
