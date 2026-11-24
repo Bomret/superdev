@@ -2,6 +2,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
+const { test, after } = require('node:test');
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `prepare <tree>` verb: it runs the prepare command a worktree's own
@@ -15,6 +16,10 @@ const path = require('node:path');
 const { spawnSync, spawn } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { scopePath } = require('./scope-setup');
+
+after(() => {
+  fs.rmSync(D, { recursive: true, force: true });
+});
 
 const D = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prepare-')));
 const git = (cwd, argv) => {
@@ -50,18 +55,19 @@ const log = path.join(D, 'log');
 const env = { ...process.env, P_LOG: log };
 const logged = () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter(Boolean) : []);
 
-try {
-  // The named tree's own command runs at its root, its output on stderr and nothing on stdout.
-  const tree = worktree(repo, 'cmd', section('`echo "ran $(pwd)" >> "$P_LOG"; echo PREPARED-OUT; echo PREPARED-ERR >&2`'));
-  let r = prepare(tree, { env, cwd: path.join(repo, 'docs') });
+let tree, r;
+test('The named tree\'s own command runs at its root, its output on stderr and nothing on stdout.', () => {
+  tree = worktree(repo, 'cmd', section('`echo "ran $(pwd)" >> "$P_LOG"; echo PREPARED-OUT; echo PREPARED-ERR >&2`'));
+  r = prepare(tree, { env, cwd: path.join(repo, 'docs') });
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout, '', 'nothing on stdout');
   assert.match(r.stderr, /PREPARED-OUT/, "the command's stdout goes to stderr");
   assert.match(r.stderr, /PREPARED-ERR/);
   assert.deepEqual(logged(), [`ran ${tree}`], "the tree's own command ran once, at the tree root");
   fs.rmSync(log);
+});
 
-  // No section: one note naming the section and /superdev:setup, exit 0, nothing run.
+test('No section: one note naming the section and /superdev:setup, exit 0, nothing run.', () => {
   const bare = worktree(repo, 'bare', '');
   r = prepare(bare, { env });
   assert.equal(r.status, 0, r.stderr);
@@ -69,13 +75,15 @@ try {
   assert.match(r.stderr, /## Prepare command/);
   assert.match(r.stderr, /\/superdev:setup/);
   assert.deepEqual(logged(), [], 'nothing ran');
+});
 
-  // `none`: exit 0 silently.
+test('`none`: exit 0 silently.', () => {
   r = prepare(worktree(repo, 'none', section('`none`')), { env });
   assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', ''], 'none prepares nothing, silently');
   assert.deepEqual(logged(), []);
+});
 
-  // A failing command exits 3, naming the command and its exit; a signal ends one the same way.
+test('A failing command exits 3, naming the command and its exit; a signal ends one the same way.', () => {
   r = prepare(worktree(repo, 'failing', section('`exit 4`')), { env });
   assert.equal(r.status, 3, r.stderr);
   assert.match(r.stderr, /`exit 4`/);
@@ -83,18 +91,19 @@ try {
   r = prepare(worktree(repo, 'signalled', section('`kill -TERM $$`')), { env });
   assert.equal(r.status, 3, r.stderr);
   assert.match(r.stderr, /SIGTERM/);
+});
 
-  // A command that succeeds but changes a tracked file exits 3, naming the command and the change; an untracked file it
-  // writes is no tracked change.
+test('A command that succeeds but changes a tracked file exits 3, naming the command and the change; an untracked file it writes is no tracked change.', () => {
   r = prepare(worktree(repo, 'dirtying', section('`echo x >> docs/agents/verification.md`')), { env });
   assert.equal(r.status, 3, r.stderr);
   assert.match(r.stderr, /`echo x >> docs\/agents\/verification.md`.*tracked file/);
   r = prepare(worktree(repo, 'untracked', section('`echo x > made.txt`')), { env });
   assert.equal(r.status, 0, r.stderr);
+});
 
-  // The rule reads what the preparation changed, not the tree's state after it: a tracked edit the tree already held is no
-  // change of the preparation, and a change the preparation makes on top of one still is.
-  const edited = (name, command) => {
+let edited;
+test('The rule reads what the preparation changed, not the tree\'s state after it: a tracked edit the tree already held is no change of the preparation, and a change the preparation makes on top of one still is.', () => {
+  edited = (name, command) => {
     const t = worktree(repo, name, section(command));
     for (const f of ['a.txt', 'b.txt']) fs.writeFileSync(path.join(t, f), f + '\n');
     git(t, ['add', 'a.txt', 'b.txt']);
@@ -110,9 +119,9 @@ try {
   r = prepare(edited('pre-edited-same', '`echo x >> a.txt`'), { env });
   assert.equal(r.status, 3, `a preparation that changes an already-edited tracked file exits 3: ${r.stderr}`);
   assert.match(r.stderr, /changed a tracked file: a\.txt$/m, 'a further edit to an already-edited file is named');
+});
 
-  // A type change the tree already held, a file turned into a symlink, prints two chunks under one path; the change the
-  // preparation makes to a later path is still detected and named.
+test('A type change the tree already held, a file turned into a symlink, prints two chunks under one path; the change the preparation makes to a later path is still detected and named.', () => {
   const typed = worktree(repo, 'pre-typechange', section('`echo x >> z`'));
   for (const f of ['link', 'z']) fs.writeFileSync(path.join(typed, f), f + '\n');
   git(typed, ['add', 'link', 'z']);
@@ -123,8 +132,9 @@ try {
   r = prepare(typed, { env });
   assert.equal(r.status, 3, `a change after a type-changed path exits 3: ${r.stderr}`);
   assert.match(r.stderr, /changed a tracked file: z$/m, 'the message names the changed path, and not the type-changed one');
+});
 
-  // The readings run none of the user's own diff programs: an external diff configured for the tree never starts.
+test('The readings run none of the user\'s own diff programs: an external diff configured for the tree never starts.', () => {
   const n = Number(process.env.GIT_CONFIG_COUNT || 0);
   const ext = path.join(D, 'ext-diff.sh');
   fs.writeFileSync(ext, '#!/bin/sh\necho ext-diff >> "$P_LOG"\n', { mode: 0o755 });
@@ -132,9 +142,9 @@ try {
   r = prepare(edited('pre-edited-ext', '`true`'), { env: extEnv });
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(logged(), [], 'no external diff program ran');
+});
 
-  // A preparation that succeeded is skipped while every tracked change since is Markdown, the command is the
-  // same, and every untracked path it left is still there; any other change runs the command again.
+test('A preparation that succeeded is skipped while every tracked change since is Markdown, the command is the same, and every untracked path it left is still there; any other change runs the command again.', () => {
   fs.rmSync(log, { force: true });
   const stamped = worktree(repo, 'stamped', section('`echo ran >> "$P_LOG"; mkdir -p deps; touch deps/x`'));
   const commitFile = (rel, body) => {
@@ -210,12 +220,13 @@ try {
   r = prepare(flaky, { env });
   assert.equal(logged().filter((l) => l === 'try').length, 2, 'the call after a failure ran; the one after a success skipped');
   fs.rmSync(log);
+});
 
-  // Refused with exit 1: a path that does not exist, a directory that is no worktree, a subdirectory of a worktree, and a
-  // worktree of another repository.
-  const plain = path.join(D, 'plain');
+let plain, other;
+test('Refused with exit 1: a path that does not exist, a directory that is no worktree, a subdirectory of a worktree, and a worktree of another repository.', () => {
+  plain = path.join(D, 'plain');
   fs.mkdirSync(plain);
-  const other = path.join(D, 'other');
+  other = path.join(D, 'other');
   fs.mkdirSync(other);
   git(other, ['init', '-q', '-b', 'main']);
   for (const [label, target] of [['a missing path', path.join(D, 'missing')], ['a plain directory', plain], ['a subdirectory', path.join(tree, 'docs')], ['another repository', other]]) {
@@ -224,14 +235,15 @@ try {
     assert.match(r.stderr, /^prepare: /, `${label}: one refusal line`);
   }
   assert.deepEqual(logged(), [], 'no refusal ran anything');
+});
 
-  // A working tree whose path holds a newline is accepted and prepared at its root; the directory named by the part of
-  // that path before the newline is no working tree, so it is refused and nothing runs in it.
-  const nlTree = path.join(D, 'nl\nfrag');
+let nlTree, fragment;
+test('A working tree whose path holds a newline is accepted and prepared at its root; the directory named by the part of that path before the newline is no working tree, so it is refused and nothing runs in it.', () => {
+  nlTree = path.join(D, 'nl\nfrag');
   git(repo, ['worktree', 'add', '-q', '-b', 'nl', nlTree]);
   fs.writeFileSync(path.join(nlTree, 'docs', 'agents', 'verification.md'), verification(section('`echo "nl ran" >> "$P_LOG"`')));
   git(nlTree, ['commit', '-q', '-am', 'nl']);
-  const fragment = path.join(D, 'nl');
+  fragment = path.join(D, 'nl');
   fs.mkdirSync(path.join(fragment, 'docs', 'agents'), { recursive: true });
   fs.writeFileSync(path.join(fragment, 'docs', 'agents', 'verification.md'), verification(section('`echo "fragment ran" >> "$P_LOG"`')));
   r = prepare(fragment, { env });
@@ -242,14 +254,16 @@ try {
   assert.equal(r.status, 0, `a working tree whose path holds a newline is accepted: ${r.stderr}`);
   assert.deepEqual(logged(), ['nl ran'], "the newline tree's own command ran");
   fs.rmSync(log);
+});
 
-  // A listing git cannot produce, from a directory outside any repository, keeps its refusal.
+test('A listing git cannot produce, from a directory outside any repository, keeps its refusal.', () => {
   r = prepare(nlTree, { env: { ...env, GIT_CEILING_DIRECTORIES: D }, cwd: plain });
   assert.equal(r.status, 1, r.stderr);
   assert.match(r.stderr, /^prepare: git could not list the working trees of this repository$/m);
   assert.deepEqual(logged(), [], 'nothing ran when the listing failed');
+});
 
-  // An interrupt ends every process the command started.
+test('An interrupt ends every process the command started.', () => {
   const pid = path.join(D, 'pid');
   const mark = path.join(D, 'mark');
   const hang = worktree(repo, 'hang', section(`\`sleep 60 & echo $! > "${pid}"; touch "${mark}"; wait\``));
@@ -257,11 +271,10 @@ try {
   assertSpawnDecided(driver, 'the interrupt driver');
   assert.match(driver.stdout, /status 143/, 'the verb exits 128 plus the signal: ' + driver.stdout + driver.stderr);
   assert.equal(driver.stdout.trim().split('\n').pop(), 'gone', "the command's background child is ended");
+});
 
-  // `scope.js help` lists the verb.
+test('`scope.js help` lists the verb.', () => {
   const help = spawnSync(process.execPath, [scopePath, '--help'], { encoding: 'utf8', timeout: 20000 });
   assertSpawnDecided(help, 'scope.js --help');
   assert.match(help.stdout, /^ {2}prepare <tree>/m);
-} finally {
-  fs.rmSync(D, { recursive: true, force: true });
-}
+});

@@ -6,6 +6,7 @@
 // Each case runs the real CLI in a child process and expects one stderr line, a nonzero exit, and no stack trace.
 // An absent file keeps its own outcome (INV-0181). An unreadable file is a directory (EISDIR) or, where the process is not root, mode 000 (EACCES).
 
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -16,6 +17,9 @@ const { scopePath, sliceJson } = require('./scope-setup');
 const { assertSpawnDecided } = require('./spawn-verdict');
 
 const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 const repoWith = () => {
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-unreadable-')));
   made.push(repo);
@@ -47,21 +51,22 @@ const sealed = () => {
 };
 const files = (root) => ['digest.json', 'trace.log'].map((n) => (fs.existsSync(path.join(root, n)) ? fs.readFileSync(path.join(root, n), 'utf8') : null));
 
-// --- init: a slices entry that is no object -------------------------------------------------------------------------
 for (const entry of ['null', '5', '[]', '"x"']) {
-  const repo = repoWith();
-  const r = sc(repo, ['init', 'fix/x', 'planned'], `{"anchor":"#1 — a","slices":[${entry}]}`);
-  refused(r, /slice row/, `init with slices entry ${entry}`);
-  assert.doesNotMatch(r.stderr, /TypeError/, 'no TypeError');
-  assert.ok(!fs.existsSync(path.join(repo, '.superdev', 'scopes', 'x', 'ledger.md')), 'no ledger written');
-}
-{
-  const repo = repoWith();
-  assert.strictEqual(sc(repo, ['init', 'feat/ok', 'planned'], sliceJson).status, 0, 'a valid envelope is still accepted');
+  test(`init: a slices entry that is no object is refused, with no TypeError and no ledger (${entry})`, () => {
+    const repo = repoWith();
+    const r = sc(repo, ['init', 'fix/x', 'planned'], `{"anchor":"#1 — a","slices":[${entry}]}`);
+    refused(r, /slice row/, `init with slices entry ${entry}`);
+    assert.doesNotMatch(r.stderr, /TypeError/, 'no TypeError');
+    assert.ok(!fs.existsSync(path.join(repo, '.superdev', 'scopes', 'x', 'ledger.md')), 'no ledger written');
+  });
 }
 
-// --- discard: a root that is a regular file, or whose ledger cannot be read ---------------------------------------------
-{
+test('init: a valid envelope is still accepted', () => {
+  const repo = repoWith();
+  assert.strictEqual(sc(repo, ['init', 'feat/ok', 'planned'], sliceJson).status, 0, 'a valid envelope is still accepted');
+});
+
+test('discard: a root that is a regular file, or whose ledger cannot be read', () => {
   const repo = repoWith();
   const scopes = path.join(repo, '.superdev', 'scopes');
   fs.mkdirSync(scopes, { recursive: true });
@@ -77,32 +82,32 @@ for (const entry of ['null', '5', '[]', '"x"']) {
   const ok = sealed();
   assert.strictEqual(sc(ok.repo, ['discard', '--root', ok.root]).status, 0, 'discard of a valid planned root');
   for (const n of ['ledger.md', 'trace.log', 'digest.json']) assert.ok(!fs.existsSync(path.join(ok.root, n)), `${n} removed`);
-}
+});
 
-// --- a sealed ledger that is a directory or unreadable: writing and reading verbs refuse before any tamper report ------------
-const ledgerBreaks = [['a directory', /ledger\.md.*EISDIR/, (l) => { fs.rmSync(l); fs.mkdirSync(l); }]];
-if (canBlockReads) ledgerBreaks.push(['mode 000', /ledger\.md.*EACCES/, (l) => fs.chmodSync(l, 0)]);
-for (const [how, re, brk] of ledgerBreaks) {
-  for (const argv of [(root) => ['stage', 'set', 'brainstormed', '--root', root], (root) => ['get', 'stage', '--root', root]]) {
-    const { repo, root } = sealed();
-    brk(path.join(root, 'ledger.md'));
-    const before = files(root);
-    const r = sc(repo, argv(root));
-    refused(r, re, `${argv(root)[0]} with a ledger that is ${how}`);
-    assert.doesNotMatch(r.stderr, /changed outside/, 'no tamper line printed');
-    assert.deepStrictEqual(files(root), before, 'digest.json and trace.log unchanged');
+test('a sealed ledger that is a directory or unreadable: writing and reading verbs refuse before any tamper report', () => {
+  const ledgerBreaks = [['a directory', /ledger\.md.*EISDIR/, (l) => { fs.rmSync(l); fs.mkdirSync(l); }]];
+  if (canBlockReads) ledgerBreaks.push(['mode 000', /ledger\.md.*EACCES/, (l) => fs.chmodSync(l, 0)]);
+  for (const [how, re, brk] of ledgerBreaks) {
+    for (const argv of [(root) => ['stage', 'set', 'brainstormed', '--root', root], (root) => ['get', 'stage', '--root', root]]) {
+      const { repo, root } = sealed();
+      brk(path.join(root, 'ledger.md'));
+      const before = files(root);
+      const r = sc(repo, argv(root));
+      refused(r, re, `${argv(root)[0]} with a ledger that is ${how}`);
+      assert.doesNotMatch(r.stderr, /changed outside/, 'no tamper line printed');
+      assert.deepStrictEqual(files(root), before, 'digest.json and trace.log unchanged');
+    }
   }
-}
-{
-  // An absent ledger keeps its outcome: the deleted-ledger tamper report.
-  const { repo, root } = sealed();
-  fs.rmSync(path.join(root, 'ledger.md'));
-  const r = sc(repo, ['stage', 'set', 'brainstormed', '--root', root]);
-  assert.match(r.stderr, /ledger\.md in .* was changed outside scope\.js/, 'the deleted ledger is reported as tamper');
-}
+  {
+    // An absent ledger keeps its outcome: the deleted-ledger tamper report.
+    const { repo, root } = sealed();
+    fs.rmSync(path.join(root, 'ledger.md'));
+    const r = sc(repo, ['stage', 'set', 'brainstormed', '--root', root]);
+    assert.match(r.stderr, /ledger\.md in .* was changed outside scope\.js/, 'the deleted ledger is reported as tamper');
+  }
+});
 
-// --- dod.md unreadable: stage set implementing, reviewed check, dod-merge ---------------------------------------------------
-{
+test('dod.md unreadable: stage set implementing, reviewed check, dod-merge', () => {
   const { repo, root } = sealed();
   const dod = path.join(root, 'dod.md');
   execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'c1'], { cwd: repo });
@@ -121,84 +126,86 @@ for (const [how, re, brk] of ledgerBreaks) {
     refused(sc(repo, ['stage', 'set', 'implementing', '--root', root]), /dod\.md/, 'stage set implementing with an unreadable dod.md');
     fs.chmodSync(dod, 0o644);
   }
-}
+});
 
-// --- fail-to-pass and the scope-branch header read refuse on an unreadable ledger ---------------------------------------------
-{
-  const { root } = sealed();
-  const ledger = path.join(root, 'ledger.md');
-  fs.rmSync(ledger);
-  fs.mkdirSync(ledger);
-  const { readHeaderOrNull } = require('../plugin/lib/scope-branch.js');
-  assert.throws(() => readHeaderOrNull(root, 'Branch'), (e) => e.isRefusal && /ledger\.md/.test(e.message), 'the header read refuses');
-}
-{
-  // The scope-branch header read, through the CLI: `branch` and `checkout` read the ledger header with `readHeaderOrNull`.
-  const { repo, root } = sealed();
-  fs.rmSync(path.join(root, 'ledger.md'));
-  fs.mkdirSync(path.join(root, 'ledger.md'));
-  for (const verb of ['branch', 'checkout']) refused(sc(repo, [verb, '--root', root]), /ledger\.md/, `${verb} with a directory ledger`);
-}
-{
-  // `test` locates the run root strictly: an unreadable ledger refuses and the command never runs.
-  const { root } = sealed();
-  const tree = path.join(root, 'scopetree');
-  fs.mkdirSync(tree, { recursive: true });
-  fs.rmSync(path.join(root, 'ledger.md'));
-  fs.mkdirSync(path.join(root, 'ledger.md'));
-  const marker = path.join(root, 'ran');
-  const r = spawnSync(process.execPath, [scopePath, 'test', 'path', 't.sh', '--', `touch ${JSON.stringify(marker)}`], { cwd: tree, encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL' });
-  assertSpawnDecided(r, 'scope.js test path');
-  refused(r, /ledger\.md/, 'test path with a directory ledger');
-  assert.ok(!fs.existsSync(marker), 'the command did not run');
-}
-if (canBlockReads) {
-  const { f2pFixture, verif } = require('./scope-setup');
-  const { CMD, scenario, done } = f2pFixture();
-  try {
-    const s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD, '\n## Prepare command\n\n`none`\n') },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': 'grep -q b src.txt\n' },
-    });
-    fs.chmodSync(path.join(s.root, 'ledger.md'), 0);
+test('fail-to-pass and the scope-branch header read refuse on an unreadable ledger', () => {
+  {
+    const { root } = sealed();
+    const ledger = path.join(root, 'ledger.md');
+    fs.rmSync(ledger);
+    fs.mkdirSync(ledger);
+    const { readHeaderOrNull } = require('../plugin/lib/scope-branch.js');
+    assert.throws(() => readHeaderOrNull(root, 'Branch'), (e) => e.isRefusal && /ledger\.md/.test(e.message), 'the header read refuses');
+  }
+  {
+    // The scope-branch header read, through the CLI: `branch` and `checkout` read the ledger header with `readHeaderOrNull`.
+    const { repo, root } = sealed();
+    fs.rmSync(path.join(root, 'ledger.md'));
+    fs.mkdirSync(path.join(root, 'ledger.md'));
+    for (const verb of ['branch', 'checkout']) refused(sc(repo, [verb, '--root', root]), /ledger\.md/, `${verb} with a directory ledger`);
+  }
+  {
+    // `test` locates the run root strictly: an unreadable ledger refuses and the command never runs.
+    const { root } = sealed();
+    const tree = path.join(root, 'scopetree');
+    fs.mkdirSync(tree, { recursive: true });
+    fs.rmSync(path.join(root, 'ledger.md'));
+    fs.mkdirSync(path.join(root, 'ledger.md'));
+    const marker = path.join(root, 'ran');
+    const r = spawnSync(process.execPath, [scopePath, 'test', 'path', 't.sh', '--', `touch ${JSON.stringify(marker)}`], { cwd: tree, encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL' });
+    assertSpawnDecided(r, 'scope.js test path');
+    refused(r, /ledger\.md/, 'test path with a directory ledger');
+    assert.ok(!fs.existsSync(marker), 'the command did not run');
+  }
+  if (canBlockReads) {
+    const { f2pFixture, verif } = require('./scope-setup');
+    const { CMD, scenario, done } = f2pFixture();
     try {
-      refused(s.run(s.range), /ledger\.md.*EACCES/, 'fail-to-pass with an unreadable ledger');
+      const s = scenario({
+        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD, '\n## Prepare command\n\n`none`\n') },
+        tip: { 'src.txt': 'b\n', 'tests/t.sh': 'grep -q b src.txt\n' },
+      });
+      fs.chmodSync(path.join(s.root, 'ledger.md'), 0);
+      try {
+        refused(s.run(s.range), /ledger\.md.*EACCES/, 'fail-to-pass with an unreadable ledger');
+      } finally {
+        fs.chmodSync(path.join(s.root, 'ledger.md'), 0o644);
+      }
     } finally {
-      fs.chmodSync(path.join(s.root, 'ledger.md'), 0o644);
+      done();
     }
-  } finally {
-    done();
   }
-}
-{
-  const { f2pFixture, verif } = require('./scope-setup');
-  const { CMD, scenario, done } = f2pFixture();
-  try {
-    const s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD, '\n## Prepare command\n\n`none`\n') },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': 'grep -q b src.txt\n' },
-    });
-    fs.rmSync(path.join(s.root, 'ledger.md'));
-    fs.mkdirSync(path.join(s.root, 'ledger.md'));
-    refused(s.run(s.range), /ledger\.md.*EISDIR/, 'fail-to-pass with a directory ledger');
-  } finally {
-    done();
+  {
+    const { f2pFixture, verif } = require('./scope-setup');
+    const { CMD, scenario, done } = f2pFixture();
+    try {
+      const s = scenario({
+        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD, '\n## Prepare command\n\n`none`\n') },
+        tip: { 'src.txt': 'b\n', 'tests/t.sh': 'grep -q b src.txt\n' },
+      });
+      fs.rmSync(path.join(s.root, 'ledger.md'));
+      fs.mkdirSync(path.join(s.root, 'ledger.md'));
+      refused(s.run(s.range), /ledger\.md.*EISDIR/, 'fail-to-pass with a directory ledger');
+    } finally {
+      done();
+    }
   }
+});
+
+for (const id of ['.', 'a\u0000b', 'a\nb', 'a\u007fb', 'a\u001fb']) {
+  test(`the slice-id rule: init and slice refuse an id that is a dot or holds a control character (${JSON.stringify(id)})`, () => {
+    const repo = repoWith();
+    const env = JSON.stringify({ anchor: '#1 — a', slices: [{ id, issue: '#1', title: 't', type: 'behavior' }] });
+    refused(sc(repo, ['init', 'feat/x', 'planned'], env), /slice id/, `init with slice id ${JSON.stringify(id)}`);
+    const { repo: r2, root } = sealed();
+    // In-process: a NUL byte cannot travel in an argument vector.
+    const r = require('./scope-setup').call(['slice', id, 'in-progress', '--root', root], '', r2);
+    assert.ok(!r.ok && /slice id/.test(r.err), `slice with id ${JSON.stringify(id)} is refused: ${r.err}`);
+  });
 }
 
-// --- the slice-id rule ------------------------------------------------------------------------------------------------------
-for (const id of ['.', 'a\u0000b', 'a\nb', 'a\u007fb', 'a\u001fb']) {
-  const repo = repoWith();
-  const env = JSON.stringify({ anchor: '#1 — a', slices: [{ id, issue: '#1', title: 't', type: 'behavior' }] });
-  refused(sc(repo, ['init', 'feat/x', 'planned'], env), /slice id/, `init with slice id ${JSON.stringify(id)}`);
-  const { repo: r2, root } = sealed();
-  // In-process: a NUL byte cannot travel in an argument vector.
-  const r = require('./scope-setup').call(['slice', id, 'in-progress', '--root', root], '', r2);
-  assert.ok(!r.ok && /slice id/.test(r.err), `slice with id ${JSON.stringify(id)} is refused: ${r.err}`);
-}
-{
+test('the slice-id rule: an ordinary id is accepted', () => {
   const { repo, root } = sealed();
   assert.strictEqual(sc(repo, ['slice', '01', 'in-progress', '--root', root]).status, 0, 'an ordinary id is accepted');
-}
+});
 
-for (const d of made) fs.rmSync(d, { recursive: true, force: true });

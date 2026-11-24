@@ -34,6 +34,9 @@ neutral extension point for a hand-written "Other" backend.
 Keep the snapshot-less run-state posture, because Jira's seed takes it by default. Keep the local-file
 knowledge base (`references/knowledge-base-local.md`), which is a different backend.
 
+**Amended 2026-11-24: the Jira seed is always snapshot-less.** The Jira seed calls only `/rest/api/3`. Atlassian's v3 REST intro states that v3 carries an issue's
+`description` as Atlassian Document Format. Source: https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/, section Version, checked 2026-11-24. The Jira seed takes the snapshot-less posture on every instance, with no setup choice.
+
 Keep `/superdev:backlog`'s rows for a `shipped` run root whose anchor is already closed. A human can close
 an anchor by hand on any store, and the rows are what keep a stalled deploy or an unwrapped run visible
 then.

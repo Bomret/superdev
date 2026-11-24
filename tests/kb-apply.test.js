@@ -4,6 +4,7 @@
 // that is not all `action: patch`, a staged file with no frontmatter, and a parent cycle. Staged files are
 // real files; a backend verb that would write touches a marker file.
 
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -11,6 +12,10 @@ const os = require('node:os');
 const path = require('node:path');
 const { shq } = require('./publish-kb-setup');
 const { processStagedFiles } = require('../plugin/lib/kb-apply.js');
+
+after(() => {
+  fs.rmSync(dir, { recursive: true, force: true });
+});
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-apply-'));
 const marker = path.join(dir, 'written');
@@ -31,8 +36,7 @@ const stage = (name, text) => {
 const page = (title, action, extra = '', body = 'body.\n') => `---\ntitle: ${title}\naction: ${action}${extra}\n---\n${body}`;
 const byName = (results) => Object.fromEntries(results.map((r) => [r.filename, r]));
 
-// --- a title group not all patches: every file is left staged, naming the group, and nothing is sent ---
-{
+test('a title group not all patches: every file is left staged, naming the group, and nothing is sent', () => {
   const a = stage('mixed-a.md', page('Mixed', 'patch', '', '## A\n\nnew.\n'));
   const b = stage('mixed-b.md', page('Mixed', 'upsert'));
   const res = byName(processStagedFiles([a, b], templates));
@@ -42,19 +46,17 @@ const byName = (results) => Object.fromEntries(results.map((r) => [r.filename, r
   }
   assert.ok(fs.existsSync(a) && fs.existsSync(b), 'both stay staged');
   assert.equal(fs.existsSync(marker), false, 'nothing reached the backend');
-}
+});
 
-// --- a staged file with no frontmatter is malformed and stays staged ------------------------------
-{
+test('a staged file with no frontmatter is malformed and stays staged', () => {
   const f = stage('bare.md', 'no frontmatter here\n');
   const res = processStagedFiles([f], templates);
   assert.deepEqual(res, [{ filename: 'bare.md', kind: 'malformed', reason: 'no YAML frontmatter' }]);
   assert.ok(fs.existsSync(f), 'a malformed file is never deleted');
   assert.equal(fs.existsSync(marker), false, 'nothing reached the backend');
-}
+});
 
-// --- a parent cycle ends: neither page is created, each is left staged with its parent not found ----
-{
+test('a parent cycle ends: neither page is created, each is left staged with its parent not found', () => {
   const a = stage('cycle-a.md', page('CycleA', 'upsert', '\nparent: CycleB'));
   const b = stage('cycle-b.md', page('CycleB', 'upsert', '\nparent: CycleA'));
   const res = byName(processStagedFiles([a, b], templates));
@@ -65,7 +67,5 @@ const byName = (results) => Object.fromEntries(results.map((r) => [r.filename, r
   assert.equal(res['cycle-b.md'].reason, 'parent page "CycleA" not found');
   assert.ok(fs.existsSync(a) && fs.existsSync(b), 'both stay staged');
   assert.equal(fs.existsSync(marker), false, 'nothing reached the backend');
-}
+});
 
-fs.rmSync(dir, { recursive: true, force: true });
-console.log('kb-apply.test.js: all assertions passed');

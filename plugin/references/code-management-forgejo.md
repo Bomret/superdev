@@ -74,23 +74,46 @@ check-status read below degrades the same way: print the exact `tea api` call an
 
 ## Check status
 
-`/superdev:ship`, `/superdev:review`, and `/superdev:setup` read the latest check status of one commit through this
-call, and `scope.js ci` judges it against the named checks the `## CI` section of `docs/agents/verification.md` lists (ADR 0255).
-The read emits one `name<TAB>state<TAB>link` line per latest commit-status context, across every page. Forgejo Actions
-reports its jobs as commit statuses, so the combined status covers them.
+`/superdev:ship`, `/superdev:review`, and `/superdev:setup` read the latest check status of one commit through the
+read script below, and `scope.js ci` judges it against the named checks the `## CI` section of
+`docs/agents/verification.md` lists (ADR 0255). The script prints one `name<TAB>state<TAB>link` line per latest
+commit-status context, across every page. Forgejo Actions reports its jobs as commit statuses, so the combined status
+covers them. The script writes every line to a temporary file first and prints the file only once every page
+succeeded, so a failed page exits non-zero and prints no line. `<sha>` stays in the script: whoever runs it fills it
+with the commit.
 
-- **Read one page**: `tea api -i --login <login> --repo <owner>/<repo>
-  '/repos/{owner}/{repo}/commits/<sha>/status?page=<p>&limit=50' > "$r" 2> "$h"`. The combined status holds the latest
-  status per context; the raw `/statuses` list holds every status ever posted, and is never read here. Read the HTTP
-  status from `"$h"` (`-i`), because `tea api` exits 0 on a 4xx or 5xx answer: anything but 200 is a failed read.
-- **Emit its lines**: `jq -r '.statuses[] | [.context, .status, (.target_url // "")] | @tsv' "$r" >> "$c"`. A Forgejo
-  commit status names its state `status`, one of `pending`, `success`, `error`, `failure`, `warning`, or `skipped`.
-- **Page on** from `p=1` until a page returns fewer than 50 statuses, then judge: `node
-  "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <sha> < "$c"`, `c` named with `mktemp` and read only once every
-  page succeeded. A pipe drops the read's exit status, so a failed read would reach the verdict as empty input. No
-  `tea` or `jq`, no matching login, a 401, 403, or 404, or a network error ends the read at the failed page with its
-  error: report it, and pass nothing to `scope.js ci`.
-- Nothing here waits for a check, re-reads it on a timer, or starts, re-runs, or cancels a CI run.
+```sh
+set -eu
+c=$(mktemp); r=$(mktemp); h=$(mktemp)
+trap 'rm -f "$c" "$r" "$h"' EXIT
+p=1
+while :; do
+  tea api -i --login <login> --repo <owner>/<repo> "/repos/{owner}/{repo}/commits/<sha>/status?page=$p&limit=50" > "$r" 2> "$h" || { cat "$h" >&2; exit 1; }
+  grep -Eq '^HTTP/[0-9.]+ 200([^0-9]|$)' "$h" || { cat "$h" >&2; exit 1; }
+  jq -r '(.statuses // [])[] | [.context, .status, (.target_url // "")] | @tsv' "$r" >> "$c"
+  [ "$(jq '.statuses | length' "$r")" -lt 50 ] && break
+  p=$((p + 1))
+done
+cat "$c"
+```
+
+- **The combined status.** It holds the latest status per context. The raw `/statuses` list holds every status ever
+  posted, and is never read here.
+- **The HTTP status.** `tea api` exits 0 on a 4xx or 5xx answer, so the script reads the status line `-i` writes to
+  `"$h"`: anything but 200 is a failed read, which prints the answer on stderr and exits 1. A `tea api` call that
+  exits non-zero itself fails the read the same way, its error printed on stderr.
+- **No statuses.** A commit with none can answer `"statuses": null`, which the script reads as an empty list.
+- **The state.** A Forgejo commit status names its state `status`, one of `pending`, `success`, `error`, `failure`,
+  `warning`, or `skipped`.
+- **Paging.** The script reads from page 1 until a page returns fewer than 50 statuses.
+- **A single read.** Write the script to a file with `<sha>` replaced by the commit, run it with `sh` into a second
+  file, then judge: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <sha> < "$c"`. Judge only when the script
+  exited 0. A pipe drops the read's exit status, so a failed read would reach the verdict as empty input. No `tea` or
+  `jq`, no matching login, a 401, 403, or 404, or a network error ends the read with its error: report it, and pass
+  nothing to `scope.js ci`.
+- **A waiting read.** Write the script, `<sha>` left in place, to a file, and hand it to `node
+  "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <sha> --wait --read <file>`, which fills `<sha>` itself.
+- The only wait is `scope.js ci --wait`, bounded. Nothing here starts, re-runs, or cancels a CI run.
 
 ## Edit the pull request body
 

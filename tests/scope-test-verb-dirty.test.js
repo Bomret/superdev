@@ -2,6 +2,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
+const { test, after } = require('node:test');
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `test` verb, the dirty mark of a run line and the suite reuse it backs
@@ -12,9 +13,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { testVerbFixture, scopePath } = require('./scope-setup');
 
+after(() => {
+  end();
+});
+
 const { D, root, S, verif, sh, cli, bash, verb, lines, reset, end } = testVerbFixture();
-try {
-  // A run during which the tree dirties, or HEAD moves, records dirty; a start commit stays the start commit.
+
+test('A run during which the tree dirties, or HEAD moves, records dirty; a start commit stays the start commit.', () => {
   reset();
   verif('touch made-dirty.txt', 'true');
   verb(['full']);
@@ -75,6 +80,4 @@ try {
     ` printf '%s\\n' '2026-01-01T00:00:00Z 03 main revert src/a.js' '2026-01-01T00:00:01Z 03 main restore src/b.js' >> ${traceFile};` +
     ` touch ${gate}/go4; wait $V`);
   assert.match(lines().find((l) => / run /.test(l)) || '', new RegExp(`^03 main run full pass ${sha} clean - touch`), 'revert and restore lines read without error and mark nothing');
-} finally {
-  end();
-}
+});

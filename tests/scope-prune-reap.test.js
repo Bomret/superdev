@@ -3,27 +3,32 @@
 // Suite for plugin/hooks/scope-prune.js, the branch reap against real repositories: the run root's branch goes with
 // it (ADR 0071), and a reap that cannot finish leaves both standing.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
+
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { hookPath, hook, gitTest, makeRepo, makeScope, refExists, makeWorkBranch } = require('./scope-prune-setup');
 const { main } = hook;
 
-{
-  // --- The branch reap: the run root's branch goes with it (ADR 0071) ---
-  //
-  // Every fixture in the other suites asserts only on the run root, so a hook that reaps the root and leaves the
-  // branch standing passes all of them — which is exactly the state ADR 0053 recorded and this
-  // decision closes. The cases below assert on the refs themselves.
+// Every fixture in the other suites asserts only on the run root, so a hook that reaps the root and leaves the
+// branch standing passes all of them — which is exactly the state ADR 0053 recorded and this decision closes. The
+// cases below assert on the refs themselves.
+test('The branch reap: the run root\'s branch goes with it (ADR 0071)', () => {
 
   // #reap-both-refs: a squash-merged scope whose local branch and remote-tracking ref both survive the
   // host's own deletion — this repository's steady state. Both refs go with the run root, in one Stop.
   const reapRepo = makeRepo();
   const reapOriginDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-origin-'));
+  made.push(reapOriginDir);
   gitTest(['init', '-q', '--bare', '-b', 'main'], reapOriginDir);
   gitTest(['remote', 'add', 'origin', reapOriginDir], reapRepo);
   makeWorkBranch(reapRepo, 'feat/reaped', 'app.txt', 'v2\n');
@@ -74,6 +79,7 @@ const { main } = hook;
   gitTest(['merge', '--squash', 'feat/held'], heldRepo);
   gitTest(['commit', '-q', '-m', 'feat: held (#1)'], heldRepo);
   const heldTree = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-held-'));
+  made.push(heldTree);
   fs.rmSync(heldTree, { recursive: true, force: true }); // git wants to create the path itself
   gitTest(['worktree', 'add', '-q', heldTree, 'feat/held'], heldRepo);
   const heldScopeDir = makeScope(heldRepo, 'held', '**Stage:** closed\n**Branch:** feat/held\n');
@@ -85,12 +91,11 @@ const { main } = hook;
   assert.equal(fs.existsSync(heldScopeDir), false, 'and a later Stop reaps the run root once the delete can succeed');
   assert.equal(refExists(heldRepo, 'refs/heads/feat/held'), false, 'and the branch with it');
   fs.rmSync(heldRepo, { recursive: true, force: true });
-}
+});
 
-{
-  // #reap-ambiguous-shape: `feat/<scope>` and `fix/<scope>` both match one scope's shape and its ledger names no branch,
-  // so nothing says which is the scope's. The Stop hook prunes the run root, reaps, and deletes nothing for that scope
-  // (INV-0003, INV-0106); a scope with a single match beside it still prunes.
+// The Stop hook prunes the run root, reaps, and deletes nothing for that scope (INV-0003, INV-0106); a scope with a
+// single match beside it still prunes.
+test('#reap-ambiguous-shape: `feat/<scope>` and `fix/<scope>` both match one scope\'s shape and its ledger names no branch, so nothing says which is the scope\'s.', () => {
   const ambRepo = makeRepo();
   makeWorkBranch(ambRepo, 'feat/amb', 'a.txt', 'a\n');
   makeWorkBranch(ambRepo, 'fix/amb', 'b.txt', 'b\n');
@@ -105,6 +110,5 @@ const { main } = hook;
   assert.equal(refExists(ambRepo, 'refs/heads/fix/amb'), true, 'and fix/amb');
   assert.equal(fs.existsSync(soloDir), false, 'a scope with one match still prunes as before');
   fs.rmSync(ambRepo, { recursive: true, force: true });
-}
+});
 
-console.log('scope-prune-reap tests ok');

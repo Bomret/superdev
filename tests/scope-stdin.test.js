@@ -5,6 +5,7 @@
 // piped input runs to completion with its input left open. The verbs come from `run()`'s own source, so a new
 // stdin verb the gate leaves out fails here without an edit to this file.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -13,6 +14,10 @@ const cp = require('node:child_process');
 require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { scopePath, sliceJson, writeDod } = require('./scope-setup');
+
+after(() => {
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-stdin-'));
 
@@ -40,66 +45,67 @@ const cli = (argv, input) => {
   return res;
 };
 
-try {
-  // run()'s source, cut into its `case '<verb>'` branches; a branch naming stdinJson hands the piped text on.
-  const src = fs.readFileSync(scopePath, 'utf8');
-  const body = src.slice(src.indexOf('function run('), src.indexOf('\n}\n', src.indexOf('function run(')));
-  const stdinVerbs = body
-    .split(/\n\s*case '/)
-    .slice(1)
-    .filter((b) => b.includes('stdinJson'))
-    .map((b) => b.slice(0, b.indexOf("'")));
+// run()'s source, cut into its `case '<verb>'` branches; a branch naming stdinJson hands the piped text on.
+const src = fs.readFileSync(scopePath, 'utf8');
+const body = src.slice(src.indexOf('function run('), src.indexOf('\n}\n', src.indexOf('function run(')));
+const stdinVerbs = body
+  .split(/\n\s*case '/)
+  .slice(1)
+  .filter((b) => b.includes('stdinJson'))
+  .map((b) => b.slice(0, b.indexOf("'")));
+test('The stdin verb list read from run()\'s source holds init', () => {
   assert.ok(stdinVerbs.includes('init'), 'run() extraction broke: the stdin verb list lacks init (check run()\'s signature and its case branches in plugin/scripts/scope.js)');
+});
 
-  // The run root the ledger verbs write to: init itself is one of the stdin verbs.
-  const root = path.join(tmp, '.superdev', 'scopes', 'demo');
-  writeDod(root);
-  const ledger = () => fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+// The run root the ledger verbs write to: init itself is one of the stdin verbs.
+const root = path.join(tmp, '.superdev', 'scopes', 'demo');
+writeDod(root);
+const ledger = () => fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
 
-  // Each stdin verb's cases: argv, piped input, and the check that the verb acted on that input.
-  const cases = {
-    init: [[['init', 'feat/demo', 'implementing'], sliceJson, () => assert.match(ledger(), /ledger-guard hook/, 'init wrote the piped slices')]],
-    degraded: [
-      [['degraded', 'add', '-', '--root', root], 'piped degraded text\n', () => assert.match(ledger(), /- piped degraded text/)],
-      [['degraded', 'add-denial', '-', '--root', root], 'piped denial text\n', () => assert.match(ledger(), /piped denial text/)],
-    ],
-    unresolved: [[['unresolved', 'add', '-', '--root', root], 'piped unresolved text\n', () => assert.match(ledger(), /- piped unresolved text/)]],
-    deferred: [
-      [['deferred', 'add', '-', '--root', root], 'piped deferred text\n', () => assert.match(ledger(), /- piped deferred text/)],
-      [['deferred', 'resolve', '-', '--root', root], 'piped deferred text\n', () => assert.doesNotMatch(ledger(), /piped deferred text/)],
-    ],
-    adopt: [], // filled below from publish's own output
-    'dod-merge': [[['dod-merge', '--root', root], '- [ ] a piped criterion\n', () => assert.match(fs.readFileSync(path.join(root, 'dod.md'), 'utf8'), /a piped criterion/)]],
-    'dod-line': [],
-    'dod-tags': [],
-    'dod-check': [],
-  };
-  const matchFile = path.join(tmp, 'match.txt');
-  const noteFile = path.join(tmp, 'note.txt');
-  fs.writeFileSync(matchFile, 'a piped criterion');
-  fs.writeFileSync(noteFile, 'seen');
-  let pipedOut = '';
-  cases['dod-line'].push([
-    ['dod-line', '--match-file', matchFile, '--verdict', 'met', '--note-file', noteFile],
-    '- [ ] a piped criterion\n',
-    () => assert.match(pipedOut, /- \[x\] a piped criterion .*met: seen/, 'dod-line rewrote the piped line'),
-  ]);
+// Each stdin verb's cases: argv, piped input, and the check that the verb acted on that input.
+const cases = {
+  init: [[['init', 'feat/demo', 'implementing'], sliceJson, () => assert.match(ledger(), /ledger-guard hook/, 'init wrote the piped slices')]],
+  degraded: [
+    [['degraded', 'add', '-', '--root', root], 'piped degraded text\n', () => assert.match(ledger(), /- piped degraded text/)],
+    [['degraded', 'add-denial', '-', '--root', root], 'piped denial text\n', () => assert.match(ledger(), /piped denial text/)],
+  ],
+  unresolved: [[['unresolved', 'add', '-', '--root', root], 'piped unresolved text\n', () => assert.match(ledger(), /- piped unresolved text/)]],
+  deferred: [
+    [['deferred', 'add', '-', '--root', root], 'piped deferred text\n', () => assert.match(ledger(), /- piped deferred text/)],
+    [['deferred', 'resolve', '-', '--root', root], 'piped deferred text\n', () => assert.doesNotMatch(ledger(), /piped deferred text/)],
+  ],
+  adopt: [], // filled below from publish's own output
+  'dod-merge': [[['dod-merge', '--root', root], '- [ ] a piped criterion\n', () => assert.match(fs.readFileSync(path.join(root, 'dod.md'), 'utf8'), /a piped criterion/)]],
+  'dod-line': [],
+  'dod-tags': [],
+  'dod-check': [],
+};
+const matchFile = path.join(tmp, 'match.txt');
+const noteFile = path.join(tmp, 'note.txt');
+fs.writeFileSync(matchFile, 'a piped criterion');
+fs.writeFileSync(noteFile, 'seen');
+let pipedOut = '';
+cases['dod-line'].push([
+  ['dod-line', '--match-file', matchFile, '--verdict', 'met', '--note-file', noteFile],
+  '- [ ] a piped criterion\n',
+  () => assert.match(pipedOut, /- \[x\] a piped criterion .*met: seen/, 'dod-line rewrote the piped line'),
+]);
 
-  const tagMap = path.join(tmp, 'tag-map.txt');
-  fs.writeFileSync(tagMap, '01 #7\n');
-  cases['dod-tags'].push([
-    ['dod-tags', '--map-file', tagMap],
-    '## Definition of Done\n\n- [ ] a piped criterion — 01\n',
-    () => assert.match(pipedOut, /a piped criterion — #7/, 'dod-tags rewrote the piped tag'),
-  ]);
+const tagMap = path.join(tmp, 'tag-map.txt');
+fs.writeFileSync(tagMap, '01 #7\n');
+cases['dod-tags'].push([
+  ['dod-tags', '--map-file', tagMap],
+  '## Definition of Done\n\n- [ ] a piped criterion — 01\n',
+  () => assert.match(pipedOut, /a piped criterion — #7/, 'dod-tags rewrote the piped tag'),
+]);
 
-  cases['dod-check'].push([
-    ['dod-check'],
-    '## Definition of Done\n\n- [ ] a piped criterion (triage #3)\n- [ ] Reachable: piped\n- [ ] Release risk: rollback, deploy-window data compatibility, consumer compatibility, production visibility\n\n**Absorbs:** #3\n',
-    () => assert.strictEqual(pipedOut, '', 'dod-check passed the piped body silently'),
-  ]);
+cases['dod-check'].push([
+  ['dod-check'],
+  '## Definition of Done\n\n- [ ] a piped criterion (triage #3)\n- [ ] Reachable: piped\n- [ ] Release risk: rollback, deploy-window data compatibility, consumer compatibility, production visibility\n\n**Absorbs:** #3\n',
+  () => assert.strictEqual(pipedOut, '', 'dod-check passed the piped body silently'),
+]);
 
-  // ci reads a commit of a repository of its own, named by --root, and judges the piped check status green.
+test('ci reads a commit of a repository of its own, named by --root, and judges the piped check status green.', () => {
   const ciRepo = path.join(tmp, 'ci-repo');
   fs.mkdirSync(path.join(ciRepo, 'docs', 'agents'), { recursive: true });
   fs.writeFileSync(path.join(ciRepo, 'docs', 'agents', 'verification.md'), '# V\n\n## CI\n\n- `lint`\n');
@@ -109,17 +115,23 @@ try {
     assert.strictEqual(r.status, 0, r.stderr);
   }
   cases.ci = [[['ci', '--sha', 'HEAD', '--root', ciRepo], 'lint\tsuccess\n', () => assert.match(pipedOut, /^ci: green /, 'ci judged the piped status')]];
+});
 
-  // section prints the piped heading's section of the file it names.
-  const sectionFile = path.join(tmp, 'section.md');
-  fs.writeFileSync(sectionFile, '## A\na1\n## B\nb1\n');
-  cases.section = [[['section', sectionFile], '## B\n', () => assert.strictEqual(pipedOut, '## B\nb1\n', 'section printed the piped heading\'s section')]];
+// section prints the piped heading's section of the file it names.
+const sectionFile = path.join(tmp, 'section.md');
+fs.writeFileSync(sectionFile, '## A\na1\n## B\nb1\n');
+cases.section = [[['section', sectionFile], '## B\n', () => assert.strictEqual(pipedOut, '## B\nb1\n', 'section printed the piped heading\'s section')]];
 
-  // route pairs the piped anchor lines with the run's dod.md: a piped line the dod.md lacks adds the hand-sync line.
-  cases.route = [[['route', '--root', root], '- [ ] a criterion the dod.md lacks\n', () => assert.match(pipedOut, /^verify-ship\nhand-sync/, 'route read the piped anchor')]];
+// route pairs the piped anchor lines with the run's dod.md: a piped line the dod.md lacks adds the hand-sync line.
+cases.route = [[['route', '--root', root], '- [ ] a criterion the dod.md lacks\n', () => assert.match(pipedOut, /^verify-ship\nhand-sync/, 'route read the piped anchor')]];
 
-  for (const verb of stdinVerbs) assert.ok(cases[verb], `verb "${verb}" reads piped input and has a case in this suite`);
+for (const verb of stdinVerbs) {
+  test(`Every verb that reads piped input has a case in this suite (${verb})`, () => {
+    assert.ok(cases[verb], `verb "${verb}" reads piped input and has a case in this suite`);
+  });
+}
 
+test('Every stdin verb, run through the CLI with piped input, reads it: init first, adopt last', () => {
   const order = ['init', ...stdinVerbs.filter((v) => v !== 'init' && v !== 'adopt'), 'adopt'];
   for (const verb of order) {
     if (verb === 'adopt') {
@@ -136,38 +148,34 @@ try {
       check();
     }
   }
+});
 
-  // dod-merge keeps the verdict a local copy already carries.
-  {
-    const dod = path.join(root, 'dod.md');
-    fs.writeFileSync(dod, '- [x] a piped criterion — met: seen\n');
-    const res = cli(['dod-merge', '--root', root], '- [ ] a piped criterion\n- [ ] another\n');
-    assert.strictEqual(res.status, 0, res.stderr);
-    const text = fs.readFileSync(dod, 'utf8');
-    assert.match(text, /- \[x\] a piped criterion — met: seen/, 'dod-merge keeps the local verdict');
-    assert.match(text, /- \[ \] another/, 'dod-merge writes the piped line');
+test('dod-merge keeps the verdict a local copy already carries.', () => {
+  const dod = path.join(root, 'dod.md');
+  fs.writeFileSync(dod, '- [x] a piped criterion — met: seen\n');
+  const res = cli(['dod-merge', '--root', root], '- [ ] a piped criterion\n- [ ] another\n');
+  assert.strictEqual(res.status, 0, res.stderr);
+  const text = fs.readFileSync(dod, 'utf8');
+  assert.match(text, /- \[x\] a piped criterion — met: seen/, 'dod-merge keeps the local verdict');
+  assert.match(text, /- \[ \] another/, 'dod-merge writes the piped line');
 
-    // Empty piped input refuses and leaves dod.md as it was.
-    const empty = cli(['dod-merge', '--root', root], '');
-    assert.notStrictEqual(empty.status, 0, 'dod-merge refuses empty piped input');
-    assert.strictEqual(fs.readFileSync(dod, 'utf8'), text, 'dod-merge leaves dod.md as it was');
-  }
+  // Empty piped input refuses and leaves dod.md as it was.
+  const empty = cli(['dod-merge', '--root', root], '');
+  assert.notStrictEqual(empty.status, 0, 'dod-merge refuses empty piped input');
+  assert.strictEqual(fs.readFileSync(dod, 'utf8'), text, 'dod-merge leaves dod.md as it was');
+});
 
-  // A verb that reads no piped input runs to completion with its input left open.
-  {
-    const res = cli(['get', 'stage', '--root', root]);
-    assert.strictEqual(res.status, 0, res.stderr);
-    assert.match(res.stdout, /implementing/, 'get stage printed with its input left open');
-  }
+test('A verb that reads no piped input runs to completion with its input left open.', () => {
+  const res = cli(['get', 'stage', '--root', root]);
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /implementing/, 'get stage printed with its input left open');
+});
 
-  // --help on each stdin verb prints usage with its input left open.
-  for (const verb of stdinVerbs) {
+for (const verb of stdinVerbs) {
+  test(`--help on each stdin verb prints usage with its input left open. (${verb})`, () => {
     const res = cli([verb, '--help']);
     assert.strictEqual(res.status, 0, verb + ' --help: ' + res.stderr);
     assert.ok(res.stdout.includes('usage: node scope.js'), verb + ' --help prints the usage');
-  }
-
-  console.log('scope-stdin: ok');
-} finally {
-  fs.rmSync(tmp, { recursive: true, force: true });
+  });
 }
+

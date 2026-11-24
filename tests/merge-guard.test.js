@@ -5,6 +5,7 @@
 // for the hook's stdin and exit-code contract. A CRLF command, a backslash continuation before a CRLF included, is judged line by
 // line as its LF form is.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const cp = require('node:child_process');
 const fs = require('node:fs');
@@ -69,52 +70,54 @@ const ALLOWED = [
   'echo m',
 ];
 
-for (const c of DENIED) {
-  assert.equal(decide(sub(c)).block, true, 'a subagent call is denied: ' + JSON.stringify(c));
-  assert.equal(decide(ctl(c)).block, false, 'the controller runs it: ' + JSON.stringify(c));
-}
-for (const c of ALLOWED) {
-  assert.equal(decide(sub(c)).block, false, 'a subagent call is allowed: ' + JSON.stringify(c));
-  assert.equal(decide(ctl(c)).block, false, 'the controller runs it: ' + JSON.stringify(c));
-}
-assert.equal(decide({}).block, false, 'no input fields → allow');
-assert.equal(decide(null).block, false, 'no input → allow');
-assert.equal(decide({ agent_id: 'a1' }).block, false, 'a subagent call with no command → allow');
+test('A subagent is denied every DENIED command and allowed every ALLOWED one; the controller runs both', () => {
+  for (const c of DENIED) {
+    assert.equal(decide(sub(c)).block, true, 'a subagent call is denied: ' + JSON.stringify(c));
+    assert.equal(decide(ctl(c)).block, false, 'the controller runs it: ' + JSON.stringify(c));
+  }
+  for (const c of ALLOWED) {
+    assert.equal(decide(sub(c)).block, false, 'a subagent call is allowed: ' + JSON.stringify(c));
+    assert.equal(decide(ctl(c)).block, false, 'the controller runs it: ' + JSON.stringify(c));
+  }
+  assert.equal(decide({}).block, false, 'no input fields → allow');
+  assert.equal(decide(null).block, false, 'no input → allow');
+  assert.equal(decide({ agent_id: 'a1' }).block, false, 'a subagent call with no command → allow');
+});
 
-// The `m` alias is a verb after `tea` only.
-assert.equal(decide(sub('git m 3')).block, false, 'git has no m alias');
-assert.equal(decide(sub('gh pr m 3')).block, false, 'gh has no m alias');
+test('The `m` alias is a verb after `tea` only.', () => {
+  assert.equal(decide(sub('git m 3')).block, false, 'git has no m alias');
+  assert.equal(decide(sub('gh pr m 3')).block, false, 'gh has no m alias');
+});
 
-// The denial names the way out for a commit message holding a verb.
-{
+test('The denial names the way out for a commit message holding a verb.', () => {
   const { reason } = decide(sub('git push'));
   assert.match(reason, /subagents must not integrate/);
   assert.ok(reason.includes("git commit -F - <<'EOF'"), 'the denial names the heredoc form');
   assert.match(reason, /as long as no line of it holds/, 'the denial states the heredoc passes only without a lead word and verb on one line');
-}
+});
 
-// A verb word that is a path or ref segment denies its line, and the denial names that case and its rewrites (INV-0141): a
-// parent directory whose path holds no verb segment, or the controller for a ref or a command that cannot be rewritten so.
-for (const cmd of ['git add src/push/notify.ts', 'git log feat/merge']) {
-  const r = decide(sub(cmd));
-  assert.equal(r.block, true, `${cmd} is denied`);
-  assert.match(r.reason, /segment of a path or ref/, `the denial for ${cmd} names the path or ref segment case`);
-  assert.match(r.reason, /parent directory whose path holds no verb segment/, `the denial for ${cmd} names the parent-directory rewrite`);
-  assert.match(r.reason, /leave the command to the controller/, `the denial for ${cmd} names the controller rewrite`);
-  assert.ok(r.reason.includes("git commit -F - <<'EOF'"), `the denial for ${cmd} still names the heredoc form`);
-  assert.match(r.reason, /as long as no line of it holds/, `the denial for ${cmd} still names the heredoc limit`);
-}
-assert.equal(decide(sub('git add src/')).block, false, 'the parent-directory rewrite passes');
-assert.equal(decide(sub('git add src/push')).block, true, 'a parent directory still holding a verb segment stays denied');
+test('A verb word that is a path or ref segment denies its line, and the denial names that case and its rewrites (INV-0141): a parent directory whose path holds no verb segment, or the controller for a ref or a command that cannot be rewritten so.', () => {
+  for (const cmd of ['git add src/push/notify.ts', 'git log feat/merge']) {
+    const r = decide(sub(cmd));
+    assert.equal(r.block, true, `${cmd} is denied`);
+    assert.match(r.reason, /segment of a path or ref/, `the denial for ${cmd} names the path or ref segment case`);
+    assert.match(r.reason, /parent directory whose path holds no verb segment/, `the denial for ${cmd} names the parent-directory rewrite`);
+    assert.match(r.reason, /leave the command to the controller/, `the denial for ${cmd} names the controller rewrite`);
+    assert.ok(r.reason.includes("git commit -F - <<'EOF'"), `the denial for ${cmd} still names the heredoc form`);
+    assert.match(r.reason, /as long as no line of it holds/, `the denial for ${cmd} still names the heredoc limit`);
+  }
+  assert.equal(decide(sub('git add src/')).block, false, 'the parent-directory rewrite passes');
+  assert.equal(decide(sub('git add src/push')).block, true, 'a parent directory still holding a verb segment stays denied');
+});
 
-// merge-guard requires no module (ADR 0227).
-assert.ok(!/require\(/.test(fs.readFileSync(hookPath, 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/require\.main/g, '')), 'merge-guard.js requires no module');
+test('merge-guard requires no module (ADR 0227).', () => {
+  assert.ok(!/require\(/.test(fs.readFileSync(hookPath, 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/require\.main/g, '')), 'merge-guard.js requires no module');
+});
 
-// A long line with many lead words and no verb answers in linear time: 10x the input costs ~10x when linear and ~100x
-// when quadratic, so the 50x ceiling falsifies only the latter (ADR 0149). Catastrophic backtracking is qualitative, so
-// a loose ceiling falsifies what a tight one did: keep the ceiling and loosen it rather than drop it (root AGENTS.md,
-// working rule "A duration assertion is legitimate only against a same-run baseline, or a qualitative ceiling").
-{
+// Catastrophic backtracking is qualitative, so a loose ceiling falsifies what a tight one did: keep the ceiling and
+// loosen it rather than drop it (root AGENTS.md, working rule "A duration assertion is legitimate only against a
+// same-run baseline, or a qualitative ceiling").
+test('A long line with many lead words and no verb answers in linear time: 10x the input costs ~10x when linear and ~100x when quadratic, so the 50x ceiling falsifies only the latter (ADR 0149).', () => {
   const { timePair } = require('./linear-time');
   const run = (n) => {
     decide(sub('git '.repeat(n) + 'status'));
@@ -123,11 +126,10 @@ assert.ok(!/require\(/.test(fs.readFileSync(hookPath, 'utf8').replace(/^\s*\/\/.
   };
   const [base, big] = timePair(run, 2000, 20000, 50);
   assert.ok(big < 50 * base, `a long command must scale linearly: 2000 took ${base} ns, 20000 took ${big} ns`);
-}
+});
 
-// Spawning the hook directly (as Claude Code's hook invocation does) decides: the guard's decision path.
 // That requiring it prints nothing is proven in tests/plugin-layout.test.js.
-{
+test('Spawning the hook directly (as Claude Code\'s hook invocation does) decides: the guard\'s decision path.', () => {
   const spawned = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify(sub('git merge scope')), encoding: 'utf8', timeout: 5000 });
   assertSpawnDecided(spawned, 'spawning merge-guard.js directly');
   assert.equal(spawned.status, 2, 'a subagent merge exits 2');
@@ -138,6 +140,5 @@ assert.ok(!/require\(/.test(fs.readFileSync(hookPath, 'utf8').replace(/^\s*\/\/.
   const garbage = cp.spawnSync(process.execPath, [hookPath], { input: 'not json', encoding: 'utf8', timeout: 5000 });
   assertSpawnDecided(garbage, 'spawning merge-guard.js with malformed input');
   assert.equal(garbage.status, 0, 'malformed input never blocks');
-}
+});
 
-console.log('merge-guard tests ok');

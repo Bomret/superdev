@@ -5,12 +5,17 @@
 // and an unknown argument refuses with it, exit 2, each running nothing. The registry and
 // the selftest are replaced in the child by a preload (`node -r`), so the cases run no real check.
 
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
+
+after(() => {
+  fs.rmSync(dir, { recursive: true, force: true });
+});
 
 const CLI = path.join(__dirname, '..', 'scripts', 'drift-check.js');
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-cli-'));
@@ -43,25 +48,29 @@ function run(args, env, label) {
   return r;
 }
 
-try {
+test('A run with failed checks exits 1 and reports every failed check', () => {
   const bad = run([], {}, 'failing registry');
   assert.strictEqual(bad.status, 1, 'a run with failed checks exits 1');
   for (const line of ['gap in gappy-a: first', 'gap in gappy-a: second', 'thrower: run() threw — boom', 'gap in gappy-b: third']) {
     assert.ok(bad.stderr.includes(line), `reports every failed check: ${line}`);
   }
   assert.ok(!bad.stdout.includes('drift-check ok'), 'a failing run prints no ok line');
+});
 
+test('A clean run exits 0 and prints its ok line', () => {
   const clean = run([], { FAKE: 'clean' }, 'clean registry');
   assert.strictEqual(clean.status, 0, 'a clean run exits 0');
   assert.match(clean.stdout, /drift-check ok: clean-ok/);
+});
 
+test('--selftest runs the selftests and no check', () => {
   const selftest = run(['--selftest'], {}, 'selftest');
   assert.strictEqual(selftest.status, 0);
   assert.match(selftest.stdout, /SELFTEST-DISPATCHED/, '--selftest runs the selftests');
   assert.ok(!selftest.stderr.includes('gap in'), '--selftest runs no check');
+});
 
-  // --help / -h anywhere prints the usage, naming --selftest, and runs no check and no selftest; it wins over an
-  // unknown argument beside it.
+test('--help / -h anywhere prints the usage, naming --selftest, and runs no check and no selftest; it wins over an unknown argument beside it.', () => {
   for (const args of [['--help'], ['-h'], ['--selftest', '--help'], ['--bogus', '--help']]) {
     const r = run(args, {}, args.join(' '));
     assert.strictEqual(r.status, 0, `${args.join(' ')} exits 0`);
@@ -76,8 +85,5 @@ try {
     assert.match(r.stderr, /usage: node scripts\/drift-check\.js/, `${args.join(' ')} prints the usage on stderr`);
     assert.ok(!r.stdout.includes('SELFTEST-DISPATCHED') && !r.stderr.includes('gap in'), `${args.join(' ')} runs no check`);
   }
-} finally {
-  fs.rmSync(dir, { recursive: true, force: true });
-}
+});
 
-console.log('drift-check CLI ok');

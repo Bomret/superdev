@@ -2,6 +2,7 @@
 
 // Suite for plugin/scripts/scope.js's `suite rerun` and the recorded rerun `suite reusable` reads (ADR 0172, INV-0017).
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -9,10 +10,9 @@ const path = require('node:path');
 const { scopePath, call, gitOut: g, commitAll, fixtureRepo } = require('./scope-setup');
 const { appendTrace } = require(scopePath);
 
-// --- suite rerun and the recorded rerun (ADR 0172, INV-0017) ------------------------------------
-// Under the complete-selector declaration, a full run at the tip that failed counts green once the ledger records
-// a rerun of one test file for that tip, that file alone passed clean there, and a focused run passed clean there.
-{
+// Under the complete-selector declaration, a full run at the tip that failed counts green once the ledger records a rerun
+// of one test file for that tip, that file alone passed clean there, and a focused run passed clean there.
+test('suite rerun and the recorded rerun (ADR 0172, INV-0017)', () => {
   const { encodePaths } = require('../plugin/lib/trace-log.js');
   const callIn = (argv, cwd) => call(argv, '', cwd);
   const DECLARED = '\n## Complete selector\n\nThe focused command selects every test a changed path can affect.\n';
@@ -248,4 +248,4 @@ const { appendTrace } = require(scopePath);
   } finally {
     cases.forEach((d) => fs.rmSync(d, { recursive: true, force: true }));
   }
-}
+});

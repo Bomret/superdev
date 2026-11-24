@@ -2,6 +2,7 @@
 
 // Suite for plugin/scripts/scope.js's `suite reusable` complete-selector carry (ADR 0175, INV-0017).
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -9,11 +10,10 @@ const { execFileSync } = require('node:child_process');
 const { scopePath, call, gitOut: g, head, commitAll, fixtureRepo } = require('./scope-setup');
 const { appendTrace } = require(scopePath);
 
-// --- suite reusable: the complete-selector carry (ADR 0175, INV-0017) ----------------------------
-// A green record carries across a non-Markdown delta where the tip's verification.md declares the focused
-// selector complete, the focused command takes `{paths}`, and a passing clean focused run at the tip covered
-// every changed path. Each case gets its own repository from the verification.md text it needs.
-{
+// Each case gets its own repository from the verification.md text it needs.
+// A green record carries across a non-Markdown delta where the tip's verification.md declares the focused selector
+// complete, the focused command takes `{paths}`, and a passing clean focused run at the tip covered every changed path.
+test('suite reusable: the complete-selector carry (ADR 0175, INV-0017)', () => {
   const { encodePaths, encodeArgs } = require('../plugin/lib/trace-log.js');
   const callIn = (argv, cwd) => call(argv, '', cwd);
   const vRel = path.join('docs', 'agents', 'verification.md');
@@ -294,4 +294,4 @@ const { appendTrace } = require(scopePath);
   } finally {
     cleanup();
   }
-}
+});

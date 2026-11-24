@@ -1,6 +1,7 @@
 'use strict';
 
 // Fixture repositories commit regardless of the maintainer's global git config.
+const { test, after } = require('node:test');
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `suite failed` verb and the reuse it opens (ADR 0237): a red full run at R whose failing
@@ -15,6 +16,10 @@ const { execFileSync } = require('node:child_process');
 const { scopePath, run } = require('./scope-setup');
 const { appendTrace } = require(scopePath);
 const { encodePaths } = require('../plugin/lib/trace-log.js');
+
+after(() => {
+  made.forEach((d) => fs.rmSync(d, { recursive: true, force: true }));
+});
 
 const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 const callIn = (argv, cwd) => {
@@ -74,25 +79,25 @@ const ALONE = (sha, file, res = 'pass', tree = 'clean', dir = '.') => ['path', r
 const FOCUSED = (sha, res = 'pass', tree = 'clean', paths = ['src/x.js']) => ['focused', res, sha, tree, encodePaths(paths)];
 const ledgerOf = (rt) => fs.readFileSync(path.join(rt, 'ledger.md'), 'utf8');
 
-try {
-  const f = make();
-  const failedAt = (rt, files, cwdSha) => {
-    g(['checkout', '-q', cwdSha], f.repo);
-    try { return callIn(['suite', 'failed', ...files, '--root', rt], f.repo); } finally { g(['checkout', '-q', 'feat'], f.repo); }
-  };
-  const reusable = (rt, ...flags) => callIn(['suite', 'reusable', '--branch', 'feat', '--base', 'main', ...flags, '--root', rt], f.repo);
-  const good = [FAILED(f.R), ALONE(f.T, 'tests/a.test.js'), ALONE(f.T, 'tests/b.test.js'), FOCUSED(f.T)];
+const f = make();
+const failedAt = (rt, files, cwdSha) => {
+  g(['checkout', '-q', cwdSha], f.repo);
+  try { return callIn(['suite', 'failed', ...files, '--root', rt], f.repo); } finally { g(['checkout', '-q', 'feat'], f.repo); }
+};
+const reusable = (rt, ...flags) => callIn(['suite', 'reusable', '--branch', 'feat', '--base', 'main', ...flags, '--root', rt], f.repo);
+const good = [FAILED(f.R), ALONE(f.T, 'tests/a.test.js'), ALONE(f.T, 'tests/b.test.js'), FOCUSED(f.T)];
 
-  // The verb records the files and HEAD; with the fixed files and a covering focused run at T, the red record carries.
-  let rt = f.root(good);
-  let r = reusable(rt);
+let rt, r, traced;
+test('The verb records the files and HEAD; with the fixed files and a covering focused run at T, the red record carries.', () => {
+  rt = f.root(good);
+  r = reusable(rt);
   assert.ok(!r.ok, 'a red record with no failed-files record stays red: ' + (r.err || ''));
   r = callIn(['get', 'failed', '--root', rt], f.repo);
   assert.ok(r.ok && r.out === '', 'get failed prints nothing on a ledger with no record: ' + JSON.stringify(r));
   r = failedAt(rt, ['tests/a.test.js', './tests/b.test.js'], f.R);
   assert.ok(r.ok, 'suite failed records: ' + (r.err || ''));
   assert.ok(ledgerOf(rt).includes(`**Failed:** tests/a.test.js tests/b.test.js @ ${f.R}\n`), 'the ledger carries the record: ' + ledgerOf(rt));
-  const traced = fs.readFileSync(path.join(rt, 'trace.log'), 'utf8');
+  traced = fs.readFileSync(path.join(rt, 'trace.log'), 'utf8');
   assert.ok(/ ledger suite failed tests\/a\.test\.js tests\/b\.test\.js$/m.test(traced) && !traced.includes('./tests/b.test.js'),
     'the trace names the root-relative paths the ledger records: ' + traced);
   r = callIn(['get', 'failed', '--root', rt], f.repo);
@@ -100,58 +105,59 @@ try {
   r = reusable(rt);
   assert.ok(r.ok && r.out === 'reusable', 'the repaired failures carry the record to the fix tip: ' + (r.err || ''));
   assert.ok(!reusable(rt, '--whole').ok, 'a repaired failure never serves a whole-repo gate');
+});
 
-  // The verb refuses no file, a spaced token, and a file HEAD does not hold, and writes nothing then.
+test('The verb refuses no file, a spaced token, and a file HEAD does not hold, and writes nothing then.', () => {
   rt = f.root(good);
   assert.ok(!callIn(['suite', 'failed', '--root', rt], f.repo).ok, 'no file refuses');
   assert.ok(!callIn(['suite', 'failed', 'tests/missing.test.js', '--root', rt], f.repo).ok, 'a missing file refuses');
   assert.ok(!callIn(['suite', 'failed', 'two words', '--root', rt], f.repo).ok, 'a spaced token refuses');
   assert.ok(!ledgerOf(rt).includes('**Failed:**'), 'a refused verb writes no record');
+});
 
-  // `suite failed` and `suite rerun` read a test file's name literally: `:foo.test.js` is that file and never pathspec magic,
-  // and `a[b].test.js` is that file and never a glob over `ab.test.js`. Commit O holds only `foo.test.js` and `ab.test.js`;
-  // commit L holds only `:foo.test.js` and `a[b].test.js`. A global pathspec mode in the environment changes no answer.
-  {
-    const lit = make();
-    g(['checkout', '-q', '-b', 'only-plain'], lit.repo);
-    fs.writeFileSync(path.join(lit.repo, 'foo.test.js'), 'foo\n');
-    fs.writeFileSync(path.join(lit.repo, 'ab.test.js'), 'ab\n');
-    g(['add', '.'], lit.repo);
-    g(['commit', '-q', '-m', 'plain names'], lit.repo);
-    g(['checkout', '-q', '-b', 'only-literal', lit.T], lit.repo);
-    fs.writeFileSync(path.join(lit.repo, ':foo.test.js'), 'colon\n');
-    fs.writeFileSync(path.join(lit.repo, 'a[b].test.js'), 'bracket\n');
-    g(['add', '.'], lit.repo);
-    g(['commit', '-q', '-m', 'literal names'], lit.repo);
-    const L = g(['rev-parse', 'HEAD'], lit.repo);
-    const at = (branch, argv) => {
-      g(['checkout', '-q', branch], lit.repo);
-      try { return callIn(argv, lit.repo); } finally { g(['checkout', '-q', 'feat'], lit.repo); }
-    };
-    for (const mode of [null, 'GIT_GLOB_PATHSPECS', 'GIT_ICASE_PATHSPECS']) {
-      const label = mode ? ` under ${mode}=1` : '';
-      if (mode) process.env[mode] = '1';
-      try {
-        for (const name of [':foo.test.js', 'a[b].test.js']) {
-          let x = lit.root([]);
-          let res = at('only-literal', ['suite', 'failed', name, '--root', x]);
-          assert.ok(res.ok, `suite failed records ${name} the tip holds${label}: ${res.err || ''}`);
-          assert.ok(ledgerOf(x).includes(`**Failed:** ${name} @ ${L}\n`), `the record names ${name}${label}: ${ledgerOf(x)}`);
-          res = at('only-plain', ['suite', 'failed', name, '--root', x = lit.root([])]);
-          assert.ok(!res.ok && res.err.includes(`${name} is not a file at the tip`), `suite failed refuses ${name} where the tip holds only its plain sibling${label}: ${JSON.stringify(res)}`);
-          res = at('only-literal', ['suite', 'rerun', name, '#9', '--root', x = lit.root([])]);
-          assert.ok(res.ok, `suite rerun records ${name} the tip holds${label}: ${res.err || ''}`);
-          assert.ok(ledgerOf(x).includes(`**Rerun:** ${name} @ ${L} #9\n`), `the rerun record names ${name}${label}: ${ledgerOf(x)}`);
-          res = at('only-plain', ['suite', 'rerun', name, '#9', '--root', x = lit.root([])]);
-          assert.ok(!res.ok && res.err.includes(`${name} is not a file at the tip`), `suite rerun refuses ${name} where the tip holds only its plain sibling${label}: ${JSON.stringify(res)}`);
-        }
-      } finally {
-        if (mode) delete process.env[mode];
+// Commit O holds only `foo.test.js` and `ab.test.js`; commit L holds only `:foo.test.js` and `a[b].test.js`. A global
+// pathspec mode in the environment changes no answer.
+test('`suite failed` and `suite rerun` read a test file\'s name literally: `:foo.test.js` is that file and never pathspec magic, and `a[b].test.js` is that file and never a glob over `ab.test.js`.', () => {
+  const lit = make();
+  g(['checkout', '-q', '-b', 'only-plain'], lit.repo);
+  fs.writeFileSync(path.join(lit.repo, 'foo.test.js'), 'foo\n');
+  fs.writeFileSync(path.join(lit.repo, 'ab.test.js'), 'ab\n');
+  g(['add', '.'], lit.repo);
+  g(['commit', '-q', '-m', 'plain names'], lit.repo);
+  g(['checkout', '-q', '-b', 'only-literal', lit.T], lit.repo);
+  fs.writeFileSync(path.join(lit.repo, ':foo.test.js'), 'colon\n');
+  fs.writeFileSync(path.join(lit.repo, 'a[b].test.js'), 'bracket\n');
+  g(['add', '.'], lit.repo);
+  g(['commit', '-q', '-m', 'literal names'], lit.repo);
+  const L = g(['rev-parse', 'HEAD'], lit.repo);
+  const at = (branch, argv) => {
+    g(['checkout', '-q', branch], lit.repo);
+    try { return callIn(argv, lit.repo); } finally { g(['checkout', '-q', 'feat'], lit.repo); }
+  };
+  for (const mode of [null, 'GIT_GLOB_PATHSPECS', 'GIT_ICASE_PATHSPECS']) {
+    const label = mode ? ` under ${mode}=1` : '';
+    if (mode) process.env[mode] = '1';
+    try {
+      for (const name of [':foo.test.js', 'a[b].test.js']) {
+        let x = lit.root([]);
+        let res = at('only-literal', ['suite', 'failed', name, '--root', x]);
+        assert.ok(res.ok, `suite failed records ${name} the tip holds${label}: ${res.err || ''}`);
+        assert.ok(ledgerOf(x).includes(`**Failed:** ${name} @ ${L}\n`), `the record names ${name}${label}: ${ledgerOf(x)}`);
+        res = at('only-plain', ['suite', 'failed', name, '--root', x = lit.root([])]);
+        assert.ok(!res.ok && res.err.includes(`${name} is not a file at the tip`), `suite failed refuses ${name} where the tip holds only its plain sibling${label}: ${JSON.stringify(res)}`);
+        res = at('only-literal', ['suite', 'rerun', name, '#9', '--root', x = lit.root([])]);
+        assert.ok(res.ok, `suite rerun records ${name} the tip holds${label}: ${res.err || ''}`);
+        assert.ok(ledgerOf(x).includes(`**Rerun:** ${name} @ ${L} #9\n`), `the rerun record names ${name}${label}: ${ledgerOf(x)}`);
+        res = at('only-plain', ['suite', 'rerun', name, '#9', '--root', x = lit.root([])]);
+        assert.ok(!res.ok && res.err.includes(`${name} is not a file at the tip`), `suite rerun refuses ${name} where the tip holds only its plain sibling${label}: ${JSON.stringify(res)}`);
       }
+    } finally {
+      if (mode) delete process.env[mode];
     }
   }
+});
 
-  // Every shortfall stays red.
+test('Every shortfall stays red.', () => {
   const red = (lines, why, files = ['tests/a.test.js', 'tests/b.test.js']) => {
     const x = f.root(lines);
     assert.ok(failedAt(x, files, f.R).ok);
@@ -168,14 +174,15 @@ try {
   red([FAILED(f.R), ALONE(f.T, 'tests/a.test.js'), ALONE(f.T, 'tests/b.test.js'), FOCUSED(f.T, 'fail')], 'a failing focused run');
   red([FAILED(f.R), FAILED(f.R), ALONE(f.T, 'tests/a.test.js'), ALONE(f.T, 'tests/b.test.js'), FOCUSED(f.T)], 'two failed full runs at the failed commit');
   red([ALONE(f.T, 'tests/a.test.js'), ALONE(f.T, 'tests/b.test.js'), FOCUSED(f.T)], 'no failed full run in the trace');
+});
 
-  // A record for another commit, or none at the tip's ancestor, decides nothing.
+test('A record for another commit, or none at the tip\'s ancestor, decides nothing.', () => {
   rt = f.root(good);
   assert.ok(failedAt(rt, ['tests/a.test.js'], f.T).ok);
   assert.ok(!reusable(rt).ok, 'a failed-files record for another commit carries nothing');
+});
 
-  // A `--base` with no merge-base refuses the rerun route only: the repaired-failure carry still decides, here at a
-  // Markdown-only tip past R that carries both records.
+test('A `--base` with no merge-base refuses the rerun route only: the repaired-failure carry still decides, here at a Markdown-only tip past R that carries both records.', () => {
   g(['checkout', '-q', '-b', 'md', f.R], f.repo);
   fs.writeFileSync(path.join(f.repo, 'notes.md'), 'n\n');
   g(['add', 'notes.md'], f.repo);
@@ -193,8 +200,9 @@ try {
   assert.ok(failedAt(rt, ['tests/a.test.js'], f.R).ok);
   r = callIn(['suite', 'reusable', '--branch', 'md', '--base', 'lone', '--root', rt], f.repo);
   assert.ok(r.ok && r.out === 'reusable', 'an unresolvable range base leaves the repaired-failure carry to decide: ' + (r.err || ''));
+});
 
-  // Without the complete-selector declaration the record stays red.
+test('Without the complete-selector declaration the record stays red.', () => {
   const plain = make('');
   const prt = plain.root([FAILED(plain.R), ALONE(plain.T, 'tests/a.test.js'), FOCUSED(plain.T)]);
   g(['checkout', '-q', plain.R], plain.repo);
@@ -202,8 +210,5 @@ try {
   g(['checkout', '-q', 'feat'], plain.repo);
   r = callIn(['suite', 'reusable', '--branch', 'feat', '--base', 'main', '--root', prt], plain.repo);
   assert.ok(!r.ok && /complete-selector/.test(r.err), 'no declaration stays red: ' + (r.err || ''));
-} finally {
-  made.forEach((d) => fs.rmSync(d, { recursive: true, force: true }));
-}
+});
 
-console.log('scope-suite-failed: ok');
