@@ -1648,3 +1648,12 @@ Statement: `publish-kb.js` sends a scope's staged pages without `--allow-unmerge
 Breaks: silently
 Check: tests/publish-kb-gate.test.js — a gone run root, `shipped`, and `closed` publish; every other stage, a missing or unreadable ledger, and a ledger with no Stage line refuse; tests/publish-kb-hardening.test.js — an unreadable ledger, a dangling run root or .superdev/scopes symlink refuses past --allow-unmerged
 Paths: plugin/lib/kb-gate.js, plugin/scripts/publish-kb.js
+
+### INV-0208
+
+Class: process
+Concepts: Claim, Scope anchor, Assignee
+Statement: `/superdev:implement` never creates or adopts a run on a scope anchor claimed by someone else without the operator's explicit yes, and under `--unattended` it blocks instead. `/superdev:status` never recommends a move on an anchor claimed by someone else.
+Breaks: silently
+Check: none — the rule lives in skill prose, which no suite executes
+Paths: plugin/skills/implement/SKILL.md, plugin/skills/status/SKILL.md
