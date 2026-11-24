@@ -1,4 +1,4 @@
-# 0280: Implement claims the anchor, and status skips another person's claim
+# 0281: Implement claims the anchor, and status skips another person's claim
 
 **Status:** Accepted
 
