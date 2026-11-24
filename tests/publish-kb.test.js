@@ -7,6 +7,7 @@
 // call its exported `run()` against the fake backend; their shared fixtures live in
 // tests/publish-kb-setup.js.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -15,38 +16,37 @@ const { execFileSync } = require('node:child_process');
 const { publishKbPath, commandsDoc } = require('./publish-kb-setup');
 const { parseCommandsTemplates, parseStagedPage, classifyBackend, hashBody } = require(publishKbPath);
 
-// --- hashBody: the digest algorithm is pinned by a literal, not derived from hashBody itself ------
-assert.equal(
-  hashBody('live body.\n'),
-  'a0a762cd24bd4014218d4b712b8ed28dd3b2a8d57a1629c6dac0abd11823e0ce',
-  'hashBody is sha256 over the normalized body',
-);
+test('hashBody: the digest algorithm is pinned by a literal, not derived from hashBody itself', () => {
+  assert.equal(
+    hashBody('live body.\n'),
+    'a0a762cd24bd4014218d4b712b8ed28dd3b2a8d57a1629c6dac0abd11823e0ce',
+    'hashBody is sha256 over the normalized body',
+  );
+});
 
-// --- parseCommandsTemplates: resolution by heading name, never by position -------------------
-{
+test('parseCommandsTemplates: resolution by heading name, never by position', () => {
   const section = '### update\n\n```sh\nUPDATE_CMD\n```\n\n### find\n\n```sh\nFIND_CMD\n```\n';
   const t = parseCommandsTemplates(section);
   assert.equal(t.find, 'FIND_CMD', 'find resolves by its own heading regardless of order');
   assert.equal(t.update, 'UPDATE_CMD', 'update resolves by its own heading regardless of order');
   assert.equal(t.create, undefined, 'a verb with no subsection is simply absent');
-}
+});
 
-// --- parseCommandsTemplates: the shared fence rule (md-sections.js), tilde fences and longer openers included ---------------
-{
+test('parseCommandsTemplates: the shared fence rule (md-sections.js), tilde fences and longer openers included', () => {
   const section = '### find\n\n~~~sh\nFIND_CMD\n~~~\n\n### read\n\n````sh\nREAD ```x``` CMD\n````\n';
   const t = parseCommandsTemplates(section);
   assert.deepEqual([t.find, t.read], ['FIND_CMD', 'READ ```x``` CMD'], 'a tilde fence and a longer backtick opener each yield their whole template');
-}
+});
 
-// --- parseCommandsTemplates: a template fence never closed inside its verb's section refuses, naming that verb ---------------
-assert.throws(
-  () => parseCommandsTemplates('### find\n\n```sh\nFIND_CMD\n\n### read\n\n```sh\nREAD_CMD\n```\n'),
-  (e) => e.isRefusal && /unterminated fenced code block in ### find/.test(e.message),
-  'an unterminated template fence refuses with its own cause, not a missing verb',
-);
+test('parseCommandsTemplates: a template fence never closed inside its verb\'s section refuses, naming that verb', () => {
+  assert.throws(
+    () => parseCommandsTemplates('### find\n\n```sh\nFIND_CMD\n\n### read\n\n```sh\nREAD_CMD\n```\n'),
+    (e) => e.isRefusal && /unterminated fenced code block in ### find/.test(e.message),
+    'an unterminated template fence refuses with its own cause, not a missing verb',
+  );
+});
 
-// --- parseStagedPage: frontmatter + quoting -----------------------------------------------------
-{
+test('parseStagedPage: frontmatter + quoting', () => {
   const p = parseStagedPage('---\ntitle: Plain title\naction: upsert\n---\nbody.\n');
   assert.equal(p.title, 'Plain title');
   assert.equal(p.action, 'upsert');
@@ -57,10 +57,9 @@ assert.throws(
     `---\ntitle: ${JSON.stringify(tricky)}\naction: upsert\n---\nb.\n`,
   );
   assert.equal(q.title, tricky, 'a double-quoted YAML scalar round-trips quotes/$/backtick/newline');
-}
+});
 
-// --- classifyBackend ------------------------------------------------------------------------
-{
+test('classifyBackend', () => {
   assert.equal(classifyBackend(null).kind, 'none', 'a missing knowledge-base doc reads as backend none');
   assert.equal(classifyBackend('- **Backend:** local file storage.\n').kind, 'local');
   assert.equal(classifyBackend('- **Backend:** none.\n').kind, 'none');
@@ -72,10 +71,9 @@ assert.throws(
   const b = classifyBackend(commandsDoc('- **Backend:** Some Wiki.'));
   assert.equal(b.kind, 'remote');
   assert.ok(b.templates.find && b.templates.create && b.templates.update && b.templates.delete);
-}
+});
 
-// --- scope.js owns the change-type set, the ref probe, and main-checkout resolution ------------------
-{
+test('scope.js owns the change-type set, the ref probe, and main-checkout resolution', () => {
   // The publish code is the CLI and the `lib/kb-*.js` modules it wires together.
   const libDir = path.join(path.dirname(publishKbPath), '..', 'lib');
   const src = [publishKbPath, ...fs.readdirSync(libDir).filter((f) => /^kb-.*\.js$/.test(f)).map((f) => path.join(libDir, f))]
@@ -101,10 +99,9 @@ assert.throws(
   } finally {
     fs.rmSync(base, { recursive: true, force: true });
   }
-}
+});
 
-// --- --help / -h: usage on stdout, exit 0, before any repository or backend is read -------------
-{
+test('--help / -h: usage on stdout, exit 0, before any repository or backend is read', () => {
   const { spawnSync } = require('node:child_process');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-help-'));
   try {
@@ -124,6 +121,5 @@ assert.throws(
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
-}
+});
 
-console.log('publish-kb.test.js: all assertions passed');

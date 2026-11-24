@@ -5,13 +5,13 @@
 // linear-time pins (ADR 0086, ADR 0149) that measure through tests/linear-time.js. No backend is spawned,
 // so the file times no spawn.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const { publishKbPath } = require('./publish-kb-setup');
 
-// removing a section's only list item also drops the blank line the add set above it, and the line end it
-// appended to an unterminated last heading: add then remove restores the parent byte for byte. A prose line right
-// below the heading keeps one blank line above it after the first cycle, and every later cycle returns those bytes.
-{
+// A prose line right below the heading keeps one blank line above it after the first cycle, and every later cycle
+// returns those bytes.
+test('removing a section\'s only list item also drops the blank line the add set above it, and the line end it appended to an unterminated last heading: add then remove restores the parent byte for byte.', () => {
   const { addParentLink, removeParentLink } = require(publishKbPath);
   const lineFor = () => ({ ok: true, line: '- [Child](Child) — desc' });
   const cycle = (body) => removeParentLink(addParentLink(body, 'Guides', lineFor, 'Child').body, 'Guides', 'Child').body;
@@ -25,11 +25,9 @@ const { publishKbPath } = require('./publish-kb-setup');
   const once = cycle('Intro.\n\n## Guides\nSome text.\n');
   assert.equal(once, 'Intro.\n\n## Guides\n\nSome text.\n', 'a section of prose keeps one blank line below its heading');
   assert.equal(cycle(once), once, 'a second cycle over a section of prose returns the same bytes');
-}
+});
 
-// the link joins the named section's own list, ahead of any subsection: a list under a `###` inside the section is
-// no anchor, and a section with no list of its own opens one below its heading
-{
+test('the link joins the named section\'s own list, ahead of any subsection: a list under a `###` inside the section is no anchor, and a section with no list of its own opens one below its heading', () => {
   const { addParentLink } = require(publishKbPath);
   const lineFor = () => ({ ok: true, line: '- [C](c)' });
   const add = (body) => addParentLink(body, 'Guides', lineFor, 'C').body;
@@ -43,12 +41,9 @@ const { publishKbPath } = require('./publish-kb-setup');
     '## Guides\n\n- [C](c)\n\nText.\n\n### Advanced\n\n- [B](b)\n',
     'a section whose only list sits in a subsection opens its own list below the heading',
   );
-}
+});
 
-// the link follows every line the last top-level item carries: a nested item, a continuation line, or a fenced code
-// block indented to the item's content column belongs to it across blank lines, and so does a lazy continuation line
-// right below its text; a blank-separated line indented less is no part of it
-{
+test('the link follows every line the last top-level item carries: a nested item, a continuation line, or a fenced code block indented to the item\'s content column belongs to it across blank lines, and so does a lazy continuation line right below its text; a blank-separated line indented less is no part of it', () => {
   const { addParentLink } = require(publishKbPath);
   const lineFor = () => ({ ok: true, line: '- [C](c)' });
   const add = (body) => addParentLink(body, 'Guides', lineFor, 'C').body;
@@ -97,18 +92,15 @@ const { publishKbPath } = require('./publish-kb-setup');
     '## Guides\n\n-\tA\n\n    more\n- [C](c)\n',
     'a tab after the marker reaches the next tab stop, column 4, so a paragraph indented four spaces stays under the item',
   );
-}
+});
 
-// a parent that links the page under another section already links it: the add writes nothing (ADR 0168)
-{
+test('a parent that links the page under another section already links it: the add writes nothing (ADR 0168)', () => {
   const { addParentLink } = require(publishKbPath);
   const out = addParentLink('## Other\n\n- [C](c)\n\n## Guides\n\n- [A](a)\n', 'Guides', () => ({ ok: true, line: '- [C](c)' }), 'C');
   assert.equal(out.changed, false, 'a link under another section counts as linked');
-}
+});
 
-// a delete keeps the structure around the removed line: an item that carries a nested item, a continuation line,
-// a lazy continuation line, or fenced code stays and is reported kept, and an item with another top-level item beside it is no only item
-{
+test('a delete keeps the structure around the removed line: an item that carries a nested item, a continuation line, a lazy continuation line, or fenced code stays and is reported kept, and an item with another top-level item beside it is no only item', () => {
   const { removeParentLink, addParentLink } = require(publishKbPath);
   for (const [what, body, line] of [
     ['a nested child item', '## Guides\n\n- [Child](x)\n    - [Grand](y)\n', '- [Child](x)'],
@@ -134,13 +126,12 @@ const { publishKbPath } = require('./publish-kb-setup');
     body,
     'add then remove restores a section whose only list sits in a subsection',
   );
-}
+});
 
-// Linear time (ADR 0086, ADR 0149): a parent line of unclosed brackets four times as long takes about four times as long to
-// read for links when linear, sixteen times when quadratic; the ceiling sits at nine, between them. The capped scan
-// still finds every link shape it found before. Each unit also opens a capped link-text run, a linear cost that hides a
-// quadratic one on a short line, so the input starts at 6000 units, where a quadratic run dominates.
-{
+// The capped scan still finds every link shape it found before. Each unit also opens a capped link-text run, a linear
+// cost that hides a quadratic one on a short line, so the input starts at 6000 units, where a quadratic run
+// dominates.
+test('Linear time (ADR 0086, ADR 0149): a parent line of unclosed brackets four times as long takes about four times as long to read for links when linear, sixteen times when quadratic; the ceiling sits at nine, between them.', () => {
   const { removeParentLink } = require(publishKbPath);
   const { timePair, cpuNs } = require('./linear-time');
   const scan = (body) => removeParentLink(body, 'How it works', 'Child');
@@ -159,12 +150,9 @@ const { publishKbPath } = require('./publish-kb-setup');
   assert.equal(out.body, '## How it works\n\n- [A](A)\n- See [Child][c] and [[Child|c]] and [Child](y)\n', 'the single-link line is removed');
   assert.deepEqual(out.kept, ['- See [Child][c] and [[Child|c]] and [Child](y)'], 'the reference, wiki, and inline links are still found');
   assert.deepEqual(scan('## How it works\n\n- See [Child][c]\n- [[Child]]\n').kept, ['- See [Child][c]', '- [[Child]]'], 'each link shape alone');
-}
+});
 
-// Linear time (ADR 0086, ADR 0149): a parent heading line four times as long takes about four times as long to read for
-// its heading text when linear, sixteen times when quadratic, on the remove path and the add path alike; the ceiling
-// sits at nine, between them.
-{
+test('Linear time (ADR 0086, ADR 0149): a parent heading line four times as long takes about four times as long to read for its heading text when linear, sixteen times when quadratic, on the remove path and the add path alike; the ceiling sits at nine, between them.', () => {
   const { removeParentLink, addParentLink } = require(publishKbPath);
   const { timePair, cpuNs } = require('./linear-time');
   const scans = {
@@ -191,16 +179,13 @@ const { publishKbPath } = require('./publish-kb-setup');
   for (const heading of ['## How it works#', '##How it works', '####### How it works']) {
     assert.equal(add(`${heading}\n\n- [A](A)\n`, 'How it works', lineFor, 'Child').ok, false, `${JSON.stringify(heading)} is no heading "How it works"`);
   }
-}
+});
 
 // the parent body the add and delete blocks below share, and a copy of it with one more line after item B
 const HOME = 'Intro.\n\n## How it works\n\n- [A](A)\n- [B](B)\n\n## Other\n\n- [Z](Z)\n';
 const withB = (extra) => HOME.replace('- [B](B)\n', `- [B](B)\n${extra}\n`);
 
-// the add path over the staged page's link line and the parent's live body (ADR 0168, INV-0170): where the link lands in a
-// section with no list, which links already count as the page's own (the add writes nothing), which lines do not, a
-// section the parent lacks or repeats, and a title edged by emphasis characters
-{
+test('the add path over the staged page\'s link line and the parent\'s live body (ADR 0168, INV-0170): where the link lands in a section with no list, which links already count as the page\'s own (the add writes nothing), which lines do not, a section the parent lacks or repeats, and a title edged by emphasis characters', () => {
   const { addParentLink } = require(publishKbPath);
   const { parentLinkRefusal } = require('../plugin/lib/kb-parent-link.js');
   const add = (body, line, title = 'Child', section = 'How it works') => addParentLink(body, section, () => ({ ok: true, line }), title);
@@ -271,12 +256,9 @@ const withB = (extra) => HOME.replace('- [B](B)\n', `- [B](B)\n${extra}\n`);
     assert.equal(parentLinkRefusal({ parent: 'Home', title, parentSection: 'How it works', parentLink: line }), null, `${title}: the parent-link is accepted`);
     assert.ok(add(HOME, line, title).body.includes(`${line}\n`), `${title}: linked`);
   }
-}
+});
 
-// the delete path (ADR 0168, INV-0164): the first single-link item of the section goes, every other line linking the page
-// stays and comes back in `kept`, a parent that does not link the page is no change, and a section the parent lacks or
-// repeats is refused
-{
+test('the delete path (ADR 0168, INV-0164): the first single-link item of the section goes, every other line linking the page stays and comes back in `kept`, a parent that does not link the page is no change, and a section the parent lacks or repeats is refused', () => {
   const { removeParentLink, addParentLink } = require(publishKbPath);
   const WITH_CHILD = HOME.replace('- [B](B)\n', '- [B](B)\n- [Child](Child) — desc\n');
   const remove = (body) => removeParentLink(body, 'How it works', 'Child');
@@ -309,13 +291,11 @@ const withB = (extra) => HOME.replace('- [B](B)\n', `- [B](B)\n${extra}\n`);
   }
   // the escaped-backslash image is no link on the add path either: the link line is added
   assert.equal(addParentLink(withB('- \\\\![Child](Child)'), 'How it works', () => ({ ok: true, line: '- [Child](Child) — desc' }), 'Child').changed, true);
-}
+});
 
-// the link target fill (ADR 0168), given the fields the page's own find returned: a line with no placeholder in a link
-// target comes back as staged, every `{sub_url}` in a target takes the value, and a value outside the URL-safe set
-// (one row per rejected character family), an empty one, or a non-string one refuses. The paths that look the target
-// up on the backend (absent, unknown, timeout) are end to end in the placeholder and hang-add suites.
-{
+// The paths that look the target up on the backend (absent, unknown, timeout) are end to end in the placeholder and
+// hang-add suites.
+test('the link target fill (ADR 0168), given the fields the page\'s own find returned: a line with no placeholder in a link target comes back as staged, every `{sub_url}` in a target takes the value, and a value outside the URL-safe set (one row per rejected character family), an empty one, or a non-string one refuses.', () => {
   const { fillLinkTarget } = require('../plugin/lib/kb-parent-link.js');
   const fill = (parentLink, fields) => fillLinkTarget({ title: 'Child', parentLink }, {}, fields);
   const SUB = '- [Child](https://x/wiki/{sub_url}): d';
@@ -365,10 +345,9 @@ const withB = (extra) => HOME.replace('- [B](B)\n', `- [B](B)\n${extra}\n`);
     assert.match(out.reason, /find returned no sub_url for "Child"/, what);
     assert.match(out.fix, /this backend's find emits no sub_url/, what);
   }
-}
+});
 
-// a ```js``` line and a tab-indented ``` line in a section are text: the link lands as for plain text
-{
+test('a ```js``` line and a tab-indented ``` line in a section are text: the link lands as for plain text', () => {
   const { addParentLink } = require(publishKbPath);
   const lineFor = () => ({ ok: true, line: '- [C](c)' });
   for (const text of ['```js```', '\t```']) {
@@ -376,6 +355,5 @@ const withB = (extra) => HOME.replace('- [B](B)\n', `- [B](B)\n${extra}\n`);
     assert.ok(out.ok, `${JSON.stringify(text)} in a section: no throw`);
     assert.equal(out.body, `## Guides\n\n- [A](a)\n  ${text}\n- [C](c)\n\n## Other\n`, `${JSON.stringify(text)} in a section: the link lands as for plain text`);
   }
-}
+});
 
-console.log('publish-kb-parent-link-pure.test.js: all assertions passed');

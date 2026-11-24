@@ -5,6 +5,7 @@
 // answers per route. Pins the folder fallback of `find`, the folder guard, the stdin transport, and
 // the visible error body of a rejected `create` or `update`.
 
+const { test, after } = require('node:test');
 require('./fixture-git.js');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -13,19 +14,26 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
 
+after(() => {
+  fs.rmSync(work, { recursive: true, force: true });
+});
+
 const seedPath = path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-confluence.md');
 const seed = fs.readFileSync(seedPath, 'utf8');
 const templates = classifyBackend(seed).templates;
-for (const verb of ['find', 'read', 'create', 'update', 'delete']) {
-  assert.ok(templates[verb], `the seed configures a ${verb} template`);
-}
+test('The seed configures every verb template', () => {
+  for (const verb of ['find', 'read', 'create', 'update', 'delete']) {
+    assert.ok(templates[verb], `the seed configures a ${verb} template`);
+  }
+});
 
-// A page with a parent is created under it: the nested seed's create reads `parentId`, or publish-kb refuses it.
-assert.equal(classifyBackend(seed).templates.hierarchy, 'nested');
-assert.ok(templates.create.includes('parentId'), 'the create template reads parentId');
-for (const verb of ['find', 'read', 'create', 'update', 'delete']) {
-  assert.ok(!templates[verb].includes('SUPERDEV_'), `the ${verb} template names no SUPERDEV_ variable, shell temporaries included`);
-}
+test('A page with a parent is created under it: the nested seed\'s create reads `parentId`, or publish-kb refuses it.', () => {
+  assert.equal(classifyBackend(seed).templates.hierarchy, 'nested');
+  assert.ok(templates.create.includes('parentId'), 'the create template reads parentId');
+  for (const verb of ['find', 'read', 'create', 'update', 'delete']) {
+    assert.ok(!templates[verb].includes('SUPERDEV_'), `the ${verb} template names no SUPERDEV_ variable, shell temporaries included`);
+  }
+});
 
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'confluence-'));
 const stubDir = path.join(work, 'bin');
@@ -73,36 +81,32 @@ const pages = (...r) => JSON.stringify({ results: r });
 const folder = (title) => ({ content: { id: '777', type: 'folder', title } });
 const noPage = pages();
 
-// --- find: a page hit, exactly as before, and no folder request ---
-{
+test('find: a page hit, exactly as before, and no folder request', () => {
   const r = run('find', { CURL_PAGES_BODY: pages(page('Missing Page')) });
   assert.equal(r.status, 0);
   assert.deepEqual(JSON.parse(r.stdout), { id: '123', version: 5 }, 'the version stays a number');
   assert.doesNotMatch(r.args, /rest\/api\/search/, 'a page hit makes no folder request');
   assert.match(r.args, /status=current/, 'the page query asks for current pages only');
-}
+});
 
-// --- find: absence, malformed answers ---
-{
+test('find: absence, malformed answers', () => {
   assert.equal(run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages() }).status, 3, 'no page and an empty search answers 3');
   assert.equal(run('find', { CURL_PAGES_BODY: 'not json' }).status, 2);
   assert.equal(run('find', { CURL_PAGES_BODY: JSON.stringify({ message: 'err' }) }).status, 2);
   assert.equal(run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_FAIL: '1' }).status, 2, 'a failed search is no absence');
   assert.equal(run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: JSON.stringify({ message: 'e' }) }).status, 2, 'a search with no results array is no absence');
   assert.equal(run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: 'not json' }).status, 2);
-}
+});
 
-// --- find: a wrong token reads as the anonymous user, so an empty answer is no absence ---
-{
+test('find: a wrong token reads as the anonymous user, so an empty answer is no absence', () => {
   const anon = run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages(), CURL_USER_BODY: JSON.stringify({ type: 'anonymous' }) });
   assert.equal(anon.status, 2, 'an anonymous reader never answers absent');
   assert.match(anon.args, /rest\/api\/user\/current/);
   assert.equal(run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages(), CURL_USER_BODY: 'not json' }).status, 2);
   assert.doesNotMatch(run('find', { CURL_PAGES_BODY: pages(page('Missing Page')) }).args, /user\/current/, 'a page hit makes no identity request');
-}
+});
 
-// --- find: folders ---
-{
+test('find: folders', () => {
   const one = run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages(folder('Missing Page')) });
   assert.equal(one.status, 0);
   assert.deepEqual(JSON.parse(one.stdout), { id: '777', type: 'folder' }, 'one exact folder answers id and type, no version');
@@ -116,19 +120,17 @@ const noPage = pages();
   assert.equal(run('find', { CURL_PAGES_BODY: pages(page('Missing Page'), page('Missing Page')) }).status, 2, 'two exact pages answer 2');
   const bad = run('find', { CURL_PAGES_FAIL: '1' });
   assert.ok(![0, 3].includes(bad.status), 'a failed page query (a refused login) is neither a hit nor absence');
-}
+});
 
-// --- find: quotes and backslashes cannot break or widen the CQL ---
-{
+test('find: quotes and backslashes cannot break or widen the CQL', () => {
   const title = 'A "quoted" \\ ünï';
   const r = run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages() }, { title });
   assert.equal(r.status, 3);
   const cql = r.stdin.split('--call').filter(Boolean)[1].trim();
   assert.equal(cql, 'space="KEY" and type=folder and title="A \\"quoted\\" \\\\ ünï"');
-}
+});
 
-// --- transport: title, cql and body reach curl on stdin, never in its arguments ---
-{
+test('transport: title, cql and body reach curl on stdin, never in its arguments', () => {
   const title = 'Grüße — Ünï';
   const f = run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages() }, { title });
   assert.match(f.args, /title@-/);
@@ -152,10 +154,9 @@ const noPage = pages();
   assert.equal(upd.version.number, 5);
   assert.equal(upd.title, title);
   assert.equal(JSON.parse(run('create').stdin.split('--call').filter(Boolean)[0]).parentId, undefined, 'no parent, no parentId');
-}
+});
 
-// --- a title holding shell syntax, quotes, or a newline reaches Confluence byte for byte ---
-{
+test('a title holding shell syntax, quotes, or a newline reaches Confluence byte for byte', () => {
   const title = 'A $(touch x) `y` \'q\' "d"\nsecond line';
   const sent = (r) => JSON.parse(r.stdin.split('--call').filter(Boolean)[0]);
   assert.equal(sent(run('create', {}, { title })).title, title);
@@ -164,24 +165,24 @@ const noPage = pages();
   assert.ok(f.stdin.split('--call')[1].replace(/^\n/, '').startsWith(title), 'find sends the whole title, newline included');
   const hit = run('find', { CURL_PAGES_BODY: pages(page(title)) }, { title });
   assert.deepEqual(JSON.parse(hit.stdout), { id: '123', version: 5 }, 'find matches the title exactly');
-}
+});
 
-// --- create/update: Confluence's error body reaches stderr, exit non-zero ---
 for (const verb of ['create', 'update']) {
-  const r = run(verb, { CURL_WRITE_FAIL: '1', CURL_WRITE_BODY: '{"message":"Title already exists"}' });
-  assert.notEqual(r.status, 0, `${verb} fails on a rejection`);
-  assert.match(r.stderr, /Title already exists/, `${verb} writes the error body to stderr`);
-  assert.match(r.args, /--fail-with-body/);
+  test(`create/update: Confluence's error body reaches stderr, exit non-zero (${verb})`, () => {
+    const r = run(verb, { CURL_WRITE_FAIL: '1', CURL_WRITE_BODY: '{"message":"Title already exists"}' });
+    assert.notEqual(r.status, 0, `${verb} fails on a rejection`);
+    assert.match(r.stderr, /Title already exists/, `${verb} writes the error body to stderr`);
+    assert.match(r.args, /--fail-with-body/);
+  });
 }
 
-// --- folder guard ---
 for (const verb of ['read', 'update', 'delete']) {
-  const r = run(verb, {}, { found: { id: '777', type: 'folder' } });
-  assert.notEqual(r.status, 0, `${verb} refuses a folder`);
-  assert.match(r.stderr, /folder/);
-  assert.match(r.stderr, /Missing Page/, 'the message names the folder');
-  assert.equal(r.calls, 0, 'no request is made');
+  test(`folder guard (${verb})`, () => {
+    const r = run(verb, {}, { found: { id: '777', type: 'folder' } });
+    assert.notEqual(r.status, 0, `${verb} refuses a folder`);
+    assert.match(r.stderr, /folder/);
+    assert.match(r.stderr, /Missing Page/, 'the message names the folder');
+    assert.equal(r.calls, 0, 'no request is made');
+  });
 }
 
-fs.rmSync(work, { recursive: true, force: true });
-console.log('publish-kb-confluence.test.js: all assertions passed');
