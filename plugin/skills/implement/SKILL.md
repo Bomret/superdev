@@ -118,6 +118,8 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 **Pre-flight scan.** Applies once the release check passes. Read all slices once for contradictions: slice against slice, slice against DoD, and a specification mandating something a review would flag. Batch the findings to the user, or proceed silently when clean. Under `--unattended`, block, naming them.
 
+**The claim.** Applies at run init. `${CLAUDE_PLUGIN_ROOT}/references/run-init.md`'s `### 3. The claim` asks before taking over an anchor claimed by someone else, and otherwise claims the anchor and its open slices for the operator.
+
 **The playbook.** Applies after the scan. Compute the tier, `Read` its playbook, and follow it start to finish. `/superdev:plan` derives the tier the same way.
 
 ## Issue status
@@ -152,4 +154,4 @@ Applies to every run.
 
 - **Inventing tests for non-behavior slices**: a rename's net is the existing suite.
 - **Inferring dependencies**: use the plan's `depends-on`, never file overlap.
-- **Stalling for routine approval**: stop only for a real blocker, a genuine ambiguity, a plan contradiction, an unreleased feature, or completion.
+- **Stalling for routine approval**: stop only for a real blocker, a genuine ambiguity, a plan contradiction, an unreleased feature, an anchor claimed by someone else, or completion.
