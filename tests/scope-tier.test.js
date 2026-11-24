@@ -15,7 +15,7 @@ after(() => {
 });
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-tier-')));
-process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
+after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 const HEAD = ['# Run state', '', '**Stage:** implement', '', '| id | issue | title | type | depends-on | status | range |', '|----|-------|-------|------|------------|--------|-------|'];
 let n = 0;

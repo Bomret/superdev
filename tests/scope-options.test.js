@@ -5,7 +5,7 @@
 // drive-path rule once (ADR 0150); `open --lock` takes lowercase hexadecimal (INV-0130); `source-set` takes at most one path (triage #253).
 // In-process through `run`, except `open`, which runs the CLI over a real repository.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -15,10 +15,15 @@ const { spawnSync, execFileSync } = require('node:child_process');
 const { call, scopePath, sliceJson } = require('./scope-setup');
 const { assertSpawnDecided } = require('./spawn-verdict');
 
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
+
 let T, real, runRoot;
 test('A fixture run initialises in a real repository', () => {
   T = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-options-')));
-  process.on('exit', () => fs.rmSync(T, { recursive: true, force: true }));
+  made.push(T);
   real = path.join(T, 'real');
   fs.mkdirSync(real);
   fs.writeFileSync((fs.mkdirSync(path.join(real, '.superdev', 'scopes', 'x'), { recursive: true }), path.join(real, '.superdev', 'scopes', 'x', 'dod.md')), '- [ ] The fixture run is done\n');

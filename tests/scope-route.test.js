@@ -4,7 +4,7 @@
 // Definition of Done on stdin, and the facts the caller read. The verb only reads, so each case builds its own run root under a
 // repository made once and copied per case.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const assert = require('node:assert');
 const { execFileSync } = require('node:child_process');
@@ -34,7 +34,7 @@ const template = templateOnce((dir) => {
 }, 'scope-route-template-');
 
 const copies = [];
-process.on('exit', () => copies.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
+after(() => copies.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
 
 const LEDGER = '# Run state\n\n**Stage:** shipped\n';
 // A repository copy, the three commits, and a run root holding `dod` as dod.md (null writes none) and `ledger` (null writes none).

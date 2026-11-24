@@ -7,12 +7,17 @@
 // line, changes no other byte, and leaves an already-marked file alone; a CRLF file marked and then restaged through
 // restageLiveHash stays CRLF on every line.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { parseStagedPage, markStagedCreate, restageLiveHash } = require('../plugin/lib/kb-staged-page.js');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 test('A file with no frontmatter or an unterminated block is refused with null', () => {
   assert.equal(parseStagedPage('title: P\naction: upsert\n\nbody\n'), null, 'no leading --- is no frontmatter');
@@ -41,6 +46,7 @@ test('A lone quote of either kind is taken verbatim, in every field, whatever wh
 
 test('markStagedCreate inserts one marker line before the closing ---, in the line ending of the file\'s opening line, and leaves every other byte as it was; a second mark changes nothing.', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-staged-page-'));
+  made.push(dir);
   const marker = (eol) => new RegExp(`^created-by-publish: \\S+${eol}$`);
   for (const [label, eol] of [['CRLF', '\r\n'], ['LF', '\n']]) {
     const head = `---${eol}title: T${eol}action: upsert${eol}`;

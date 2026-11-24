@@ -13,8 +13,10 @@ const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { tmp, call, sliceJson, scopePath, cleanup, writeDod, scopeRoot } = require('./scope-setup');
 
+const made = [];
 after(() => {
   cleanup();
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
 });
 
 const FIELDS = ['stage', 'step', 'branch', 'anchor', 'docs', 'pr', 'reviewed', 'slices', 'unresolved', 'degraded', 'deferred', 'minors', 'denials', 'suite', 'failed'];
@@ -124,6 +126,7 @@ test('A malformed slice row is named; every other field and row still prints.', 
 
 test('Read-only: the run root is byte-identical afterwards, and no git process starts (a git shim on PATH records each call).', () => {
   const shim = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-state-shim-'));
+  made.push(shim);
   const marker = path.join(shim, 'git-called');
   fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\necho called >> "${marker}"\nexit 1\n`, { mode: 0o755 });
   const env = { ...process.env, PATH: shim + path.delimiter + process.env.PATH };

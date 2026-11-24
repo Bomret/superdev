@@ -4,12 +4,17 @@
 // groups sharing one title, and the refusals a patch makes. Shared fixtures live in
 // tests/publish-kb-setup.js.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { FAKE_BACKEND, shq, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 // --- action: patch --------------------------------------------------------------------------
 const PATCH_VERBS = ['find', 'read', 'create', 'update', 'delete'];
@@ -177,6 +182,7 @@ test('once one file in a group has created the page, absence is settled for the 
     stagePage(repo, 'demo', 'stale--section-b.md', 'title: Stale Page\naction: patch', '## Section B\n\nfrom B.\n');
 
     const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+    made.push(captureDir);
     process.env.FAKE_KB_CAPTURE_DIR = captureDir;
     let res;
     try {

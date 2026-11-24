@@ -3,12 +3,17 @@
 // Suite for plugin/lib/remote.js: `parseRemote` reads the first token of the `Remote:` bullet of
 // `docs/agents/code-management.md`, and `resolveRemote` reads that bullet at the repository's top level (INV-0203).
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 const { parseRemote, resolveRemote } = require('../plugin/lib/remote.js');
 
 test('parseRemote takes the first token of the `- **Remote:**` bullet: every shipped bullet carries a trailing sentence', () => {
@@ -25,6 +30,7 @@ test('parseRemote takes the first token of the `- **Remote:**` bullet: every shi
 
 test('resolveRemote reads the top-level document from a subdirectory, and answers null with no Remote: value', () => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'remote-'));
+  made.push(repo);
   execFileSync('git', ['init', '-q'], { cwd: repo });
   const doc = path.join(repo, 'docs', 'agents', 'code-management.md');
   fs.mkdirSync(path.dirname(doc), { recursive: true });

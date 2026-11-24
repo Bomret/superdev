@@ -15,8 +15,10 @@ const { execFileSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { call: rawCall, scopePath, cleanup } = require('./scope-setup');
 
+const made = [];
 after(() => {
   fs.rmSync(fileDir, { recursive: true, force: true });
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
   cleanup();
 });
 
@@ -369,6 +371,7 @@ test('dod-line: the fourth verdict, `accepted` (ADR 0095, triage #679) — an op
 
 test('dod-line: --note-file and --match-file (triage #680) — the verb reads the text from a file, one trailing newline stripped, verbatim otherwise: a quote, a backtick, a `$(`, all survive.', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dod-line-files-'));
+  made.push(dir);
   const notePath = path.join(dir, 'note.txt');
   const matchPath = path.join(dir, 'match.txt');
   const trickyNote = 'evidence: `$(rm -rf /)` and "quotes" too';
@@ -400,6 +403,7 @@ test('dod-line: --note-file and --match-file (triage #680) — the verb reads th
 
 test('dod-line: an inline --match or --note refuses, names its file form, and prints nothing.', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dod-line-inline-'));
+  made.push(dir);
   const notePath = path.join(dir, 'note.txt');
   const matchPath = path.join(dir, 'match.txt');
   fs.writeFileSync(notePath, 'ok\n', 'utf8');

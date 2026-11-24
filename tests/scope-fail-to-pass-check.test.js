@@ -4,7 +4,7 @@
 // trace and git, and its refusals: each malformed invocation by its own message, and a tip whose verification configuration git
 // lists but cannot show. The fixtures are real git commits and raw trace lines; the suite runs in temporary directories.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -31,7 +31,7 @@ const commit = (cwd, msg) => {
 };
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-f2p-check-')));
-process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
+after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 const repoOf = (name) => {
   const repo = path.join(dir, name);

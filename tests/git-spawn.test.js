@@ -13,8 +13,10 @@ const path = require('node:path');
 
 const { gitSpawn, gitThrow, parseBranchList } = require('../plugin/lib/git-spawn.js');
 
+const made = [];
 after(() => {
   fs.rmSync(dir, { recursive: true, force: true });
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
 });
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-'));
@@ -47,6 +49,7 @@ test('parseBranchList parses a branch listing into a set of names', () => {
 test('`fileAt` and `existsAt` read a path literally: a path shaped like pathspec magic, or holding a glob character, a space, or a newline, answers for exactly that path.', () => {
   const { fileAt, existsAt } = require('../plugin/lib/git-spawn.js');
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-paths-')));
+  made.push(repo);
   const put = (rel, body) => {
     fs.mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
     fs.writeFileSync(path.join(repo, rel), body);
@@ -101,6 +104,7 @@ test('`listWorktrees` reads each registered working tree as one `{ path, branch,
   const { listWorktrees } = require('../plugin/lib/git-spawn.js');
   const { execFileSync } = require('node:child_process');
   const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-trees-')));
+  made.push(base);
   const repo = path.join(base, 'repo');
   fs.mkdirSync(repo);
   gitThrow(['init', '-q', '-b', 'main'], repo);
@@ -130,6 +134,7 @@ test('`listWorktrees` reads each registered working tree as one `{ path, branch,
 
   // A `git` on PATH that refuses `-z` with status 129 and runs every other call.
   const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-shim-')));
+  made.push(shim);
   const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
   fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\nfor a in "$@"; do [ "$a" = -z ] && exit 129; done\nexec ${JSON.stringify(realGit)} "$@"\n`, { mode: 0o755 });
   const savedPath = process.env.PATH;
@@ -154,6 +159,7 @@ test('`listWorktrees` reads each registered working tree as one `{ path, branch,
     }
   };
   const noGit = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-nogit-')));
+  made.push(noGit);
   assert.deepEqual(withPath(noGit), { failure: 'worktree list could not start (ENOENT)' }, 'a PATH holding no git fails naming ENOENT, with cwd a real directory');
   fs.rmSync(noGit, { recursive: true, force: true });
 
@@ -161,6 +167,7 @@ test('`listWorktrees` reads each registered working tree as one `{ path, branch,
   // where `refuseZ` is set. Every other call runs the real git.
   const signalShim = (killArgs, refuseZ) => {
     const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-kill-')));
+    made.push(d);
     const log = path.join(d, 'calls.log');
     const refuse = refuseZ ? `[ "$*" = "worktree list --porcelain -z" ] && exit 129\n` : '';
     fs.writeFileSync(

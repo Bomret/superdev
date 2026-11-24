@@ -21,8 +21,10 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
 // run through the same pins.
 // The values file a backend command takes as `$1`, written under a directory this suite removes at its end.
 const valuesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-values-templates-'));
+const made = [];
 after(() => {
   fs.rmSync(valuesDir, { recursive: true, force: true });
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
 });
 let valuesCount = 0;
 function valuesFile(values) {
@@ -42,6 +44,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   // stderr and the body to stdout. With TEA_STUB_PAGE_DIR set, a listing call answers the files
   // `<page>.body` and `<page>.status` there, `<page>` read from the URL's `page=` parameter.
   const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tea-stub-'));
+  made.push(stubDir);
   fs.writeFileSync(path.join(stubDir, 'tea'),
     '#!/bin/sh\n' +
     'if [ "$1" = login ]; then printf "%s" "$TEA_STUB_LOGINS"; exit 0; fi\n' +
@@ -262,6 +265,7 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   assert.doesNotMatch(realDoc, /GITEA_TOKEN|GH_TOKEN|GITHUB_TOKEN|Authorization|curl/, 'the knowledge-base config names no token env var, header, or curl');
 
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'gh-wiki-'));
+  made.push(work);
   const bare = path.join(work, 'wiki.git');
   const git = (args, cwd = work) => {
     const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -451,6 +455,7 @@ test('the real `### read` template in plugin/references/knowledge-base-confluenc
   assert.ok(readTemplate, 'the Confluence seed configures a read template');
 
   const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'curl-stub-'));
+  made.push(stubDir);
   fs.writeFileSync(path.join(stubDir, 'curl'), '#!/bin/sh\nprintf "%s" "$CURL_STUB_BODY"\n', { mode: 0o755 });
 
   function runReadTemplate(body) {

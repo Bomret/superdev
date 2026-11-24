@@ -400,7 +400,8 @@ test('An unterminated fence in the body refuses outright, the same posture kb-pa
 // both the truncation and the false-refusal through the last two review cycles" (above) stopped one step short of
 // exercising that fold — this closes it, running kb-patch.js as a real subprocess rather than importing its merge().
 let foldRoot, kbPatchPath, foldDir;
-test('the real fold: publish → kb-patch.js <anchor-body> <publish-output> → adopt Every fixture above builds its anchor body by hand, splicing scope.js\'s own publish output straight into a string.', () => {
+// Every fixture above builds its anchor body by hand, splicing scope.js's own publish output straight into a string.
+test('the real fold: publish → kb-patch.js <anchor-body> <publish-output> → adopt', () => {
   assert.ok(call(['init', 'feat/kb-patch-fold', 'planned'], sliceJson).ok);
   foldRoot = path.join(tmp, '.superdev', 'scopes', 'kb-patch-fold');
   kbPatchPath = path.join(path.dirname(scopePath), 'kb-patch.js');

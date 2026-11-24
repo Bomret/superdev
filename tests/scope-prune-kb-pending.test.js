@@ -3,11 +3,16 @@
 // Suite for plugin/hooks/scope-prune.js, the reap of an empty staged-pages directory whose scope has no run root
 // (INV-0076). A directory holding any entry, a symlink, and a directory with a run root stay (INV-0122).
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 const { hook, makeRepo, makeScope } = require('./scope-prune-setup');
 const { main } = hook;
@@ -55,6 +60,7 @@ test('#run-root-stays: an empty dir whose scopes/<name>/ exists stays.', () => {
 test('#symlink-stays: a symlink at kb-pending/<name> is never followed or removed.', () => {
   const repo = makeRepo();
   const target = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-kbp-target-'));
+  made.push(target);
   fs.mkdirSync(path.join(repo, '.superdev', 'kb-pending'), { recursive: true });
   fs.symlinkSync(target, pending(repo, 'link'), 'dir');
   main(repo);

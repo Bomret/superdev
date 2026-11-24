@@ -11,6 +11,11 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const { hook, gitTest, makeRepo, makeScope } = require('./scope-prune-setup');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 const { main } = hook;
 
 // Every pure case in `scope-prune.test.js` calls the pure functions directly, with hand-built Sets and string arrays —
@@ -63,6 +68,7 @@ test('smoke test: main() end to end, against a real repository', () => {
   // arm; `#remote-only-branch-contained` below is the other.
   const remoteRepo = makeRepo();
   const originDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-origin-'));
+  made.push(originDir);
   gitTest(['init', '-q', '--bare', '-b', 'main'], originDir);
   gitTest(['remote', 'add', 'origin', originDir], remoteRepo);
   gitTest(['checkout', '-q', '-b', 'fix/onremote'], remoteRepo);
@@ -91,6 +97,7 @@ test('smoke test: main() end to end, against a real repository', () => {
   // every byte (ADR 0053, Important 3).
   const remoteContainedRepo = makeRepo();
   const remoteContainedOriginDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-origin-'));
+  made.push(remoteContainedOriginDir);
   gitTest(['init', '-q', '--bare', '-b', 'main'], remoteContainedOriginDir);
   gitTest(['remote', 'add', 'origin', remoteContainedOriginDir], remoteContainedRepo);
   gitTest(['checkout', '-q', '-b', 'fix/onremote-squashed'], remoteContainedRepo);
@@ -247,6 +254,7 @@ test('smoke test: main() end to end, against a real repository', () => {
   const failRepo = makeRepo();
   const failScopeDir = makeScope(failRepo, 'branch-read-fails');
   const fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-fakebin-'));
+  made.push(fakeBinDir);
   const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
   fs.writeFileSync(
     path.join(fakeBinDir, 'git'),
@@ -321,6 +329,7 @@ test('the session directory: the hook acts on the main working tree\'s runs from
     gitTest(['merge', '-q', '--ff-only', 'feat/merged'], repo);
     const mergedDir = makeScope(repo, 'merged', '**Stage:** closed\n**Branch:** feat/merged\n');
     const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-scopetree-')));
+    made.push(outside);
     const wt = path.join(outside, 'wt');
     gitTest(['worktree', 'add', '-q', wt, 'feat/work'], repo);
     main(wt);

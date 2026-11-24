@@ -3,7 +3,7 @@
 // Suite for plugin/scripts/scope.js's `checkout` verb (INV-0196): one scope-checkout verdict from the scope branch's resolution,
 // `git worktree list`, and the ledger's stage. The verb only reads, so each case builds its own repository copy and run root.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const assert = require('node:assert');
 const { execFileSync } = require('node:child_process');
@@ -23,7 +23,7 @@ const template = templateOnce((dir) => {
 }, 'scope-checkout-template-');
 
 const copies = [];
-process.on('exit', () => copies.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
+after(() => copies.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
 
 // A repository copy with branch `feat/x` and a run root `x` whose ledger carries `stage`.
 function setup({ stage = 'implementing' } = {}) {

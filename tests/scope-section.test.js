@@ -3,7 +3,7 @@
 // Suite for plugin/scripts/scope.js's `section` verb: one markdown section of a file, its heading line read from stdin.
 // The verb only reads, so every case shares one temporary directory of fixture files.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -12,7 +12,7 @@ const path = require('node:path');
 const { call } = require('./scope-setup');
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-section-')));
-process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
+after(() => fs.rmSync(dir, { recursive: true, force: true }));
 const put = (name, text) => {
   const file = path.join(dir, name);
   fs.mkdirSync(path.dirname(file), { recursive: true });

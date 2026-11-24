@@ -18,7 +18,7 @@ after(() => {
 const { assertSpawnDecided } = require('./spawn-verdict');
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-consent-')));
-process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
+after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 // One ledger trace line per step event, in the layout `lib/trace-log.js` writes.
 const line = (fields) => fields === 'tamper-trace'

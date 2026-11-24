@@ -16,7 +16,7 @@ after(() => {
 });
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-dod-open-')));
-process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
+after(() => fs.rmSync(dir, { recursive: true, force: true }));
 let rootCount = 0;
 // A run root holding `dod.md` with `body`.
 const runRoot = (body) => {

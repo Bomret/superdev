@@ -4,7 +4,7 @@
 // under the main working tree's `.superdev/scopes/*/`, for the stages the caller names. The verb only reads, so each case builds
 // its own run roots under a repository made once and copied per case.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const assert = require('node:assert');
 const { execFileSync } = require('node:child_process');
@@ -24,7 +24,7 @@ const template = templateOnce((dir) => {
 }, 'scope-candidates-template-');
 
 const copies = [];
-process.on('exit', () => copies.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
+after(() => copies.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
 
 // A repository copy whose `.superdev/scopes/` holds one run root per `roots` entry: a string is the ledger text, `null` is a
 // directory with no ledger, and `'unreadable'` is a `ledger.md` that is a directory.

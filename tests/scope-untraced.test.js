@@ -3,7 +3,7 @@
 // Suite for plugin/scripts/scope.js's `untraced` verb (ADR 0227): the paths a window's commits change that no `edit` line
 // of the window names. The fixtures are real git commits and real trace lines; the suite runs in temporary directories.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -29,7 +29,7 @@ const commit = (cwd, msg) => {
 const rows = (out) => out.split('\n').filter(Boolean).sort();
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-untraced-')));
-process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
+after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 const repoOf = (name) => {
   const repo = path.join(dir, name);

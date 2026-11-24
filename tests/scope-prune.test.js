@@ -2,7 +2,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 require('./fixture-git');
 
 // Suite for plugin/hooks/scope-prune.js, its pure internals. Requires the hook (silent, ADR 0059 / issue #442's
@@ -15,6 +15,11 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 const hookPath = require.resolve('../plugin/hooks/scope-prune.js');
 const {
@@ -127,6 +132,7 @@ test('`shipped` is what an older version left behind, or what `/superdev:ship` w
 
 test('readStage: reads the ledger\'s `**Stage:**` line, or null when unreadable/absent', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
+  made.push(tmp);
   fs.writeFileSync(path.join(tmp, 'ledger.md'), '# ledger\n\n**Stage:** closed\n');
   assert.equal(readStage(tmp), 'closed', 'reads the stage value off the ledger line');
   assert.equal(readStage(path.join(tmp, 'no-such-dir')), null, 'an unreadable ledger yields null');
@@ -136,6 +142,7 @@ test('readStage: reads the ledger\'s `**Stage:**` line, or null when unreadable/
 // The capture must still read `closed`, or the gate never matches and pruning is silently disabled forever.
 test('`scope.js stage set` may well write the value in backticks (`` **Stage:** `closed` ``), the same markup an agent writes by hand elsewhere in the ledger.', () => {
   const tmpBacktick = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
+  made.push(tmpBacktick);
   fs.writeFileSync(path.join(tmpBacktick, 'ledger.md'), '# ledger\n\n**Stage:** `closed`\n');
   assert.equal(readStage(tmpBacktick), 'closed', 'strips backticks from the captured stage value');
   const backtickAll = new Set(['main', 'chore/backticked']);
@@ -158,6 +165,7 @@ for (const [line, label] of [
 ]) {
   test(`The two spellings a maintainer or an agent also plausibly writes: a backticked value followed by a period, and an emphasized value. (${line})`, () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
+    made.push(dir);
     fs.writeFileSync(path.join(dir, 'ledger.md'), `# ledger\n\n${line}\n`);
     assert.equal(readStage(dir), 'closed', `normalizes ${label}`);
     fs.rmSync(dir, { recursive: true, force: true });
@@ -173,6 +181,7 @@ for (const [line, expected] of [
 ]) {
   test(`The strip must not turn a different stage into \`closed\`. (${line})`, () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
+    made.push(dir);
     fs.writeFileSync(path.join(dir, 'ledger.md'), `# ledger\n\n${line}\n`);
     assert.equal(readStage(dir), expected, `leaves \`${expected}\` as itself`);
     assert.notEqual(readStage(dir), 'closed', `never reads \`${expected}\` as closed`);
@@ -248,6 +257,7 @@ test('readBranch / resolveBranch: the ledger\'s `**Branch:**` line is authoritat
   // `feature/alpha`: the type is not in CHANGE_TYPES (only `feat` is), so the shape scan reads
   // `alpha`'s branch as gone even though it exists and is unmerged.
   const alphaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-branch-'));
+  made.push(alphaDir);
   fs.writeFileSync(path.join(alphaDir, 'ledger.md'), '# ledger\n\n**Branch:** feature/alpha\n');
   assert.equal(readBranch(alphaDir), 'feature/alpha', 'reads the exact branch off the ledger line');
   const alphaAll = new Set(['main', 'feature/alpha']);
@@ -261,6 +271,7 @@ test('readBranch / resolveBranch: the ledger\'s `**Branch:**` line is authoritat
   // `fix/delta-v2`: the type is recognised, but the run-root directory name (`delta`) is not the
   // branch's last segment (`delta-v2`), so the shape scan misses it too.
   const deltaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-branch-'));
+  made.push(deltaDir);
   fs.writeFileSync(path.join(deltaDir, 'ledger.md'), '# ledger\n\n**Branch:** fix/delta-v2\n');
   const deltaAll = new Set(['main', 'fix/delta-v2']);
   assert.deepEqual(
@@ -273,6 +284,7 @@ test('readBranch / resolveBranch: the ledger\'s `**Branch:**` line is authoritat
   // A pre-CLI ledger carries no `**Branch:**` line: readBranch returns null, and selectPrunable falls
   // back to the shape scan exactly as before this change.
   const preDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-branch-'));
+  made.push(preDir);
   fs.writeFileSync(path.join(preDir, 'ledger.md'), '# ledger\n\n**Stage:** closed\n');
   assert.equal(readBranch(preDir), null, 'a pre-CLI ledger carries no Branch line');
   const preAll = new Set(['main', 'fix/precli']);
@@ -295,6 +307,7 @@ test('readBranch / resolveBranch: the ledger\'s `**Branch:**` line is authoritat
     ['**Branch:** fix/period.', 'fix/period'],
   ]) {
     const markupDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-branch-'));
+    made.push(markupDir);
     fs.writeFileSync(path.join(markupDir, 'ledger.md'), `# ledger\n\n${line}\n`);
     assert.equal(readBranch(markupDir), expected, `readBranch strips markup down to ${expected}`);
     const alive = new Set(['main', expected]);
@@ -312,6 +325,7 @@ test('readBranch / resolveBranch: the ledger\'s `**Branch:**` line is authoritat
   // stripped down to `Anchor` — truthy, and present in no real branch set, so `resolveBranch` reads a
   // live, unmerged branch as gone. Gone + closed + past TTL prunes a run root with a live branch.
   const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-branch-'));
+  made.push(emptyDir);
   fs.writeFileSync(
     path.join(emptyDir, 'ledger.md'),
     '# ledger\n\n**Stage:** closed\n**Branch:**\n**Anchor:** #197 — Epic\n'
@@ -370,10 +384,13 @@ for (const mod of ['ledger.js', 'containment.js', 'git-spawn.js']) {
 
 // Every vector below is the same one `tests/scope-ledger-header.test.js` asserts, so agreement is a property of there
 // being one implementation rather than of two staying in step.
-test('one reader, shared with scripts/scope.js (ADR 0022) This hook carried its own header regex and it drifted on four axes — anchoring, capture width, whether the whitespace after the colon crossed a newline, and normalisation — while being hardened against defects on this very delete path.', () => {
+// This hook carried its own header regex and it drifted on four axes — anchoring, capture width, whether the whitespace
+// after the colon crossed a newline, and normalisation — while being hardened against defects on this very delete path.
+test('one reader, shared with scripts/scope.js (ADR 0022)', () => {
   const scope = require(path.join(path.dirname(hookPath), '..', 'scripts', 'scope.js'));
   const mk = (body) => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-hdr-'));
+    made.push(d);
     fs.writeFileSync(path.join(d, 'ledger.md'), body);
     return d;
   };

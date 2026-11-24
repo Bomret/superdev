@@ -4,7 +4,7 @@
 // or the shape scan, and the shared shape rule in plugin/lib/scope-branch.js. The verb only reads, so each case builds its own
 // run root under a repository made once and copied per case.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const assert = require('node:assert');
 const { execFileSync } = require('node:child_process');
@@ -26,7 +26,7 @@ const template = templateOnce((dir) => {
 }, 'scope-branch-template-');
 
 const copies = [];
-process.on('exit', () => copies.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
+after(() => copies.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
 
 // A repository copy holding the given local branches and remote-tracking names, and a run root for `slug` whose ledger
 // carries `ledger` text (null writes none).

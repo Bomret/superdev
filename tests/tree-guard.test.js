@@ -15,7 +15,7 @@
 // Reproductions: the case "the reproduction for the child process" holds the hook child's first git call past the bound; the case "a git shim holds one designated call past the bound before it does anything" (the `hold-shim` block)
 // deterministically produces the killed-before-first-line call; the base suite's start/end bookkeeping took it for a verdict.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const cp = require('node:child_process');
@@ -25,17 +25,22 @@ const path = require('node:path');
 
 const { assertSpawnDecided } = require('./spawn-verdict');
 
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
+
 const pluginRoot = path.resolve(__dirname, '..', 'plugin');
 const hooksJson = require(path.join(pluginRoot, 'hooks', 'hooks.json'));
 
 const git = (args, cwd) => cp.execFileSync('git', args, { cwd, stdio: 'pipe', encoding: 'utf8' }).trim();
 
 // A repository holding a run: a main checkout with a tracked file, a run root with a ledger, and a slicetree under it. With
-// `linked`, `.superdev` is a symlink to a directory outside the main checkout. The fixture is removed when the suite exits, pass
-// or fail.
+// `linked`, `.superdev` is a symlink to a directory outside the main checkout. The fixture is removed once the suite's cases
+// finish, pass or fail.
 function fixture({ linked = false } = {}) {
   const base = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'tree-guard-')));
-  process.on('exit', () => fs.rmSync(base, { recursive: true, force: true }));
+  made.push(base);
   const main = path.join(base, 'main');
   fs.mkdirSync(main);
   git(['init', '-q', '-b', 'main'], main);

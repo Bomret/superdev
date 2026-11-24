@@ -3,12 +3,17 @@
 // Suite for plugin/hooks/scope-prune.js, the branch reap against real repositories: the run root's branch goes with
 // it (ADR 0071), and a reap that cannot finish leaves both standing.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { hookPath, hook, gitTest, makeRepo, makeScope, refExists, makeWorkBranch } = require('./scope-prune-setup');
@@ -23,6 +28,7 @@ test('The branch reap: the run root\'s branch goes with it (ADR 0071)', () => {
   // host's own deletion — this repository's steady state. Both refs go with the run root, in one Stop.
   const reapRepo = makeRepo();
   const reapOriginDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-origin-'));
+  made.push(reapOriginDir);
   gitTest(['init', '-q', '--bare', '-b', 'main'], reapOriginDir);
   gitTest(['remote', 'add', 'origin', reapOriginDir], reapRepo);
   makeWorkBranch(reapRepo, 'feat/reaped', 'app.txt', 'v2\n');
@@ -73,6 +79,7 @@ test('The branch reap: the run root\'s branch goes with it (ADR 0071)', () => {
   gitTest(['merge', '--squash', 'feat/held'], heldRepo);
   gitTest(['commit', '-q', '-m', 'feat: held (#1)'], heldRepo);
   const heldTree = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-held-'));
+  made.push(heldTree);
   fs.rmSync(heldTree, { recursive: true, force: true }); // git wants to create the path itself
   gitTest(['worktree', 'add', '-q', heldTree, 'feat/held'], heldRepo);
   const heldScopeDir = makeScope(heldRepo, 'held', '**Stage:** closed\n**Branch:** feat/held\n');

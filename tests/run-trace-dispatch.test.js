@@ -14,8 +14,10 @@ const { appendTrace } = require('../plugin/scripts/scope.js');
 const { encodePaths } =require('../plugin/lib/trace-log.js');
 const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agentPost, cleanup, GIT_SPAWN_BOUND_MS } = require('./run-trace-setup');
 
+const made = [];
 after(() => {
   cleanup();
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
 });
 
 // `{A}` and `{B}` stand for two run roots that hold a ledger, `{NOLEDGER}` for one that holds none. The `{A}.x` entry
@@ -393,6 +395,7 @@ test('Dispatch outcomes (ADR 0140, INV-0145): every dispatch gets one `dispatch-
   // hooks.json runs the turn and session boundaries in every repository: one with no `.superdev/scopes` directory gets
   // nothing written, and the hook exits 0 silently.
   const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'run-trace-bare-'));
+  made.push(bare);
   cp.execFileSync('git', ['init', '-q', bare]);
   for (const ev of ['Stop', 'UserPromptSubmit', 'SessionEnd']) assert.equal(spawnOut({ hook_event_name: ev, session_id: 'S9', cwd: bare }), '', `${ev} in a repository with no run`);
   assert.deepEqual(fs.readdirSync(bare), ['.git'], 'the boundaries wrote nothing in a repository with no run');

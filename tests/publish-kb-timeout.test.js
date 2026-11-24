@@ -4,12 +4,17 @@
 // writes before it runs. The suite times its own healthy backend spawn and derives its hang bound
 // from it (`hangBound()` in tests/publish-kb-setup.js, AGENTS.md, ADR 0086).
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 const { assertSpawnDecided } = require('./spawn-verdict');
 const {
   publishKbPath,
@@ -133,6 +138,7 @@ test('a timeout inside a multi-page patch group stops the group, not just the si
     setKbTimeout(repo, HANG_MS);
 
     const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+    made.push(captureDir);
     process.env.FAKE_KB_CAPTURE_DIR = captureDir;
     let res;
     try {

@@ -15,7 +15,7 @@ after(() => {
 
 const HOUR = 60 * 60 * 1000;
 const dirs = [];
-process.on('exit', () => dirs.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
+after(() => dirs.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
 
 // A run root at `stage` (null writes no ledger) whose lock was last modified `ageMs` ago (null writes no lock).
 function setup({ stage = 'implementing', ageMs = null, content = 'plan abc123\n' }) {

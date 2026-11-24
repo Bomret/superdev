@@ -2,7 +2,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const { templateOnce, copyFixture } = require('./fixture-git');
 
 // Suite for plugin/hooks/slicetree-sweep.js. Requires the hook (silent, ADR 0059 / issue #442's
@@ -14,6 +14,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { assertSpawnDecided } = require('./spawn-verdict');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 const hookPath = require.resolve('../plugin/hooks/slicetree-sweep.js');
 const { selectRemovable, main, git } = require(hookPath);
@@ -91,11 +96,6 @@ test('A path holding a newline is one entry, judged as a whole path, and returne
 
 // --- real-repo smoke: main() end to end, so a broken git invocation inside its try/catch can't
 // hide behind the pure selectRemovable() cases (the gap class scope-prune's smoke test closes) ---
-//
-// The invoking checkout stays on the base branch throughout every scenario below — a full run never
-// switches it. Each scope's own branch is resolved from its ledger's `**Branch:**` line, through the
-// shared `readLedgerHeader` reader (ADR 0022), never from `git branch --merged` with no argument.
-
 
 const os = require('node:os');
 
@@ -111,7 +111,9 @@ function initRepo(dir, initialBranch) {
 }
 const repoTemplate = templateOnce((dir) => initRepo(dir, 'main'), 'ws-template-');
 function makeRepo() {
-  return copyFixture(repoTemplate(), 'ws-');
+  const repo = copyFixture(repoTemplate(), 'ws-');
+  made.push(repo);
+  return repo;
 }
 
 function makeScope(repoDir, scope, branchLine) {
@@ -127,6 +129,7 @@ function makeScope(repoDir, scope, branchLine) {
 // how the hook tells a worked slice from one freshly cut off that same branch.
 function fold(repoDir, scopeBranchName, sliceBranch) {
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-fold-')));
+  made.push(tmp);
   const wt = path.join(tmp, 'wt');
   git(['worktree', 'add', '-q', wt, scopeBranchName], repoDir);
   git(['merge', '--no-ff', '-q', '-m', `merge ${sliceBranch}`, sliceBranch], wt);
@@ -151,6 +154,7 @@ function foldedSlice(repoDir, scope) {
 // never touches the template's slicetrees. Asserts that no link of the copy still names the template.
 function copyWithSlicetrees(template, relTrees) {
   const repo = copyFixture(template, 'ws-');
+  made.push(repo);
   const wts = relTrees.map((t) => path.join(repo, t));
   git(['worktree', 'repair', ...wts], repo);
   for (const wt of wts) assert.ok(!fs.readFileSync(path.join(wt, '.git'), 'utf8').includes(template), `${wt}: its .git file names the copy`);
@@ -173,6 +177,10 @@ function foldedRepo(twoScopes = false) {
   return { repo, wt: wts[0], wtOther: path.join(repo, '.superdev/scopes/other/slicetrees/1') };
 }
 
+// The invoking checkout stays on the base branch throughout every scenario below — a full run never
+// switches it. Each scope's own branch is resolved from its ledger's `**Branch:**` line, through the
+// shared `readLedgerHeader` reader (ADR 0022), never from `git branch --merged` with no argument.
+//
 // `demo`'s slice/2 carries no commit beyond base, so it reads as trivially merged into everything but fails the
 // "worked" guard → left for its implementer. `other`'s slice/1 is worked but never folded into scope/other → left
 // alone, independently of `demo`'s outcome. HEAD never leaves `main` (the base branch) anywhere in this scenario.
@@ -215,6 +223,7 @@ test('#two-scopes-independent: `demo`\'s slice/1 is folded onto scope/demo and w
 // #277).
 test('#newline-checkout: a checkout whose path holds a newline.', () => {
   const repo = copyFixture(repoTemplate(), 'ws-nl\nx-');
+  made.push(repo);
   git(['branch', 'scope/nl'], repo);
   makeScope(repo, 'nl', '**Branch:** scope/nl\n');
   const wt = path.join(repo, '.superdev/scopes/nl/slicetrees/1');
@@ -358,6 +367,7 @@ test('#singular-scopetree-never-swept: both tiers\' singular `.superdev/scopes/<
 test('#reader-unavailable: the hook cannot load the shared `readLedgerHeader` reader → it sweeps nothing and says nothing, the same fail-closed direction a git error already takes (scope-prune.js\'s own `#reader-unavailable` case is the precedent).', () => {
   const cp = require('node:child_process');
   const away = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-orphan-'));
+  made.push(away);
   fs.copyFileSync(hookPath, path.join(away, 'slicetree-sweep.js'));
 
   const repo = makeRepo();
@@ -434,6 +444,7 @@ test('#git-spawn-posture: the hook takes `gitThrow`, `parseBranchList`, and `lis
   // a per-scope failure shows whether the hook skips that scope or abandons the run.
   function run(caseName, gitSpawnBody, twoScopes = false) {
     const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-posture-')));
+    made.push(dir);
     fs.mkdirSync(path.join(dir, 'hooks'));
     fs.mkdirSync(path.join(dir, 'lib'));
     fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'slicetree-sweep.js'));
@@ -621,6 +632,7 @@ test('#resolver-unavailable: the hook takes the main working tree from `../lib/m
   const realResolver = JSON.stringify(require.resolve('../plugin/lib/main-work-tree.js'));
   function runResolver(caseName, resolverBody) {
     const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-resolver-')));
+    made.push(dir);
     fs.mkdirSync(path.join(dir, 'hooks'));
     fs.mkdirSync(path.join(dir, 'lib'));
     fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'slicetree-sweep.js'));
@@ -664,6 +676,7 @@ test('#resolver-unavailable: the hook takes the main working tree from `../lib/m
   }
   // A session directory outside any repository resolves no main working tree, through the real resolver.
   const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-outside-')));
+  made.push(outside);
   const outsideSlicetree = path.join(outside, '.superdev', 'scopes', 'resolver', 'slicetrees', '1');
   fs.mkdirSync(outsideSlicetree, { recursive: true });
   fs.writeFileSync(path.join(outside, '.superdev', 'scopes', 'resolver', 'ledger.md'), '# ledger\n\n**Branch:** scope/resolver\n');

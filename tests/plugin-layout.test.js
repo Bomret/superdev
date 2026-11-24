@@ -4,7 +4,7 @@
 // plugin/hooks/ and plugin/scripts/ exports exactly the names a requirer uses, and a name it
 // re-exports from a module is that module's own.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const cp = require('node:child_process');
@@ -12,6 +12,11 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { assertSpawnDecided } = require('./spawn-verdict');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 const plugin = path.join(__dirname, '..', 'plugin');
 const libFiles = fs.readdirSync(path.join(plugin, 'lib'), { recursive: true }).filter((n) => n.endsWith('.js'));
@@ -112,7 +117,7 @@ test('INV-0068: requiring a lib module or a hook prints nothing, spawns nothing,
   // The child's environment names no real plugin root or data directory, so a hook that runs anyway
   // reaches nothing outside the test.
   const childData = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-layout-require-'));
-  process.on('exit', () => fs.rmSync(childData, { recursive: true, force: true }));
+  made.push(childData);
   const childEnv = { ...process.env, CLAUDE_PLUGIN_ROOT: '', CLAUDE_PLUGIN_DATA: childData };
   const r = cp.spawnSync(process.execPath, ['-e', child], { input: '', encoding: 'utf8', timeout: 60000, env: childEnv });
   assertSpawnDecided(r, 'requiring every lib module and hook');
@@ -126,7 +131,7 @@ test('INV-0068: requiring a lib module or a hook prints nothing, spawns nothing,
 test('INV-0068: each hook run as a process acts.', () => {
   const git = (args, cwd) => cp.execFileSync('git', args, { cwd, stdio: 'ignore' });
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-layout-')));
-  process.on('exit', () => fs.rmSync(tmp, { recursive: true, force: true }));
+  made.push(tmp);
   const dir = (name) => { const d = path.join(tmp, name); fs.mkdirSync(d, { recursive: true }); return d; };
   const repoIn = (name) => {
     const d = dir(name);

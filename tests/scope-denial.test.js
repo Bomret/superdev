@@ -16,7 +16,7 @@ after(() => {
 });
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-denial-')));
-process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
+after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 const TABLE = ['| id | issue | title | type | depends-on | status | range |', '|----|-------|-------|------|------------|--------|-------|'];
 const DENIED = '- denied: pass ran inline — dispatch denied by the permission classifier';

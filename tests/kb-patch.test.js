@@ -5,8 +5,13 @@
 // directly, the way the script's own inline --selftest used to before this suite moved off the
 // shipped tree (ADR 0059).
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
+
+const made = [];
+after(() => {
+  for (const d of made) require('node:fs').rmSync(d, { recursive: true, force: true });
+});
 
 const kbPatchPath = require.resolve('../plugin/scripts/kb-patch.js');
 const { merge } = require(kbPatchPath);
@@ -283,6 +288,7 @@ test('the CLI: each refusal prints its one-line message, exits 1, and writes not
   const path = require('node:path');
   const { assertSpawnDecided } = require('./spawn-verdict');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-patch-cli-'));
+  made.push(dir);
   const livePage = path.join(dir, 'live.md');
   const stagedPage = path.join(dir, 'staged.md');
   fs.writeFileSync(livePage, '# T\n\n## A\n\nold.\n');

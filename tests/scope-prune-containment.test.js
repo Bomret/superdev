@@ -11,6 +11,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
+
 const {
   hook,
   gitTest,
@@ -196,6 +201,7 @@ test('Containment end to end: the branch is still present locally, and base hold
     // One Stop with every git call logged; returns the logged argument lines.
     const stop = (repo, extra = '') => {
       const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-gitlog-')), 'log');
+      made.push(path.dirname(log));
       fs.writeFileSync(log, '');
       withFakeGit(`printf '%s\\n' "$*" >> "${log}"\n${extra}`, () => main(repo));
       const lines = fs.readFileSync(log, 'utf8').split('\n').filter(Boolean);
@@ -321,6 +327,7 @@ test('Containment end to end: the branch is still present locally, and base hold
   // shim: the merge-commit scope still prunes (ancestry finds it), and the squash-merged one does not
   // (ancestry never did) — which is precisely "current behaviour".
   const oldGitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-oldgit-'));
+  made.push(oldGitDir);
   const realGitPath = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
   fs.writeFileSync(
     path.join(oldGitDir, 'git'),

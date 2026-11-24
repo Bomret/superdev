@@ -15,7 +15,7 @@ after(() => {
 });
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-windows-')));
-process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
+after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 // A run root holding a ledger and exactly `lines` as its trace.
 const runOf = (name, lines) => {

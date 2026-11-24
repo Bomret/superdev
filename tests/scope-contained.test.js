@@ -17,9 +17,7 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 const { shq } = require('./spawn-verdict');
 
 after(() => {
-  process.on('exit', () => {
-    for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
-  });
+  for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
 });
 
 const made = [];

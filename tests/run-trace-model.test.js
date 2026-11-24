@@ -4,13 +4,18 @@
 // require.main guard) and calls its exported decide() directly, then runs the hook as a process to check the deny's
 // exit and stderr on PreToolUse(Agent), and that no other event denies.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const cp = require('node:child_process');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { assertSpawnDecided } = require('./spawn-verdict');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 
 const hookPath = require.resolve('../plugin/hooks/run-trace.js');
@@ -49,7 +54,7 @@ test('Drift assertion: every agent basename under sibling agents/ must be covere
 
 test('Run as a process: PreToolUse(Agent) without a model exits 2 with the reason on stderr; with a model, or on PostToolUse, it exits 0 silently. cwd is an empty directory, so no run is recorded.', () => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'run-trace-model-'));
-  process.on('exit', () => fs.rmSync(cwd, { recursive: true, force: true }));
+  made.push(cwd);
   const run = (input) => {
     const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify({ session_id: 's', cwd, ...input }), encoding: 'utf8', timeout: 30000 });
     assertSpawnDecided(r, 'running run-trace.js');

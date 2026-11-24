@@ -11,7 +11,9 @@ const { scopePath, call, gitOut: g, head, commitAll, fixtureRepo } = require('./
 const { appendTrace } = require(scopePath);
 
 // Each case gets its own repository from the verification.md text it needs.
-test('suite reusable: the complete-selector carry (ADR 0175, INV-0017) A green record carries across a non-Markdown delta where the tip\'s verification.md declares the focused selector complete, the focused command takes `{paths}`, and a passing clean focused run at the tip covered every changed path.', () => {
+// A green record carries across a non-Markdown delta where the tip's verification.md declares the focused selector
+// complete, the focused command takes `{paths}`, and a passing clean focused run at the tip covered every changed path.
+test('suite reusable: the complete-selector carry (ADR 0175, INV-0017)', () => {
   const { encodePaths, encodeArgs } = require('../plugin/lib/trace-log.js');
   const callIn = (argv, cwd) => call(argv, '', cwd);
   const vRel = path.join('docs', 'agents', 'verification.md');

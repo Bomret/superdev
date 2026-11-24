@@ -6,11 +6,16 @@
 // tests/publish-kb-parent-link-hang-add.test.js. No case here hangs a backend verb, so the file times no
 // spawn. Shared fixtures live in tests/publish-kb-setup.js.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 const {
   publishKbPath,
   makeRepo,
@@ -145,6 +150,7 @@ for (const [what, child, extra] of [
 test('a TMPDIR holding `$` and a backtick reaches the intended path through every helper that puts a temporary path into a `sh -c` command (triage #1380): `freshFindDoc` marks its first find in the hostile directory, so the fresh find after the create still answers what the doc says (tests/spawn-verdict.test.js pins `shq` itself)', () => {
   const prev = process.env.TMPDIR;
   const hostile = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-$HOME-`true`-'));
+  made.push(hostile);
   process.env.TMPDIR = hostile;
   let doc;
   try {

@@ -4,12 +4,17 @@
 // away from the modules it loads and puts a stub that writes a marker file in a module's place, so the case confirms
 // the stub loaded before it asserts what the hook did.
 
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+
+const made = [];
+after(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+});
 
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { hookPath, TTL_MS, gitTest, makeRepo, makeScope, makeWorkBranch, makeConflictingSquashRepo } = require('./scope-prune-setup');
@@ -53,6 +58,7 @@ for (const [skewName, containmentBody] of [
 ]) {
   test(`#probe-unavailable: the containment module is absent from its place, throws on load, or carries no probe — a version-skewed install. (${skewName})`, () => {
     const skewDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-skew-'));
+    made.push(skewDir);
     fs.mkdirSync(path.join(skewDir, 'hooks'));
     fs.mkdirSync(path.join(skewDir, 'lib'));
     fs.copyFileSync(hookPath, path.join(skewDir, 'hooks', 'scope-prune.js'));
@@ -118,6 +124,7 @@ for (const [skewName, containmentBody] of [
 // The throw leaves `main` and the hook's entry guard takes it: the run prunes nothing, exits 0, and says nothing.
 test('#probe-throws: the containment module loads but its probe throws on the conflicting-squash setup.', () => {
   const throwDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-probe-throws-'));
+  made.push(throwDir);
   fs.mkdirSync(path.join(throwDir, 'hooks'));
   fs.mkdirSync(path.join(throwDir, 'lib'));
   fs.copyFileSync(hookPath, path.join(throwDir, 'hooks', 'scope-prune.js'));
@@ -166,9 +173,11 @@ test('#probe-throws: the containment module loads but its probe throws on the co
 test('#reader-unavailable: the hook cannot load the shared reader → it prunes nothing and says nothing.', () => {
   const cp = require('node:child_process');
   const away = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-orphan-'));
+  made.push(away);
   fs.copyFileSync(hookPath, path.join(away, 'scope-prune.js'));
 
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-orphan-repo-'));
+  made.push(repo);
   const g = (args) => cp.execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
   g(['init', '-q', '-b', 'main']);
   g(['config', 'user.email', 'test@example.com']);
@@ -244,6 +253,7 @@ test('#reader-unavailable: the hook cannot load the shared reader → it prunes 
 test('#git-spawn-posture: the hook takes `gitSpawn`, `gitThrow`, `parseBranchList`, and `resolveCommit` from `../lib/git-spawn.js` (INV-0159).', () => {
   const realGitSpawn = JSON.stringify(require.resolve('../plugin/lib/git-spawn.js'));
   const shimDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-posture-shim-'));
+  made.push(shimDir);
   const realGitPath = require('node:child_process').execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
   fs.writeFileSync(
     path.join(shimDir, 'git'),
@@ -256,6 +266,7 @@ test('#git-spawn-posture: the hook takes `gitSpawn`, `gitThrow`, `parseBranchLis
   // `shimmed` false runs the real git, whose `merge-tree --write-tree` reaches the containment test.
   function run(caseName, gitSpawnBody, shimmed = true) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-posture-'));
+    made.push(dir);
     fs.mkdirSync(path.join(dir, 'hooks'));
     fs.mkdirSync(path.join(dir, 'lib'));
     fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'scope-prune.js'));
@@ -347,6 +358,7 @@ test('#resolver-unavailable: the hook takes the main working tree from `../lib/m
   const realResolver = JSON.stringify(require.resolve('../plugin/lib/main-work-tree.js'));
   function runResolver(caseName, resolverBody) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-resolver-'));
+    made.push(dir);
     fs.mkdirSync(path.join(dir, 'hooks'));
     fs.mkdirSync(path.join(dir, 'lib'));
     fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'scope-prune.js'));
@@ -394,6 +406,7 @@ test('#resolver-unavailable: the hook takes the main working tree from `../lib/m
 
   // A session directory outside any repository resolves no main working tree, through the real resolver.
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-outside-'));
+  made.push(outside);
   const outsideScope = makeScope(outside, 'resolver', '**Stage:** closed\n');
   const outsideRun = spawnSync(process.execPath, [hookPath], {
     input: JSON.stringify({ cwd: outside }), encoding: 'utf8', timeout: 15000,
@@ -413,6 +426,7 @@ test('#shape-rule-unavailable: the hook takes the shape rule from `../lib/scope-
   const real = JSON.stringify(require.resolve('../plugin/lib/scope-branch.js'));
   function runCase(caseName, body) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-shape-'));
+    made.push(dir);
     fs.mkdirSync(path.join(dir, 'hooks'));
     fs.mkdirSync(path.join(dir, 'lib'));
     fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'scope-prune.js'));

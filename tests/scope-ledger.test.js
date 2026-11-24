@@ -16,8 +16,10 @@ const { execFileSync } = require('node:child_process');
 const { tmp, call, sliceJson, scopePath, run, cleanup, writeDod, scopeRoot } = require('./scope-setup');
 const { publishText, SLUG_RE, readLedgerHeader } = require(scopePath);
 
+const made = [];
 afterAll(() => {
   cleanup();
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
 });
 
 let r, root, text;
@@ -245,6 +247,7 @@ test('init: a slice list that is entirely merged (a second run over a fully-ship
     ],
   });
   const fullyShipped = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-fully-shipped-'));
+  made.push(fullyShipped);
   const origFullyShipped = console.log;
   console.log = () => {};
   try {
@@ -561,6 +564,7 @@ test('init: duplicate slice ids refused.', () => {
 
 test('init: a refused init leaves the repo untouched — .gitignore is only written on success.', () => {
   const refusedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-refused-'));
+  made.push(refusedDir);
   const origRefused = console.log;
   console.log = () => {};
   try {
@@ -1649,6 +1653,7 @@ test('A `submitted` run (issue #682) — the pull request is open and the chain 
 
 test('status with zero scopes.', () => {
   const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-empty-'));
+  made.push(empty);
   const logged = [];
   const orig = console.log;
   console.log = (s) => logged.push(String(s));
@@ -1753,6 +1758,7 @@ test('`demo` is shipped, so it collapses — but its staged-page lines are the e
 let only, onlyLog, origOnly;
 test('pages staged with no run root anywhere: the report is the pending blocks, not the zero-scope line.', () => {
   only = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-kbonly-'));
+  made.push(only);
   fs.mkdirSync(path.join(only, '.superdev', 'kb-pending', '_adhoc'), { recursive: true });
   fs.writeFileSync(path.join(only, '.superdev', 'kb-pending', '_adhoc', 'p.md'), 'x\n', 'utf8');
   onlyLog = [];
@@ -1776,6 +1782,7 @@ test('pages staged with no run root anywhere: the report is the pending blocks, 
 
 test('The report is markdown: a name read off disk is escaped, so a `|` keeps the table row whole and a `_` prints as itself, and a file name prints as code.', () => {
   const odd = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-kbodd-'));
+  made.push(odd);
   fs.mkdirSync(path.join(odd, '.superdev', 'kb-pending', 'a|b_c'), { recursive: true });
   fs.writeFileSync(path.join(odd, '.superdev', 'kb-pending', 'a|b_c', 'my_notes.txt'), 'x\n', 'utf8');
   const oddLog = [];
@@ -1794,6 +1801,7 @@ test('The report is markdown: a name read off disk is escaped, so a `|` keeps th
 // A repo whose every run is closed with no note left prints one line saying no run is open.
 test('A closed scope gets no row, but its notes still print: they are the last copy before the reap.', () => {
   const done = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-closed-'));
+  made.push(done);
   const doneRoot = path.join(done, '.superdev', 'scopes', 'gone');
   fs.mkdirSync(doneRoot, { recursive: true });
   const closedLedger = (extra) =>
@@ -1825,6 +1833,7 @@ test('A closed scope gets no row, but its notes still print: they are the last c
 test('main()\'s success path lets the process exit naturally instead of forcing process.exit(0), so stdout flushes before exit.', () => {
   const cp = require('child_process');
   const spawnEmpty = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-spawn-'));
+  made.push(spawnEmpty);
   const spawned = cp.spawnSync(process.execPath, [scopePath, 'status'], { cwd: spawnEmpty, encoding: 'utf8' });
   assert.strictEqual(spawned.status, 0, 'CLI process exits 0 on success');
   assert.strictEqual(spawned.stdout.trim(), 'No superdev runs found in this repo.', 'CLI process flushes stdout');

@@ -14,8 +14,10 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 const { tmp, call, scopePath, cleanup } = require('./scope-setup');
 const { readLedgerHeader } = require(scopePath);
 
+const made = [];
 after(() => {
   cleanup();
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
 });
 
 // --- readLedgerHeader: one reader, normalisation per header kind (ADR 0022) ---
@@ -120,6 +122,7 @@ test('`status` collapses a shipped scope whose stage line carries markup — it 
 // — Node's require cache would hand back that cached module instead of re-executing its top-level guard.
 test('Requiring the module must run no CLI code.', () => {
   const requirer = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-require-'));
+  made.push(requirer);
   const probe = path.join(requirer, 'probe.js');
   fs.writeFileSync(
     probe,
