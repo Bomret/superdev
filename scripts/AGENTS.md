@@ -727,16 +727,16 @@ record. `tests/scope-ci.test.js` holds its cases.
 
 `ci --sha <sha> --wait --read <script> [--timeout <s>] [--root <path>]` is the one wait on named checks (INV-0192,
 ADR 0280). It reads no stdin. Each read runs the script text through `sh -c`, every `<sha>` replaced by the full hex
-commit the SHA resolves to, as the leader of its own process group, bounded at 120 s, or at the time left to the
-deadline where that is longer than 10 s, and at 10 s otherwise. A read that exits non-zero or is ended at its bound
+commit the SHA resolves to. The read leads its own process group. Its bound is 120 s, or the time left to the
+deadline where that is under 120 s, and never under 10 s. A read that exits non-zero or is ended at its bound
 is a failed read, and its stdout is never judged. Each successful read is judged as the plain verb judges stdin. The
-wait ends at the first green, failed, or cannot-judge verdict, and at once when no named check is pending or missing.
-Otherwise it reads again 30 s later. At the deadline, 3600 s unless `--timeout` names other whole seconds, it makes
-one final read and prints that judgment. A failed final read prints the last successful read's judgment, or `(no
-check report read)` followed by that read's stderr. A head or section the plain verb cannot judge exits 2 before any read. A successful read resets
-the failed-read count, and the third failed read in a row exits 5 on a `ci: read-failed <sha>` line followed by that
-read's stderr. SIGTERM, SIGINT, or SIGHUP ends the running read's process group, prints `ci: stopped <sha>` and no
-verdict, and exits 6. `--wait` without `--read`, `--read` without `--wait`, a read file that cannot be read, and a
+wait ends at the first green, failed, or cannot-judge verdict. It ends at once when no named check is pending or
+missing. Otherwise it reads again 30 s later. At the deadline, 3600 s unless `--timeout` names other whole seconds,
+it makes one final read and prints that judgment. A failed final read prints the last successful read's judgment, or
+`(no check report read)` followed by that read's stderr. A head or section the plain verb cannot judge exits 2
+before any read. A successful read resets the failed-read count. The third failed read in a row exits 5 on a
+`ci: read-failed <sha>` line followed by that read's stderr. SIGTERM, SIGINT, or SIGHUP ends the running read's
+process group, prints `ci: stopped <sha>` and no verdict, and exits 6. `--wait` without `--read`, `--read` without `--wait`, a read file that cannot be read, and a
 `--timeout` that is no positive whole number each refuse with exit 1. `tests/scope-ci-wait.test.js` holds its cases.
 
 `init` writes a fresh ledger at stage `planned` (ADR 0079) — the one stage that precedes the four-command

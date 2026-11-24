@@ -12,19 +12,20 @@ CI path a pending check refused, and so did every push ship made, so the operato
 once CI reported. On the CI path, submit-pr asked no ship question at all.
 
 **Decision.** `scope.js ci --wait --read <script>` re-runs a code-host read script every 30 s and judges each read
-against the named checks. It ends on the first green, failed, or cannot-judge verdict, or as soon as no named check can still change. After a 60-minute deadline it
-makes one final read and ends not green, naming the checks still pending. Three failed or hung reads in a row end it with the
-last read's error. Each code-host seed's `## Check status` carries the read script, a POSIX `sh` script the verb runs with `sh -c` (INV-0153), so shipped code names no host CLI.
-Ship runs the verb through the Bash tool's `run_in_background`, which re-invokes the session when the command exits
-(Claude Code's Bash tool description, checked 2026-11-23), and the agent itself
-never re-reads on a timer. A code-management document without the read script keeps the single read and its pending
+against the named checks. It ends on the first green, failed, or cannot-judge verdict. It also ends as soon as no named check can still
+change. After a 60-minute deadline it makes one final read and ends not green, naming the checks still pending.
+Three failed or hung reads in a row end it with the last read's error. Each code-host seed's `## Check status`
+carries the read script. The script is POSIX `sh`, and the verb runs it with `sh -c` (INV-0153), so shipped code
+names no host CLI. Ship runs the verb through the Bash tool's `run_in_background`. That re-invokes the session when
+the command exits (Claude Code's Bash tool description, checked 2026-11-23). The agent itself never re-reads on a
+timer. A code-management document without the read script keeps the single read and its pending
 refusal. On the CI path submit-pr asks its ship question too. superdev still triggers, re-runs, and cancels no CI
 run.
 
 **Considered options.**
 
 - **The host CLI's own watch (`gh pr checks --watch`).** Rejected: GitHub only. `tea` 0.16.0 has no command that
-  waits on a commit's check status; `tea actions runs logs --follow` follows one job's log (`--help`, checked
+  waits on a commit's check status. `tea actions runs logs --follow` follows one job's log (`--help`, checked
   2026-11-23).
 - **gh and tea calls inside `lib/ci.js`.** Rejected: it hardcodes backends into shipped code, against pluggable
   backends.

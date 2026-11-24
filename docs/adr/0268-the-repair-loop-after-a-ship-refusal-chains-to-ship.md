@@ -54,7 +54,8 @@ flowchart LR
 
 - **A fresh yes before every ship start.** Review and document would chain to each other and end on the
   ship Next block. It keeps a merge of fix-cycle code from happening without a new yes. The operator
-  already consented, and on the CI path the started ship can only push and stop as pending.
+  already consented, and on the CI path the started ship could only push and stop as pending. ADR 0280 amends
+  that: a started ship on the CI path waits on the head it pushed.
 - **Ship's refusal starts review.** It saves one more typed command. On PR #304 the red check came from
   base, and its fix landed on main in a separate pull request (#303). A review started at once would have
   fixed base's test inside the scope. It would also let a repair with no new commit loop between ship and
