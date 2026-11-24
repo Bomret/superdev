@@ -254,9 +254,11 @@ const f2pFixture = () => {
   return { D, git, probe, CMD, scenario, checkout, leftover, assertGone, hooked, drive, done };
 };
 
-const cleanup = () => {
+// `tmp` is removed when the process exits, as `templateOnce` removes its template (tests/fixture-git.js), so a suite that
+// reads it registers nothing for its cleanup.
+process.on('exit', () => {
   if (dir) fs.rmSync(dir, { recursive: true, force: true });
-};
+});
 
 // The git repositories of the suite-record suites (`tests/scope-suite-*.test.js`). `gitOut` runs git and returns its trimmed
 // stdout. Every fixture repository is on `main`, carries a user identity, and runs no automatic maintenance, so its refs stay
@@ -445,7 +447,6 @@ module.exports = {
   f2pFixture,
   scopePath,
   run,
-  cleanup,
   gitOut,
   head,
   commitAll,

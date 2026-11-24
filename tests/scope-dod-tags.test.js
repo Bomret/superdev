@@ -11,11 +11,10 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { call, scopePath, cleanup } = require('./scope-setup');
+const { call, scopePath } = require('./scope-setup');
 
 after(() => {
   fs.rmSync(fileDir, { recursive: true, force: true });
-  cleanup();
 });
 
 const fileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dod-tags-args-'));

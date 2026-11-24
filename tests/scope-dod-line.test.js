@@ -13,13 +13,12 @@ const path = require('node:path');
 const cp = require('node:child_process');
 const { execFileSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { call: rawCall, scopePath, cleanup } = require('./scope-setup');
+const { call: rawCall, scopePath } = require('./scope-setup');
 
 const made = [];
 after(() => {
   fs.rmSync(fileDir, { recursive: true, force: true });
   for (const d of made) fs.rmSync(d, { recursive: true, force: true });
-  cleanup();
 });
 
 // The tick command reads its criterion and note from files only. `fileArgs` writes each criterion and

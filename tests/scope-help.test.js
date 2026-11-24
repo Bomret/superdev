@@ -5,17 +5,13 @@
 // that is a flag's value or a bullet's text read as data. The shared directory, `call`, and the init payload come
 // from tests/scope-setup.js.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { tmp, call, sliceJson, scopePath, cleanup, writeDod, scopeRoot } = require('./scope-setup');
-
-after(() => {
-  cleanup();
-});
+const { tmp, call, sliceJson, scopePath, writeDod, scopeRoot } = require('./scope-setup');
 
 test('The run root the bullet cases below write to.', () => {
   writeDod(scopeRoot('demo'));

@@ -11,10 +11,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
-const { call, scopePath, cleanup } = require('./scope-setup');
-after(() => {
-  cleanup();
-});
+const { call, scopePath } = require('./scope-setup');
 const { assertSpawnDecided } = require('./spawn-verdict');
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-consent-')));

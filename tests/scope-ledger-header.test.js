@@ -11,12 +11,11 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { tmp, call, scopePath, cleanup } = require('./scope-setup');
+const { tmp, call, scopePath } = require('./scope-setup');
 const { readLedgerHeader } = require(scopePath);
 
 const made = [];
 after(() => {
-  cleanup();
   for (const d of made) fs.rmSync(d, { recursive: true, force: true });
 });
 

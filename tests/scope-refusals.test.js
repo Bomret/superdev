@@ -5,18 +5,14 @@
 // throws the refusal error `main()` prints; one spawned case per verb family keeps the exit status and the stderr line.
 // A hand-edited `**Deploy:**` entry is read as the documented outcome: a refusal naming the bad entry.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { tmp, call, run, sliceJson, scopePath, cleanup, writeDod, scopeRoot } = require('./scope-setup');
+const { tmp, call, run, sliceJson, scopePath, writeDod, scopeRoot } = require('./scope-setup');
 const { publishText } = require(scopePath);
-
-after(() => {
-  cleanup();
-});
 
 // Every file under `dir` with its bytes, so a refusal can be shown to write nothing. The digest sidecar is left out: the check a
 // writing verb makes first seals a hand-written run on its first check, a refusal included (ADR 0227).
