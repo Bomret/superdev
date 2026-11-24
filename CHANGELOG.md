@@ -1,3 +1,16 @@
+# [0.120.0](https://github.com/Bomret/superdev/compare/v0.119.1...v0.120.0) (2026-11-24)
+
+
+### Bug Fixes
+
+* **implement:** run init reads the claim again before the ledger write ([#504](https://github.com/Bomret/superdev/issues/504)) ([5f40eb6](https://github.com/Bomret/superdev/commit/5f40eb67c64e9d5816fdeaeb09cb6b1995955e20)), closes [#503](https://github.com/Bomret/superdev/issues/503)
+
+
+### Features
+
+* **implement:** claim the scope anchor, and status skips another person's claim ([#502](https://github.com/Bomret/superdev/issues/502)) ([7281d88](https://github.com/Bomret/superdev/commit/7281d88f66c4f3eab9a535c1964b631ae03e4dc1))
+* **ship:** ship waits for the named CI checks and continues on its own ([#494](https://github.com/Bomret/superdev/issues/494)) ([ed0c454](https://github.com/Bomret/superdev/commit/ed0c4547ab4ff37fa0956233e5e44f573956096d))
+
 ## [0.119.1](https://github.com/Bomret/superdev/compare/v0.119.0...v0.119.1) (2026-11-24)
 
 
