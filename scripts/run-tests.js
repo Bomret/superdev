@@ -5,8 +5,8 @@
 // their `*.test.js` name, so a suite added to the tree runs with no roster edit, runs each
 // under `node` (the hooks' production runtime), and then the fixed tail: the invariant
 // register check, the drift selftest, drift-check, and plugin manifest validation. A suite step runs as
-// `node --test-reporter=dot <suite>`, the flag before the suite path so the suite's own `process.argv` is unchanged: a
-// suite's `node:test` cases print as one dot each, and a failing case prints its name and error. The tail steps and the
+// `node --test-reporter=dot <suite>`. The flag comes before the suite path, so the suite's own `process.argv` is
+// unchanged. A suite's `node:test` cases print as one dot each, and a failing case prints its name and error. The tail steps and the
 // mod suite step run with no flag. The steps run as many at once as
 // `os.availableParallelism()` reports, each in its own process group, and each prints its output whole with one
 // `run-tests: <label>: <ms> ms` line, so a test audit ranks measured cost. The first failure ends the steps still

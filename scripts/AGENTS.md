@@ -1084,9 +1084,9 @@ name: every `*.test.js` file directly in that directory, in name order, so a sui
 with no roster edit. The suites start longest first by the durations the last run recorded in
 `node_modules/.cache/run-tests.json`, a suite with no recorded duration first of all, and in name order where no
 record orders them. Each run merges what it measured into that file. A helper (`spawn-verdict.js`, `linear-time.js`), a shared setup file (`tests/*-setup.js`), and a subdirectory
-(`tests/fixtures/`) are not suites. It runs each suite as `node --test-reporter=dot <suite>`, the flag before the suite
-path so the suite's own `process.argv` is unchanged, then the fixed tail: `invariant-check.js --root .`,
-`drift-check.js --selftest`, `drift-check.js`, and `claude plugin validate ./plugin`. The tail steps and the mod suite
+(`tests/fixtures/`) are not suites. It runs each suite as `node --test-reporter=dot <suite>`. The flag comes before the suite
+path, so the suite's own `process.argv` is unchanged. The fixed tail follows the suites. Its steps are
+`invariant-check.js --root .`, `drift-check.js --selftest`, `drift-check.js`, and `claude plugin validate ./plugin`. The tail steps and the mod suite
 step run with no flag. Under the dot reporter a suite's `node:test` cases print one dot each, and a failing case prints
 its name and its error. The steps, suites and tail alike, run
 concurrently. The runner keeps as many going as `os.availableParallelism()` reports, each in its own process group.
