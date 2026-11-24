@@ -1,3 +1,10 @@
+# [0.121.0](https://github.com/Bomret/superdev/compare/v0.120.0...v0.121.0) (2026-11-24)
+
+
+### Features
+
+* **setup:** offer to push the configuration to a new or the current branch ([#507](https://github.com/Bomret/superdev/issues/507)) ([242df4c](https://github.com/Bomret/superdev/commit/242df4c6efe5b432c0543dedd82201d14d0ccffa))
+
 # [0.120.0](https://github.com/Bomret/superdev/compare/v0.119.1...v0.120.0) (2026-11-24)
 
 
