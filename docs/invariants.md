@@ -1653,7 +1653,7 @@ Paths: plugin/lib/kb-gate.js, plugin/scripts/publish-kb.js
 
 Class: process
 Concepts: Claim, Scope anchor, Assignee
-Statement: `/superdev:implement` never creates or adopts a run on a scope anchor claimed by someone else without the operator's explicit yes, and under `--unattended` it blocks instead. `/superdev:status` never recommends a move on an anchor claimed by someone else.
+Statement: `/superdev:implement` never creates or adopts a run on a scope anchor claimed by someone else without the operator's explicit yes, and under `--unattended` it blocks instead. It never replaces an anchor's assignees with the operator over an assignee set naming someone else that the operator has not judged, the set it reads just before the ledger write included. `/superdev:status` never recommends a move on an anchor claimed by someone else.
 Breaks: silently
 Check: none — the rule lives in skill prose, which no suite executes
 Paths: plugin/skills/implement/SKILL.md, plugin/skills/status/SKILL.md, plugin/references/run-init.md
