@@ -2,6 +2,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
+const { test } = require('node:test');
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `test` verb, the install it runs from: the `sh` it starts, `endRun`, the win32
@@ -15,8 +16,7 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 
 const scopePath = require.resolve('../plugin/scripts/scope.js');
 
-// The command runs under `sh` from PATH, and a run ends through `endRun` (ADR 0150, INV-0153).
-{
+test('The command runs under `sh` from PATH, and a run ends through `endRun` (ADR 0150, INV-0153).', () => {
   const { spawnSync } = require('node:child_process');
   const scope = require('../plugin/scripts/scope.js');
 
@@ -74,12 +74,12 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
   } finally {
     fs.rmSync(D, { recursive: true, force: true });
   }
-}
+});
 
-// On win32 the watcher ends a running command through `taskkill` when its channel closes, and leaves an exited one alone.
-// The watcher runs from its own source text, as `superviseRuns` builds it, with the platform set to win32 and the kill
-// spawner replaced by one that logs its argv. A bounded driver process holds the IPC channel, sends the run, and closes it.
-{
+// The watcher runs from its own source text, as `superviseRuns` builds it, with the platform set to win32 and the
+// kill spawner replaced by one that logs its argv. A bounded driver process holds the IPC channel, sends the run, and
+// closes it.
+test('On win32 the watcher ends a running command through `taskkill` when its channel closes, and leaves an exited one alone.', () => {
   const { spawnSync } = require('node:child_process');
   const scope = require('../plugin/scripts/scope.js');
   // Runs a command under the win32 watcher and closes the channel: while it runs (`exitFirst` false) or once it exited,
@@ -112,4 +112,4 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
   } finally {
     fs.rmSync(D, { recursive: true, force: true });
   }
-}
+});

@@ -3,6 +3,7 @@
 // Suite for plugin/scripts/scope.js's `untraced` verb (ADR 0227): the paths a window's commits change that no `edit` line
 // of the window names. The fixtures are real git commits and real trace lines; the suite runs in temporary directories.
 
+const { test } = require('node:test');
 require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -43,8 +44,7 @@ const repoOf = (name) => {
 };
 const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind: 'edit', fields: ['impl', rel] });
 
-// #listing: Bash writes, deletions, renames, odd names, and a merge that brings the base in.
-{
+test('#listing: Bash writes, deletions, renames, odd names, and a merge that brings the base in.', () => {
   const { repo, root } = repoOf('listing');
   for (const f of ['a.txt', 'b.txt', 'd.txt', 'r1.txt', 'base-only.txt']) put(repo, f, `${f}\none\ntwo\nthree\nfour\n`);
   commit(repo, 'base');
@@ -82,10 +82,9 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   const clean = call(['untraced', `${tip}..${tip}`, '--slice', '05', '--root', root], '', repo);
   assert.ok(clean.ok, clean.err);
   assert.equal(clean.out, '', 'an empty range lists nothing');
-}
+});
 
-// #cycles: an earlier cycle's edit line masks no later cycle's write of the same path; each call names its window by dispatch.
-{
+test('#cycles: an earlier cycle\'s edit line masks no later cycle\'s write of the same path; each call names its window by dispatch.', () => {
   const { repo, root } = repoOf('cycles');
   const line = (text) => fs.appendFileSync(path.join(root, 'trace.log'), `${new Date().toISOString()} ${text}\n`);
   put(repo, 'p.txt', 'zero\n');
@@ -121,10 +120,9 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   assert.ok(!unknown.ok && unknown.err.includes('v1'), 'a window that names no implementer dispatch is refused by name');
   const other = call(['untraced', `${mid}..${tip}`, '--slice', '05', '--window', 'f2', '--root', root], '', repo);
   assert.ok(!other.ok && other.err.includes('f2') && other.err.includes('scope'), 'a window of another slice than --slice is refused by name');
-}
+});
 
-// #msys: an edit line naming the path absolute, as the tree root spells it, masks the root-relative change git reports.
-{
+test('#msys: an edit line naming the path absolute, as the tree root spells it, masks the root-relative change git reports.', () => {
   const { repo, root } = repoOf('abs');
   put(repo, 'k.txt', 'zero\n');
   commit(repo, 'base');
@@ -136,10 +134,9 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   const r = call(['untraced', `${base}..${tip}`, '--slice', '05', '--root', root], '', repo);
   assert.ok(r.ok, r.err);
   assert.equal(r.out, '', 'an absolute edit path compares root-relative');
-}
+});
 
-// #refusals
-{
+test('#refusals', () => {
   const { repo, root } = repoOf('refusals');
   put(repo, 'x.txt', 'x\n');
   commit(repo, 'base');
@@ -155,10 +152,9 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   assert.ok(!twice.ok && twice.err.includes('untraced') && twice.err.includes('--window'), `a flag given twice is refused naming the flag: ${twice.err}`);
   const stray = call(['untraced', `${head}..${head}`, '--slice', '05', '--windw', 'w1', '--root', root], '', repo);
   assert.ok(!stray.ok && stray.err.includes('untraced') && stray.err.includes('--windw'), `an unknown flag is refused naming the flag: ${stray.err}`);
-}
+});
 
-// #no-slice-line: a slice with no line in the trace lists every change and says on stderr that nothing masked it.
-{
+test('#no-slice-line: a slice with no line in the trace lists every change and says on stderr that nothing masked it.', () => {
   const { repo, root } = repoOf('no-slice-line');
   put(repo, 'n.txt', 'zero\n');
   commit(repo, 'base');
@@ -181,10 +177,9 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   assert.equal(r.out, 'modified\tn.txt', 'stdout stays the listing');
   assert.deepEqual(noted, ['untraced: the run trace holds no line of slice 99, so no edit line masks any path\n'],
     'one stderr note names the slice that matched no line, and a slice with lines writes none');
-}
+});
 
-// #net: the listing is the range's net change per path.
-{
+test('#net: the listing is the range\'s net change per path.', () => {
   const { repo, root } = repoOf('net');
   for (const f of ['m.txt', 'keep.txt']) put(repo, f, `${f}\none\ntwo\nthree\nfour\n`);
   commit(repo, 'base');
@@ -199,10 +194,9 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   const r = call(['untraced', `${base}..${tip}`, '--slice', '05', '--root', root], '', repo);
   assert.ok(r.ok, r.err);
   assert.equal(r.out, 'renamed\tm2.txt\tm.txt', 'a path added then deleted is not listed, and a modified then renamed path is listed once, as the rename');
-}
+});
 
-// #readd: a path deleted and then added again inside the range is a modification.
-{
+test('#readd: a path deleted and then added again inside the range is a modification.', () => {
   const { repo, root } = repoOf('readd');
   put(repo, 'z.txt', 'z\n');
   commit(repo, 'base');
@@ -215,10 +209,9 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   const r = call(['untraced', `${base}..${tip}`, '--slice', '05', '--root', root], '', repo);
   assert.ok(r.ok, r.err);
   assert.equal(r.out, 'modified\tz.txt', 'a path deleted then added again is listed as modified');
-}
+});
 
-// #hook-paths: an `edit` line the real run-trace hook writes for a spaced or non-ASCII path masks that path's change.
-{
+test('#hook-paths: an `edit` line the real run-trace hook writes for a spaced or non-ASCII path masks that path\'s change.', () => {
   const { repo, root } = repoOf('hook');
   const tree = path.join(root, 'slicetrees', '05'); // the hook finds the run from a path under `.superdev/scopes/<name>/slicetrees/<id>`
   fs.mkdirSync(tree, { recursive: true });
@@ -251,4 +244,4 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   const traced = call(['untraced', `${base}..${tip}`, '--slice', '05', '--root', root], '', tree);
   assert.ok(traced.ok, traced.err);
   assert.equal(traced.out, 'added\tplain.txt', 'the hook-recorded spaced and non-ASCII paths match git\'s and are not listed');
-}
+});

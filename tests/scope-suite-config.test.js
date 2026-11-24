@@ -2,17 +2,15 @@
 
 // Suite for the run configuration plugin/scripts/scope.js's `suite reusable` compares across a carry (ADR 0230, INV-0017).
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const { scopePath, call, gitOut: g, head, commitAll, fixtureRepo } = require('./scope-setup');
 const { appendTrace } = require(scopePath);
 
-// --- suite reusable: the run configuration (ADR 0230, INV-0017) -------------------------------------
-// A carry refuses a change to verification.md only where its run configuration differs between the two commits a
-// carry leg judges: the full and focused commands as written, the whole-repo command, the prepare command, the
-// test-path entries, and the complete-selector declaration. Prose and every other section carry.
-{
+// Prose and every other section carry.
+test('suite reusable: the run configuration (ADR 0230, INV-0017) A carry refuses a change to verification.md only where its run configuration differs between the two commits a carry leg judges: the full and focused commands as written, the whole-repo command, the prepare command, the test-path entries, and the complete-selector declaration.', () => {
   const { encodePaths } = require('../plugin/lib/trace-log.js');
   const callIn = (argv, cwd) => call(argv, '', cwd);
   const vRel = 'docs/agents/verification.md';
@@ -142,4 +140,4 @@ const { appendTrace } = require(scopePath);
   } finally {
     cases.forEach((d) => fs.rmSync(d, { recursive: true, force: true }));
   }
-}
+});

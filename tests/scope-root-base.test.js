@@ -5,6 +5,7 @@
 // range base, `references/scope-mode.md` `## The scope's range base`). Each case builds its own git repository,
 // so the suite needs only `run` from tests/scope-setup.js.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -12,8 +13,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { run } = require('./scope-setup');
 
-// --- root: the run-root path resolver, anchored to the main working tree (ADR 0080) -----------
-{
+test('root: the run-root path resolver, anchored to the main working tree (ADR 0080)', () => {
   // `call` in tests/scope-setup.js fixes cwd at its temporary directory; `root` resolves relative to cwd, so it needs its own.
   const callIn = (argv, cwd, stdinJson) => {
     const logged = [];
@@ -167,11 +167,9 @@ const { run } = require('./scope-setup');
   fs.rmSync(stagingWt, { recursive: true, force: true });
 
   fs.rmSync(mainRepo, { recursive: true, force: true });
-}
+});
 
-// --- base: the scope's range base — the recorded merged base tip and the rule that picks the newest
-// of it and merge-base(<base>, <branch>) (`references/scope-mode.md` `## The scope's range base`) ---
-{
+test('base: the scope\'s range base — the recorded merged base tip and the rule that picks the newest of it and merge-base(<base>, <branch>) (`references/scope-mode.md` `## The scope\'s range base`)', () => {
   const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
   const callIn = (argv, cwd, stdin) => {
     const logged = [];
@@ -296,4 +294,4 @@ const { run } = require('./scope-setup');
     'adopt reconstructs the Base line'
   );
   fs.rmSync(repo, { recursive: true, force: true });
-}
+});

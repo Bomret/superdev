@@ -5,6 +5,7 @@
 // the one test-path classifier. The Markdown-only carry, the complete-selector carry, the rerun, and the run configuration are
 // the other `tests/scope-suite-*.test.js` suites.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -13,9 +14,7 @@ const { execFileSync } = require('node:child_process');
 const { scopePath, run } = require('./scope-setup');
 const { appendTrace, isTestPath } = require(scopePath);
 
-// --- suite: the suite record, the last full-suite run's result and the commit it ran on
-// (`references/run-state.md` `## The ledger`, INV-0017) ---------------------------------------
-{
+test('suite: the suite record, the last full-suite run\'s result and the commit it ran on (`references/run-state.md` `## The ledger`, INV-0017)', () => {
   function gitSuite(args, cwd) {
     execFileSync('git', args, { cwd, stdio: 'ignore' });
   }
@@ -467,16 +466,12 @@ const { appendTrace, isTestPath } = require(scopePath);
   assert.ok(!r.ok && /is fail/.test(r.err), 'a later whole fail defeats a plain check (latest of either kind): ' + (r.err || ''));
 
   fs.rmSync(suiteRepo, { recursive: true, force: true });
-}
+});
 
-// --- isTestPath: the one test-path classifier (ADR 0128) ---------------------------------------
-//
-// Its globs: `*` stays in a segment, `**` crosses them, a slash anchors, a malformed entry is
-// skipped, and a section with no usable entry falls back to the defaults.
-{
+test('isTestPath: the one test-path classifier (ADR 0128) Its globs: `*` stays in a segment, `**` crosses them, a slash anchors, a malformed entry is skipped, and a section with no usable entry falls back to the defaults.', () => {
   const paths = (...g) => '## Test paths\n\n' + g.map((e) => '- `' + e + '`').join('\n') + '\n';
   assert.ok(isTestPath('', 'a/b/x.test.js') && isTestPath('', 'tests/x.js') && !isTestPath(paths('tests/'), 'src/tests/x.js'));
   assert.ok(isTestPath(paths('lib/**/*.t.js'), 'lib/q/r.t.js') && !isTestPath(paths('lib/*.t.js'), 'lib/q/r.t.js'));
   assert.ok(!isTestPath(paths('/abs/**'), 'abs/x.js') && isTestPath(paths('/abs/**'), 'tests/x.js'), 'a malformed sole entry falls back to the defaults');
   assert.ok(isTestPath(paths('bad entry', 'lib/*.t.js'), 'lib/r.t.js') && !isTestPath(paths('bad entry', 'lib/*.t.js'), 'tests/x.js'), 'a malformed entry is skipped');
-}
+});

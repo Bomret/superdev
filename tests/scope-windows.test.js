@@ -4,6 +4,7 @@
 // windows derived from the run trace's recorded order. The traces are written as raw lines, so a case controls every
 // timestamp; the suite runs in a temporary directory of its own.
 
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -43,8 +44,7 @@ const L = [
   `${t(13)} 01 a2 edit impl c.js`,
 ];
 
-// #windows: one line per run, in recorded order; a run ends at the first boundary of its own slice after its end.
-{
+test('#windows: one line per run, in recorded order; a run ends at the first boundary of its own slice after its end.', () => {
   const root = runOf('windows', L);
   const before = files(root);
   const r = call(['windows', '--slice', '01', '--root', root]);
@@ -55,10 +55,9 @@ const L = [
     `tu2 01 ${t(12)} open`,
   ], 'a resumed dispatch prints one line per run, another slice\'s dispatch cuts nothing, a reviewer resume ends a run, and an open run prints open');
   assert.deepEqual(files(root), before, 'windows changes no file of the run root');
-}
+});
 
-// #trace-window: `trace --window` prints exactly the lines the listing assigns to that dispatch, by file position.
-{
+test('#trace-window: `trace --window` prints exactly the lines the listing assigns to that dispatch, by file position.', () => {
   const root = runOf('trace-window', L);
   const r = call(['trace', '--window', 'tu1', '--root', root]);
   assert.ok(r.ok, r.err);
@@ -71,11 +70,9 @@ const L = [
   assert.ok(!other.ok && /trace: --window tu1/.test(other.err) && /01/.test(other.err), 'a window of another slice is refused by name, naming the verb');
   const unknown = call(['trace', '--window', 'tr1', '--root', root]);
   assert.ok(!unknown.ok && /trace: --window tr1/.test(unknown.err), 'a reviewer dispatch names no window, and is refused by name, naming the verb');
-}
+});
 
-// #ends: a session-end, stopped, or missing end still closes a run at the next boundary; a dispatch-end with no outcome
-// reads completed; the scope's fix cycles list like a slice's windows.
-{
+test('#ends: a session-end, stopped, or missing end still closes a run at the next boundary; a dispatch-end with no outcome reads completed; the scope\'s fix cycles list like a slice\'s windows.', () => {
   const root = runOf('ends', [
     `${t(1)} scope main dispatch superdev:implementer f1 fix -`,
     `${t(2)} scope main dispatch-end superdev:implementer f1 stopped`,
@@ -94,11 +91,9 @@ const L = [
     `f2 scope ${t(4)} ${t(5)}`,
     `f3 scope ${t(6)} ${t(9)}`,
   ], 'a stopped end, a missing end, and an end with no outcome each close at the next boundary, and an older dispatch line with no session field reads');
-}
+});
 
-// #readers: a resume or a fresh dispatch of a plan-time or brainstorm-time reader ends no run, where a slice-reviewer's
-// resume or dispatch at the same place does: neither reader bounds a window.
-{
+test('#readers: a resume or a fresh dispatch of a plan-time or brainstorm-time reader ends no run, where a slice-reviewer\'s resume or dispatch at the same place does: neither reader bounds a window.', () => {
   const lines = (reader) => [
     `${t(1)} 02 main dispatch ${reader} x1 read -`,
     `${t(2)} 02 main dispatch-end ${reader} x1 completed`,
@@ -128,10 +123,9 @@ const L = [
   for (const reader of ['superdev:slice-readiness-reviewer', 'superdev:intent-challenger', 'slice-readiness-reviewer', 'intent-challenger']) {
     assert.strictEqual(fresh(reader), `tu1 01 ${t(1)} open`, `a fresh ${reader} dispatch ends no run`);
   }
-}
+});
 
-// #none: a lite slice, with no implementer dispatch, says it has no window; refusals name their flag.
-{
+test('#none: a lite slice, with no implementer dispatch, says it has no window; refusals name their flag.', () => {
   const root = runOf('none', [
     `${t(1)} 03 main ledger slice 03 in-progress`,
     `${t(2)} 03 main edit impl lib.js`,
@@ -148,6 +142,5 @@ const L = [
   const wrongRoot = call(['windows', '--slice', '03', '--root', noLedger]);
   assert.ok(!wrongRoot.ok && wrongRoot.err === `windows: "${noLedger}" holds no ledger.md, so it is no run root`,
     `a root with no ledger is refused by name, never read as a lite slice: ${wrongRoot.err || wrongRoot.out}`);
-}
+});
 
-console.log('scope windows tests ok');
