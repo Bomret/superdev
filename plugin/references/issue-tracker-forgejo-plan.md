@@ -61,7 +61,8 @@ dependencies endpoint, so the slice-level and feature-level relations never coll
 
 Operator configuration, not a slice field (`assignee.md` → *Assignee*). The identifier is a Forgejo
 **login**, read from `.superdev/info.json` under `issue-tracker.assignee`, and applied to the **epic and
-every slice** in `tea issues create`'s `-a`, never a follow-up pass.
+every slice** in `tea issues create`'s `-a`. The claim `/superdev:implement` writes later is the one
+follow-up write (`assignee.md` → *Claim*).
 
 ```json
 {
@@ -70,8 +71,8 @@ every slice** in `tea issues create`'s `-a`, never a follow-up pass.
 ```
 
 - `tea issues create -a` takes a comma-separated list: pass the single configured login as `-a <login>`.
-- **No file, no `issue-tracker` key, or no `assignee`** → use the resolved login's `user` field from
-  `tea login list -o json`.
+- **No file, no `issue-tracker` key, or no `assignee`** → use the login `docs/agents/issue-tracker.md` →
+  *Claim* **Resolve the operator** returns.
 - **`"assignee": "none"`** → omit `-a` entirely. No warning, no error.
 - **A login that does not exist or is not a collaborator rejects the whole create**: `422 Assignee does
   not exist` or `422 canBeAssigned` (`ErrUserDoesNotHaveAccessToRepo`). Retry that one create with `-a`
