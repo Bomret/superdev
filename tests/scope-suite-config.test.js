@@ -9,8 +9,11 @@ const path = require('node:path');
 const { scopePath, call, gitOut: g, head, commitAll, fixtureRepo } = require('./scope-setup');
 const { appendTrace } = require(scopePath);
 
+// A carry refuses a change to verification.md only where its run configuration differs between the two commits a carry
+// leg judges: the full and focused commands as written, the whole-repo command, the prepare command, the test-path
+// entries, and the complete-selector declaration.
 // Prose and every other section carry.
-test('suite reusable: the run configuration (ADR 0230, INV-0017) A carry refuses a change to verification.md only where its run configuration differs between the two commits a carry leg judges: the full and focused commands as written, the whole-repo command, the prepare command, the test-path entries, and the complete-selector declaration.', () => {
+test('suite reusable: the run configuration (ADR 0230, INV-0017)', () => {
   const { encodePaths } = require('../plugin/lib/trace-log.js');
   const callIn = (argv, cwd) => call(argv, '', cwd);
   const vRel = 'docs/agents/verification.md';
