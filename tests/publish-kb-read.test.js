@@ -5,13 +5,10 @@
 // backend spawn and derives its hang bound from it (`hangBound()` in tests/publish-kb-setup.js,
 // AGENTS.md, ADR 0086).
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
-const { cleanup, publishKbPath, hangBound, makeRepo, commandsDoc, writeKbDoc, call, withState, setKbTimeout, hangingVerbDoc } = require('./publish-kb-setup');
-
-after(cleanup);
-
+const { publishKbPath, hangBound, makeRepo, commandsDoc, writeKbDoc, call, withState, setKbTimeout, hangingVerbDoc } = require('./publish-kb-setup');
 const { hashBody } = require(publishKbPath);
 
 // The bound the read-timeout case below runs under, taken from this run's own healthy spawns.

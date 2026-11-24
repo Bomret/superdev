@@ -6,11 +6,10 @@
 // are in tests/publish-kb-parent-link-hang-delete.test.js. No case here hangs a backend verb, so the file times
 // no spawn. Shared fixtures live in tests/publish-kb-setup.js.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const {
-  cleanup,
   makeRepo,
   commandsDoc,
   writeKbDoc,
@@ -29,8 +28,6 @@ const {
   stageDelete,
   HOME_WITH_CHILD,
 } = require('./publish-kb-setup');
-
-after(cleanup);
 
 for (const [what, live, eols] of [['a live page', { Child: { id: 'id-child', body: 'c\n' } }, ['\n', '\r\n']], ['an already absent page', {}, ['\n']]]) {
   // which lines go and which stay is proven in-process in tests/publish-kb-parent-link-pure.test.js; one case each

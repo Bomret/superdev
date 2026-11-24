@@ -10,11 +10,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const childProcess = require('node:child_process');
-const { cleanup, makeRepo, commandsDoc, writeKbDoc, call, withState, publishKbPath, cliBound } = require('./publish-kb-setup');
+const { makeRepo, commandsDoc, writeKbDoc, call, withState, publishKbPath, cliBound } = require('./publish-kb-setup');
 const { assertSpawnDecided } = require('./spawn-verdict');
-
-after(cleanup);
-
 const { checkGate } = require('../plugin/lib/kb-gate.js');
 
 // A staged page written by hand, so no scope branch exists for it.

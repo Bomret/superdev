@@ -5,12 +5,11 @@
 // existing link shapes count as the page's link, a `links.` bullet read as `links`, and the patch and republish routes. No case here hangs a
 // backend verb, so the file times no spawn. Shared fixtures live in tests/publish-kb-setup.js.
 
-const { test, after } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  cleanup,
   publishKbPath,
   makeRepo,
   writeKbDoc,
@@ -27,9 +26,6 @@ const {
   putHome,
   stagePatchLinked,
 } = require('./publish-kb-setup');
-
-after(cleanup);
-
 const { hashBody } = require(publishKbPath);
 
 for (const eol of ['\n', '\r\n']) {

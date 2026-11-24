@@ -7,10 +7,7 @@ const { test, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { cleanup, publishKbPath, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
-
-after(cleanup);
-
+const { publishKbPath, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
 const { parseStagedPage } = require(publishKbPath);
 const { markStagedCreate, restageLiveHash } = require('../plugin/lib/kb-staged-page.js');
 const { renderReport } = require('../plugin/lib/kb-report.js');

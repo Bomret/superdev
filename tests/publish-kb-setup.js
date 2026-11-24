@@ -10,9 +10,10 @@
 // function: the contract under test is what publish-kb.js does to a real `sh -c` child
 // process, so the module under test needs no seam of its own to make that observable.
 //
-// `cleanup()` removes every directory `makeRepo`, `withState`, `withCapture`, and `freshFindDoc` made in
-// this process, and nothing else: it walks its own registry and never lists the temporary directory, which
-// suites running side by side share. Each suite that calls one of those helpers registers `after(cleanup)`.
+// Every directory `makeRepo`, `withState`, `withCapture`, and `freshFindDoc` make is removed when the process
+// exits, as `templateOnce` removes its template (tests/fixture-git.js), so a suite that calls them registers
+// nothing for their cleanup. The removal walks this module's own registry and never lists the temporary
+// directory, which suites running side by side share.
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
@@ -29,23 +30,22 @@ const { run } = require(publishKbPath);
 
 const FAKE_BACKEND = require.resolve('./fixtures/fake-kb-backend.js');
 
-// Every directory a fixture helper below made in this process, for `cleanup()` to remove.
+// Every directory a fixture helper below made in this process. One exit listener removes them all: a listener per
+// directory would pass Node's limit of 10 listeners per event and print a MaxListenersExceededWarning.
 const made = [];
 const record = (dir) => {
   made.push(dir);
   return dir;
 };
-
-// Removes each recorded directory, one failed removal skipping none of the rest, and empties the registry.
-function cleanup() {
-  for (const dir of made.splice(0)) {
+process.on('exit', () => {
+  for (const dir of made) {
     try {
       fs.rmSync(dir, { recursive: true, force: true });
     } catch {
-      // A directory that cannot be removed leaves the others to remove.
+      // A directory that cannot be removed leaves the others to remove, and a throw here would change the exit code.
     }
   }
-}
+});
 
 // The bound every hanging-verb block runs under, taken from this run rather than fixed (AGENTS.md,
 // ADR 0086). `hangingVerbDoc` hangs one verb and leaves every other verb a real `node` spawn of the fake
@@ -278,7 +278,6 @@ const stageDelete = (repo, title = 'Child') =>
 const HOME_WITH_CHILD = HOME.replace('- [B](B)\n', '- [B](B)\n- [Child](Child) — desc\n');
 
 module.exports = {
-  cleanup,
   shq,
   PATCH_VERBS,
   LINKS_LINE,
