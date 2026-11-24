@@ -20,7 +20,7 @@ _Avoid: "mode", "strategy", "level", "route", "path"_
 **Scope**: a feature's scope branch and all its run artifacts (the `.superdev/scopes/<scope>/` directory, holding the DoD, the ledger, progress logs, and the scopetree or slicetrees). Scope is the namespace that lets multiple features' runs execute in parallel without colliding. `.superdev/` also holds non-scope areas nested outside `scopes/`, for example `.superdev/brainstorm/`. `/status` only scans `.superdev/scopes/*/`, so a sibling area can never be mistaken for a run root.
 _Avoid: "run", "branch", "feature branch" (too generic)_
 
-**Scope branch**: the `<type>/<scope>` branch a feature's work lands on, named by its feature label. `/superdev:plan` cuts it into the scopetree, and every slice merges into it (ADR 0079). The ledger's `**Branch:**` line records it, and a reader resolves it from there rather than rebuilding the name. No superdev command commits to the base branch in its place (INV-0001); `/superdev:setup`'s push offer, which carries only configuration, is the one exception besides ship's merge (ADR 0282).
+**Scope branch**: the `<type>/<scope>` branch a feature's work lands on, named by its feature label. `/superdev:plan` cuts it into the scopetree, and every slice merges into it (ADR 0079). The ledger's `**Branch:**` line records it, and a reader resolves it from there rather than rebuilding the name. No superdev command commits to the base branch in its place (INV-0001).
 _Avoid: "feature branch", "work branch"_
 
 **Base branch**: the branch a scope branch is cut from and its pull request targets, named in `docs/agents/code-management.md`. Containment is tested against it, except by `hooks/scope-prune.js`, which tests against `HEAD`.
