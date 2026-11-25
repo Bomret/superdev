@@ -821,7 +821,7 @@ Paths: plugin/skills/ship/**, plugin/references/deployment.md, plugin/skills/ver
 
 Class: process
 Concepts: Deploy posture, Deploy target, Scope anchor, Definition of Done (DoD), Stage
-Statement: After the merge, only `/superdev:wrap-up` closes a scope anchor. It closes one only when the pull request has merged, every Definition-of-Done criterion is a settled line, noted `met:` or `accepted:`, and every deploy target listed on the anchor is recorded `deployed`. A failed close changes neither the stage nor the run's scaffolding. A failed `auto` target keeps the anchor open, and a later ship resumes at the first target not yet deployed (ADR 0101, ADR 0106).
+Statement: After the merge, only `/superdev:wrap-up` closes a scope anchor. It closes one only when the pull request has merged, every Definition-of-Done criterion is a settled line, noted `met:` or `accepted:`, and every deploy target listed on the anchor is recorded `deployed`. A failed close changes neither the stage nor the run's scaffolding. A failed `auto` target keeps the anchor open, and a later ship resumes at the first target not yet deployed. On a shared anchor, a repository's wrap-up closes its own slices and closes the anchor only once every slice in every repository is closed and every Definition-of-Done line on the anchor is settled; otherwise it leaves the anchor open and writes no verdict on a sibling's line (ADR 0101, ADR 0106, ADR 0285).
 Breaks: silently
 Check: `tests/scope-ledger.test.js` for the ledger's deploy record; final-reviewer's invariant compliance judges ship's stop and wrap-up's close gate
 Paths: plugin/skills/ship/**, plugin/scripts/scope.js, plugin/lib/ledger-records.js, plugin/skills/wrap-up/**
@@ -1192,7 +1192,7 @@ Paths: plugin/references/store-records.md, plugin/references/scope-mode.md, plug
 
 Class: process
 Concepts: Absorbed triage record, Triage record, Scope anchor
-Statement: `/superdev:plan` absorbs a triage record only when the operator picks it. Only `/superdev:wrap-up` closes an absorbed record, and only once its citing criterion's verdict is met or the operator chose to close it. A run that resolves a deferred finding closes only a record whose provenance names its own scope anchor and that no open scope anchor absorbs, and a read of the record or of an Absorbs line that fails or is denied leaves the record open (ADR 0144, ADR 0145).
+Statement: `/superdev:plan` absorbs a triage record only when the operator picks it. Only `/superdev:wrap-up` closes an absorbed record, and only once its citing criterion's verdict is met or the operator chose to close it. On a shared anchor, a repository's wrap-up closes an absorbed record only when its citing criterion is that repository's own line, and the wrap-up that closes the anchor closes every absorbed record still open by the same verdict rule, reading a sibling's line from the anchor body (ADR 0285). A run that resolves a deferred finding closes only a record whose provenance names its own scope anchor and that no open scope anchor absorbs, and a read of the record or of an Absorbs line that fails or is denied leaves the record open (ADR 0144, ADR 0145).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-*.md, plugin/references/implement-full.md, plugin/references/implement-full-fix-cycle.md
