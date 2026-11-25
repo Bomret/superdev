@@ -39,8 +39,19 @@ const { maskFencedLines } = require('./md-sections.js');
 // `accepted` is the fourth verdict (ADR 0095): an operator's own decision that an unmet criterion stands
 // accepted as unmet. It renders unticked, exactly like `not-met` and `ceiling` — the box never lies about
 // what got verified — with its own `accepted:` label on the note.
+//
+// On a shared anchor (ADR 0285) a `scope` or `docs` tag names its owner's Repository component, `scope (<component>)`
+// or `docs (<component>)`, the component non-empty and holding no `,`, `(`, or `)`. `plainTag` reads either form as
+// its plain `scope` or `docs`.
 const DOD_TAG_TOKEN = '(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+)';
-const DOD_TAG_PATTERN = `(?:scope|docs|${DOD_TAG_TOKEN}(?:,\\s*${DOD_TAG_TOKEN})*)`;
+const DOD_QUALIFIED_TAG = '(?:scope|docs) \\([^,()\\n\\r]+\\)';
+const DOD_TAG_PATTERN = `(?:${DOD_QUALIFIED_TAG}|scope|docs|${DOD_TAG_TOKEN}(?:,\\s*${DOD_TAG_TOKEN})*)`;
+const QUALIFIED_TAG_RE = /^(scope|docs) \(([^,()\n\r]+)\)$/;
+
+function plainTag(tag) {
+  const m = QUALIFIED_TAG_RE.exec(tag);
+  return m ? m[1] : tag;
+}
 const DOD_VERDICTS = {
   met: { marker: 'x', label: 'met' },
   'not-met': { marker: ' ', label: 'not met' },
@@ -172,16 +183,26 @@ function dodCriterionLines(text, source, verb) {
 // above) — `--line` mode's one-line input carries no heading, so it is unaffected. Refuses, changing
 // nothing, on zero or on two-or-more matching lines; a line offering two matching readings (C.1 above)
 // still counts once toward that limit.
-function transformDodLines(lines, match, verdict, note) {
+//
+// `tagMatch`, given, also holds a reading to its tag: `tag` the wanted tag text (empty for an untagged line), and
+// `component`, given, the run's own Repository component, under which `scope` and `scope (<component>)` count as one
+// tag, and so do `docs` and `docs (<component>)`.
+function transformDodLines(lines, match, verdict, note, tagMatch) {
   const masked = maskFencedLines(lines, 'dod-line input', 'edited');
   const wanted = collapseWhitespace(match);
   const range = dodSectionRange(masked);
   const lo = range ? range.start : 0;
   const hi = range ? range.end : lines.length;
+  const ownTag = (tag) => {
+    const t = collapseWhitespace(tag);
+    const m = QUALIFIED_TAG_RE.exec(t);
+    return tagMatch.component !== undefined && m && m[2] === tagMatch.component ? m[1] : t;
+  };
+  const tagOk = (r) => !tagMatch || ownTag(r.tag) === ownTag(tagMatch.tag);
   const hits = [];
   for (let i = lo; i < hi; i += 1) {
     const readings = parseDodLineReadings(masked[i]);
-    const reading = readings.find((r) => collapseWhitespace(r.criterion) === wanted);
+    const reading = readings.find((r) => collapseWhitespace(r.criterion) === wanted && tagOk(r));
     if (reading) hits.push({ index: i, reading });
   }
   if (hits.length === 0) fail(`no checklist line matches criterion "${match}"`);
@@ -212,6 +233,8 @@ function verbDodLine(args, stdinRaw) {
   const matchFile = takeOption(args, '--match-file');
   const verdict = takeOption(args, '--verdict');
   const noteFile = takeOption(args, '--note-file');
+  const tagFile = takeOption(args, '--tag-file');
+  const component = takeOption(args, '--component');
   const lineIdx = args.indexOf('--line');
   const lineMode = lineIdx >= 0;
   if (lineMode) args.splice(lineIdx, 1);
@@ -220,6 +243,8 @@ function verbDodLine(args, stdinRaw) {
   if (args.includes('--note')) fail('dod-line reads the note from a file: give --note-file <path>');
 
   if (args.length) fail(`dod-line takes no argument "${args[0]}"`);
+  if (component !== undefined && tagFile === undefined) fail('dod-line --component needs --tag-file <path>');
+  if (component !== undefined && !component.trim()) fail('dod-line --component needs a component name');
   if (matchFile === undefined) fail('dod-line needs --match-file <path>');
   const resolvedMatch = readOptionFile('--match-file', matchFile);
   if (!resolvedMatch) fail('dod-line needs --match-file <path> to hold the criterion text');
@@ -236,13 +261,15 @@ function verbDodLine(args, stdinRaw) {
     ? resolvedNote.slice(ownLabel.length).trimStart()
     : resolvedNote;
 
+  const tagMatch = tagFile === undefined ? null : { tag: readOptionFile('--tag-file', tagFile), component };
+
   if (lineMode) {
     const line = stdinRaw.replace(/\r?\n$/, '');
-    const [out] = transformDodLines([line], resolvedMatch, verdict, noteText);
+    const [out] = transformDodLines([line], resolvedMatch, verdict, noteText, tagMatch);
     console.log(out);
     return;
   }
-  const out = transformDodLines(splitLines(stdinRaw), resolvedMatch, verdict, noteText);
+  const out = transformDodLines(splitLines(stdinRaw), resolvedMatch, verdict, noteText, tagMatch);
   // process.stdout.write, not console.log: console.log always appends its own trailing newline, which
   // would double up on the one splitLines/join already reproduce when stdinRaw itself ended in one.
   process.stdout.write(out.join('\n'));
@@ -256,5 +283,5 @@ function dodLineHasNote(line) {
 
 module.exports = {
   verbDodLine, parseDodLineReadings, dodLineHasNote, collapseWhitespace, dodSectionRange, dodCriterionLines, readOptionFile,
-  DOD_LINE_RE, DOD_NO_NOTE_TAG_RE,
+  plainTag, DOD_LINE_RE, DOD_NO_NOTE_TAG_RE, QUALIFIED_TAG_RE,
 };

@@ -148,3 +148,14 @@ test('A citation quoted inside an untagged line\'s note is no citation: the line
   assert.strictEqual(r.out, '');
 });
 
+
+test('A malformed qualified tag is refused with its line named; a well-formed one passes.', () => {
+  for (const bad of ['scope ()', 'scope (A, B)', 'scope (A (x))']) {
+    r = call(['dod-check'], body(null, `- [ ] it holds — ${bad}`));
+    assert.deepStrictEqual(refusal(r), [`malformed qualified tag "${bad}": - [ ] it holds — ${bad}`]);
+  }
+  r = call(['dod-check'], body(null, '- [ ] it holds — docs () — met: seen'));
+  assert.deepStrictEqual(refusal(r), ['malformed qualified tag "docs ()": - [ ] it holds — docs () — met: seen']);
+  r = call(['dod-check'], body(null, '- [ ] it holds — scope (Billing API)').replace(' — scope\n', ' — scope (Billing API)\n'));
+  assert.ok(r.ok, 'a body tagged scope (Billing API) passes: ' + (r.err || ''));
+});

@@ -7,20 +7,21 @@ const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
-const { parseDodLineReadings, dodCriterionLines } = require('./dod-line.js');
+const { parseDodLineReadings, dodCriterionLines, plainTag } = require('./dod-line.js');
 
 // The citation `/superdev:verify-ship` ends a `not met:` note with (references/shipped-run.md's `## Routing a shipped run`).
 const OBSERVED_RE = /\(observed(?:; after ([^)]*))?\)$/;
 
 // One criterion line as dod-line.js reads it: the first reading's criterion, tag, note verdict, and note. `not met` prints
-// as `not-met`, the spelling of dod-line's own `--verdict`. `cited` holds the keys an observed note's citation names.
+// as `not-met`, the spelling of dod-line's own `--verdict`, and a qualified `scope (<component>)` or `docs (<component>)`
+// tag as its plain `scope` or `docs`. `cited` holds the keys an observed note's citation names.
 function readCriterion(line) {
   const [reading] = parseDodLineReadings(line);
   const label = reading.verdict ? reading.verdict.replace(' ', '-') : 'none';
   const observed = label === 'not-met' ? OBSERVED_RE.exec(reading.note) : null;
   return {
     criterion: reading.criterion.trim(),
-    tag: reading.tag,
+    tag: plainTag(reading.tag),
     label,
     settled: label === 'met' || label === 'accepted',
     citation: observed !== null,
