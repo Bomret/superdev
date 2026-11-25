@@ -21,8 +21,8 @@ repository's own listing, read through the store's call that lists an anchor's s
   unqualified `scope` or `docs` line, an untagged line, or a line naming slices of two repositories) stops run init,
   which names the line to fix on the anchor. Pairing, the anchor sync, and ticks iterate `dod.md`, so they never
   touch a sibling's line. No verdict marks a line as owned elsewhere.
-- **Run state stays as it is.** Only a store with a Repository component can hold a shared anchor, and the one such
-  store, Jira, is snapshot-less, so no two repositories publish a snapshot to one anchor.
+- **Run state stays as it is.** Only a store with a Repository component can hold a shared anchor, and the store that
+  has one today, Jira, is snapshot-less, so no two repositories publish a snapshot to one anchor.
 - **The anchor closes last.** `/superdev:wrap-up` on a shared anchor closes its own repository's slices. It closes
   the anchor only when every slice in every repository is closed and every line on the anchor is settled.
   Otherwise it leaves the anchor open and names what remains.

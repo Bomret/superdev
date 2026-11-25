@@ -634,12 +634,13 @@ instead, for the Jira seed's ADF text node, which is JSON, not markdown lines. A
 <criterion>[ — <tag>][ — <verdict>: <note>]` (`plan-contract.md`'s line format) — the tag absent on a
 single-slice feature's own DoD or one untagged line inside an
 otherwise-tagged DoD; `--line` mode accepts the same line with no leading `- `, the shape a Jira text
-node's own string carries. The tag — slice ids (`01`, `01, 02`), store refs (`#667`, `#672, #673`), the
-literal `scope` or `docs`, each standing alone (ADR 0161), or on a shared anchor the qualified `scope (<component>)` or
-`docs (<component>)`, its component non-empty and holding no `,`, `(`, or `)` (ADR 0285) — and any verdict note past it are parsed off the line's *right* end, greedily handing
+node's own string carries. The tag — slice ids (`01`, `01, 02`), store refs (`#667`, `#672, #673`), or the
+literal `scope` or `docs`, each standing alone (ADR 0161) — and any verdict note past it are parsed off the line's *right* end, greedily handing
 everything before that to the criterion, which is what keeps a criterion carrying its own " — "
 (`plan-authoring.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope") intact
-instead of splitting at its first dash. An untagged criterion that merely ends in something shaped like a
+instead of splitting at its first dash. On a shared anchor the tag may be the qualified `scope (<component>)` or
+`docs (<component>)` (ADR 0285). The component is non-empty and holds no `,`, `(`, `)`, or ` — `, because `dod-check`'s
+form check reads only a line's rightmost ` — ` segment and cannot see a malformed tag whose component holds one. An untagged criterion that merely ends in something shaped like a
 tag (`- [ ] Retries capped — 3`) offers a second reading alongside the rightmost-tag one — the whole line,
 untagged — and a line matches when either reading's criterion equals the `--match-file` text (triage #679); a genuinely
 tagged line still parses its tag as before. The same offer reaches a line that already carries a note
