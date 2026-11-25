@@ -30,6 +30,17 @@ where one performs the operation, `tea api` where none does.
 - **Read**: `tea pr <index> --login <login> --repo <owner>/<repo> -o json`.
 - **Report**: the URL `tea pr create` prints.
 
+## Commit messages
+
+The repository's commit convention, filled in at setup and owned by the operator. Every commit, merge commit, and
+pull-request title superdev writes here follows it (`references/commit-messages.md`).
+
+- **Rule**: Conventional Commits. A header `type(scope): subject`, the type the kind of change, the scope the feature's
+  slug, the subject in the imperative; a body where the change needs one.
+- **Commit**: `test(lite-perf): cover the tier switch at four behavior slices`
+- **Merge commit**: `feat(lite-perf): merge slice/lite-perf/02`, its body naming the merged branch or commit.
+- **Pull-request title**: `feat(lite-perf): size the execution tier by behavior slices`
+
 ## Degrade when no tea login
 
 Do not fall back to a token or a raw HTTP call (curl). No `tea` or `jq` on the path, or no `tea login list -o json` entry

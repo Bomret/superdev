@@ -86,6 +86,10 @@ Applies to every start. You write the per-repo config documents the superdev ski
 
 **No gap.** Applies to a difference of these kinds: a renamed heading, a filled-in value where the seed carries a placeholder, setup-facing instruction text, and a section only the document carries. List none of them as a gap. A document with no seed gap says so.
 
+- The rule and examples under a code-management document's `## Commit messages` are filled-in values: the operator owns them, and no seed rule there is compared word for word.
+
+**The commit-messages heading.** Applies to a code-management seed's `## Commit messages`, an exception to **No gap**'s renamed heading. Writers read only that literal heading (`references/commit-messages.md`), so a matching commit rule under another heading is a seed gap: offer to move it under `## Commit messages`. A document with no commit rule at all lacks the section, and its gap is applied by decision B's **The commit convention**.
+
 **`## Seed deviations`.** Applies to a document carrying the section, the document's record of a gap the operator declined. Each bullet is `- Seed deviation: <seed section or rule, as the seed names it> — <the operator's reason> (<YYYY-MM-DD>)`. List a gap a bullet names as `recorded`, with the bullet's reason.
 
 - A bullet never takes a configuration-key shape (`- **Backend:**`, `- **Body format:**`), because `scripts/publish-kb.js` matches those anywhere in `knowledge-base.md`.
@@ -196,6 +200,28 @@ Applies to the full interview. Scan these before any decision:
 **The push bound.** Applies when the operator asks for a push bound other than 60000 milliseconds. Write `code-host.pushTimeoutMs` by an operator-file write (`assignee.md` → *Assignee*).
 
 - An operator naming no bound gets no key.
+
+**The commit convention.** Applies to every code host, after posture and base. Propose the repository's **Commit
+convention** (`CONTEXT.md`) from **The convention evidence**: one prose rule, plus one example each for a commit, a
+merge commit, and a pull-request title. Write it as the `## Commit messages` section of `code-management.md`, which
+`references/commit-messages.md` reads, and write only the rule the operator confirms or edits.
+
+- **Conflicting evidence**, such as a commitlint config and recent subjects that disagree, is shown side by side with
+  where each came from, and the operator picks or edits.
+- **No evidence**, or a repository with no commit, proposes Conventional Commits, the seed's own rule and examples.
+- **An Other host** writes the section too, from the same proposal.
+
+**The convention evidence.** Applies to **The commit convention**. Read each source below that exists, and run no
+hook. A shallow clone, or one with fewer commits, works from what it has.
+
+- **commitlint configs**: `commitlint.config.{js,cjs,mjs,ts,cts,mts}`, `.commitlintrc` and `.commitlintrc.{json,yaml,yml,js,cjs,mjs,ts}`, and a `commitlint` key in `package.json`.
+- **commit-msg hooks**: `.husky/commit-msg`, `lefthook.yml`, `lefthook.yaml`, and `.lefthook.yml`, a
+  `.pre-commit-config.yaml` hook at the `commit-msg` stage, a `simple-git-hooks` key in `package.json`, the directory
+  `git config core.hooksPath` names, the file `git rev-parse --git-path hooks/commit-msg` names (a linked worktree's
+  included), and every config-based hook whose `hook.<name>.event` is `commit-msg`, read with `git config
+  --get-regexp '^hook\..*\.event$'`.
+- **recent subjects**: `git log --no-merges -n 50 --format=%s`, leaving out a subject that carries `[skip ci]` (a
+  release bot's) and ignoring a trailing ` (#<n>)` a host's squash merge appends.
 
 ### C — Documentation (in-repo)
 
@@ -397,7 +423,8 @@ Applies to the full interview. Scan these before any decision:
 
 - `issue-tracker.md`: the chosen seed with the specifics filled in, or the user's prose for Other.
 - `issue-tracker-plan.md`: the chosen backend's `-plan` seed with the same specifics filled in. For Other, the part of the user's prose that creates issues, records dependencies, and assigns them.
-- `code-management.md`: the same, from the chosen host seed.
+- `code-management.md`: the same, from the chosen host seed, its `## Commit messages` holding decision B's confirmed
+  commit convention.
 - `documentation.md`: from `references/documentation.md`, or the user's convention as prose. It always carries `## Writing standard` with decision C's answer, `none` included. It carries `## Audit set` only when decision C named documentation outside the default tree.
 - `knowledge-base.md`: the chosen KB seed filled in, or the Other prose. **None** writes a one-line file stating there is no separate KB, or skips the file. A remote backend carries decision D's `## Commands`, written only once the probes passed, with a re-run's verbs per **A re-run's templates**.
 - `toolchain.md`: decision F's profile, by **The toolchain document**.
@@ -565,15 +592,16 @@ The focused command selects every test a changed path can affect.
 
 **The push offer.** Applies at the end of every run where `git status --porcelain --untracked-files=all` lists at least one path setup wrote this run: a `docs/agents/*.md` document, the root file holding the `## Agent skills` block, `.gitignore`, or the verify skill. Those listed paths are the **offer paths**. Ask with `AskUserQuestion`, listing each offer path, and offer the choices below. `<remote>` is the `Remote:` value of `docs/agents/code-management.md`. With no `Remote:` value, offer only **Leave uncommitted** and say no remote is configured.
 
-- **Push to a new branch** `(Recommended)`. Run `git fetch <remote> <base>`, then cut `superdev-setup` from `<remote>/<base>` in a temporary worktree outside the checkout: `git worktree add "$(mktemp -d)/wt" -b superdev-setup <remote>/<base>`, with a numeric suffix on the branch when that name exists locally or on `<remote>`. Copy each offer path into the worktree, commit there, push with `-u <remote> <branch>`, then `git worktree remove` it. The invoking checkout is never switched, and the files stay in its working tree. Say that `/superdev:implement` reads the configuration from the remote base, so the branch lands there through the operator's usual route, such as a pull request, before the first run.
+- **Push to a new branch** `(Recommended)`. Run `git fetch <remote> <base>`, then cut `superdev-setup` from `<remote>/<base>` in a temporary worktree outside the checkout: `git worktree add "$(mktemp -d)/wt" -b superdev-setup <remote>/<base>`, with a numeric suffix on the branch when that name exists locally or on `<remote>`. Copy each offer path into the worktree, commit there, push with `-u <remote> <branch>`, then `git worktree remove` it once the commit stands. The invoking checkout is never switched, and the files stay in its working tree. Say that `/superdev:implement` reads the configuration from the remote base, so the branch lands there through the operator's usual route, such as a pull request, before the first run.
 - **Push to the current branch.** Offered only when `HEAD` is a branch. Commit in the invoking checkout and push with `-u <remote> <branch>`, the base branch included (INV-0001, ADR 0282). When that branch is not the base branch decision B confirmed, say the same as for a new branch.
 - **Leave uncommitted.** Write nothing more, and say the files stay in the working tree.
 
-**The commit.** Applies to both push choices. The commit holds the offer paths alone, with the message `chore(setup): configure superdev`. Commit with an explicit pathspec, `git commit -m "chore(setup): configure superdev" -- <paths>`, so nothing the index already holds joins it. The operator file stays out of it.
+**The commit.** Applies to both push choices. The commit holds the offer paths alone, and the operator file stays out of it. Its message follows the commit convention `references/commit-messages.md` reads from the `code-management.md` setup just wrote: the worktree's copy on a new branch, the checkout's on the current branch. Commit with the message file that reference states and an explicit pathspec, `git commit -F <file> -- <paths>`, so nothing the index already holds joins it.
 
 - **A file setup wrote only part of** (the root file holding the `## Agent skills` block, `.gitignore`) → diff it against the commit's parent: `git diff HEAD -- <path>` for the current branch, `git diff <remote>/<base> -- <path>` for a new branch. A hunk setup did not write is named to the operator, and the file joins the commit only on the operator's yes. Otherwise it stays out, and the report says so.
 - **The push** runs as `GIT_TERMINAL_PROMPT=0 git push …`, so a credential prompt fails at once. Pass the Bash tool's `timeout` set to `code-host.pushTimeoutMs` of the operator file, or 60000 milliseconds when unset, and at most the Bash tool's ceiling, 600000 milliseconds unless `BASH_MAX_TIMEOUT_MS` raises it.
-- **A failed commit or push** is reported with git's output. The commit stays local, and a new branch's worktree is removed with the branch kept.
+- **A refused commit**, a hook whose tooling the fresh worktree lacks included, is reported with git's output per `references/commit-messages.md`'s `## A refused commit or merge`, and never bypassed. The files stay uncommitted: in the checkout on the current branch, and in the worktree on a new branch, which is kept, not removed, with its path and the files in it named to the operator.
+- **A failed push** is reported with git's output. The commit stays local, and a new branch's worktree is removed with the branch kept.
 
 **Secrets.** Applies to every write. Record only env-var **names** for secrets, never token values. The operator file holds identifiers, display names, and time bounds only.
 

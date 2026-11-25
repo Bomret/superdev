@@ -24,14 +24,24 @@ authenticated through its own login (`gh auth status`): a subcommand where one p
   --body-file "$f"`, the body in the file `$f`, `title` set from a quoted heredoc
   (`title=$(cat <<'SUPERDEV_TEXT_EOF' … SUPERDEV_TEXT_EOF)`) so a backtick or `$(` in it stays literal. The
   `draft` override adds `--draft`. The body is built per `/superdev:submit-pr`'s body rules.
-- **The title must be a Conventional Commits header** (`type(scope): subject`, for example
-  `feat(implement): …`). PRs are **squash-merged**, so the title becomes the commit message on `main`, and
-  semantic-release parses it for the version bump and the changelog. A title without a conventional type
-  is silently ignored, and no release happens. A `draft` override is marked ready with
-  `gh pr ready <number> --repo Bomret/superdev` before merge.
+- **A `draft` override** is marked ready with `gh pr ready <number> --repo Bomret/superdev` before merge.
 - **Read the PR:** `gh pr view <number> --repo Bomret/superdev --json
   number,url,state,title,body,headRefName,headRefOid`.
 - **Report:** print the PR URL that `gh pr create` prints.
+
+## Commit messages
+
+Every commit, merge commit, and pull-request title superdev writes here follows this rule
+(`plugin/references/commit-messages.md`).
+
+- **Rule:** Conventional Commits. A header `type(scope): subject`, the type the kind of change, the scope the
+  feature's slug, the subject in the imperative; a body where the change needs one. PRs are **squash-merged**, so
+  the pull-request title becomes the commit message on `main`, and semantic-release parses it for the version bump
+  and the changelog. A title without a conventional type is silently ignored, and no release happens.
+- **Commit:** `test(merge-guard): cover a merge refused by the commit-msg hook`
+- **Merge commit:** `feat(commit-convention): merge slice/commit-convention/02`, its body naming the merged branch
+  or commit.
+- **Pull-request title:** `feat(implement): size the execution tier by behavior slices`
 
 ## Degrade when no gh login
 

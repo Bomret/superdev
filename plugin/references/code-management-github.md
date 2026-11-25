@@ -22,6 +22,17 @@ Code lives on GitHub. Use the `gh` CLI for push + pull requests. `gh` infers the
   body — never build a command line by concatenating a title/body that could carry `"`/`` ` ``/`$( )`.
 - **Report**: print the PR URL (`gh pr view --json url --jq .url`).
 
+## Commit messages
+
+The repository's commit convention, filled in at setup and owned by the operator. Every commit, merge commit, and
+pull-request title superdev writes here follows it (`references/commit-messages.md`).
+
+- **Rule**: Conventional Commits. A header `type(scope): subject`, the type the kind of change, the scope the feature's
+  slug, the subject in the imperative; a body where the change needs one.
+- **Commit**: `test(lite-perf): cover the tier switch at four behavior slices`
+- **Merge commit**: `feat(lite-perf): merge slice/lite-perf/02`, its body naming the merged branch or commit.
+- **Pull-request title**: `feat(lite-perf): size the execution tier by behavior slices`
+
 ## Degrade when `gh` is absent
 
 Do not fail. Push the branch, then print the compare URL
