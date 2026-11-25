@@ -8,6 +8,7 @@ const {
   scanAgentToolAgnostic,
   scanUnmappedPathsForms,
   scanNoForceMerge,
+  scanPrTitleHeredoc,
   scanConflictConclusionNoCommit,
   scanTeaOnly,
   scanGithubWikiGhOnly,
@@ -20,6 +21,8 @@ const {
   scanDodBoxRule,
   scanPluginRootQuoted,
   scanPluginPrefixPath,
+  scanMergeMessageRequired,
+  scanCommitFormatOwner,
 } = require('../scanners');
 
 module.exports = ({ assert, path, fixture, found }) => {
@@ -85,6 +88,29 @@ module.exports = ({ assert, path, fixture, found }) => {
     0,
     'a fenced caution is not an invocation',
   );
+
+  // --- pr-title-heredoc (ADR 0284) ---
+
+  const prTitle = (files) => found(scanPrTitleHeredoc(fixture(files)));
+  const inlineTitleGaps = prTitle({ 'references/code-management-github.md': '`gh pr create --base main --title "<title>" --body-file f`\n' });
+  assert.equal(inlineTitleGaps.length, 1, 'catches an inline `--title "<title>"`');
+  assert.match(inlineTitleGaps[0].expectation, /--title "<title>"/, 'the gap quotes the inline title');
+  assert.equal(
+    prTitle({ 'references/code-management-forgejo.md': 'tea pulls create\n  --title "feat: add it" --description-file -\n' }).length,
+    1,
+    'catches an inline literal title after a line break',
+  );
+  assert.equal(prTitle({ 'docs/agents/code-management.md': '```sh\ngh pr create --title=$title\n```\n' }).length, 1, 'catches a fenced unquoted `$title`');
+  assert.equal(
+    prTitle({
+      'references/code-management-github.md': '`gh pr create --title "$title" --body-file <file>`\n',
+      'references/code-management-forgejo.md': '`tea pulls create\n  --title "${title}" --description-file -`\n',
+      'docs/agents/code-management.md': 'pass `--title "$title"`, set from a quoted heredoc; the `--title` flag takes it\n',
+    }).length,
+    0,
+    'a quoted `$title` or `${title}`, and a bare `--title` mention, pass',
+  );
+  assert.equal(prTitle({ 'references/code-management-github.md': '`gh pr create --title "$title-x"`\n' }).length, 1, 'a quoted variable with text after it is inline text');
 
   // --- conflict-conclusion-no-commit (ADR 0123) ---
 
@@ -664,6 +690,78 @@ module.exports = ({ assert, path, fixture, found }) => {
     }).map((gap) => gap.source).sort(),
     ['agents/implementer.md', 'references/AGENTS.md', 'skills/ship/SKILL.md'],
     'plugin-root-quoted: references/AGENTS.md, an agent, and a skill are each read',
+  );
+
+  // --- merge-message-required: every local merge commit shipped prose instructs carries a message (INV-0209) ---
+
+  const mergeGaps = (files) => found(scanMergeMessageRequired(fixture(files)));
+  for (const [text, label] of [
+    ['Run `git merge <ref>`.\n', 'a bare git merge <ref>'],
+    ['Run `git merge --no-ff slice/s/01`.\n', 'a --no-ff merge'],
+    ['Run `git -C <run-root>/scopetree merge <tip>`.\n', 'a -C <path> merge'],
+    ['```sh\ngit -C "$tree" merge "$sha"\n```\n', 'a fenced merge'],
+    ['Run `git -C <run-root>/scopetree\nmerge --no-ff <branch>`.\n', 'a merge wrapped across a line break'],
+    ['Run `git -c x.y=z merge <ref>`.\n', 'a -c <key=value> merge'],
+  ]) {
+    assert.equal(mergeGaps({ 'references/scope-branch.md': text }).length, 1, `merge-message-required: flags ${label}`);
+  }
+  assert.equal(
+    mergeGaps({ 'references/implement-full.md': 'First `git merge <a>`, then `git merge --no-ff <b>`, then `git -C <t> merge <c>`.\n' }).length,
+    3,
+    'merge-message-required: every hit in one document is reported',
+  );
+  assert.equal(
+    mergeGaps({
+      'references/merge-conflicts.md':
+        'Run `git merge-base <a> <b>`, `git merge-tree --write-tree <a> <b>`, `git merge --abort`, ' +
+        '`git -c commit.cleanup=scissors -C <t> merge --continue`, `git merge --quit`, `git merge --ff-only <base>`, ' +
+        '`gh pr merge <n> --squash`, `tea pr merge <n>`, `scope.js route --merge`, and `scope.js dod-merge`.\n',
+      'references/scope-branch.md':
+        'Run `git -C <t> merge --no-ff -F <file> <ref>`, `git merge -m "<message>" <branch>`, ' +
+        '`git merge --message=<m> <ref>`, `git merge --file <f> <ref>`, and `git log --no-merges`.\n',
+    }).length,
+    0,
+    'merge-message-required: the exemptions and a merge carrying -m, --message, -F, or --file pass',
+  );
+  assert.equal(
+    mergeGaps({
+      'skills/review/SKILL.md': '- `git merge`, `git push`, `git rebase`, `git pull`, or `git subtree push`;\n',
+      'agents/doc-reader.md': 'A hook blocks `git merge`, `push`, `rebase`, and `pull`.\n',
+      'agents/simplicity-reviewer.md': 'A hook blocks `git merge`, `push`, and `rebase`.\n',
+    }).length,
+    0,
+    'merge-message-required: a git merge mention naming no ref, the hook-blocked lists, passes',
+  );
+  assert.deepEqual(
+    mergeGaps({
+      'references/AGENTS.md': 'Run `git merge <ref>`.\n',
+      'agents/implementer.md': 'Run `git merge <ref>`.\n',
+      'skills/ship/SKILL.md': 'Run `git merge <ref>`.\n',
+    }).map((gap) => gap.source).sort(),
+    ['agents/implementer.md', 'references/AGENTS.md', 'skills/ship/SKILL.md'],
+    'merge-message-required: references/AGENTS.md, an agent, and a skill are each read',
+  );
+
+  // --- commit-format-owner: no shipped writer prose fixes the commit format (ADR 0284) ---
+
+  const formatGaps = (files) => found(scanCommitFormatOwner(fixture(files)));
+  for (const [text, label] of [
+    ['Commit on your branch (Conventional Commits).\n', 'the parenthetical'],
+    ['Commit on your branch (Conventional\nCommits).\n', 'a parenthetical wrapped across a line break'],
+    ['The title must be a Conventional Commits header.\n', 'a Conventional Commits header instruction'],
+    ['Write a Conventional Commits title for the pull request.\n', 'a Conventional Commits title instruction'],
+    ['Each commit takes a Conventional Commits message.\n', 'a Conventional Commits message instruction'],
+  ]) {
+    assert.equal(formatGaps({ 'agents/implementer.md': text }).length, 1, `commit-format-owner: flags ${label}`);
+  }
+  assert.equal(
+    formatGaps({
+      'references/scope-mode.md': '`<type>` is the **change type**: the Conventional Commits type of the work.\n',
+      'references/commit-messages.md': 'No section → the rule is Conventional Commits, as the seeds state it.\n',
+      'references/code-management-github.md': '## Commit messages\n\n- **Rule**: Conventional Commits. A header `type(scope): subject`.\n',
+    }).length,
+    0,
+    "commit-format-owner: a change-type definition, commit-messages.md's fallback, and a seed's rule pass",
   );
 
   // --- plugin-prefix-path: shipped prose names a shipped path without the repository's plugin/ prefix ---

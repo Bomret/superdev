@@ -39,9 +39,12 @@ dispatch, per `scope-branch.md`'s `## Preparing a worktree`; a failing preparati
 **An epic carrying `## Integration branch`.** Applies to a wide refactor whose batches cannot stay green alone
 (`plan-authoring.md` → *Wide refactors*). Cut `integration/<scope>` from `<branch>` at run start, keep it checked out
 in the scopetree, and merge every slice into it instead of `<branch>`. The plan's final **integrate-and-verify** slice
-switches that scopetree back to `<branch>` and merges `integration/<scope>` into it.
+switches that scopetree back with `git -C <run-root>/scopetree switch <branch>` and merges `integration/<scope>` into
+it with `git -C <run-root>/scopetree merge --cleanup=scissors -F <file> integration/<scope>`, `<file>` the message file
+`commit-messages.md` states, its body naming `integration/<scope>`.
 
 - That merge runs no suite: the full-suite evidence `/superdev:ship` takes verifies it.
+- A failure there follows step 4's **A failed merge**.
 - Everything else in the loop is unchanged.
 
 ## Run lock
@@ -107,7 +110,8 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    only its own values, never the whole plan:
    - the slice `spec`, `acceptance`, and `test-applicability`;
    - the feature's change type, the prefix of the ledger's `**Branch:**` line (`scope.js get branch --root
-     <run-root>`), never a reconstructed one;
+     <run-root>`), never a reconstructed one, and the slice's store reference, its `issue` column in `scope.js get
+     slices`: its commit messages take both, per `commit-messages.md`;
    - its slicetree path (`<run-root>/slicetrees/<id>`), branch (`slice/<scope>/<id>`), and `<base>`, the commit the
      slice branch was cut from, as a full commit;
    - its progress-log path, seeded first, and the heading of its self-check entry, `Self-check — build`;
@@ -137,7 +141,8 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    `### Running tests`, `### Fail-to-pass run`, `## Documentation`, and `## A failing test your slice did not cause`.
    `<run-root>/slicetrees/<id>` is the tree of every edit, run, and commit (`git -C`).
    - Seed its progress log, write no `dispatch:` line, and append your own outcome line once it is committed.
-   - Commit on `slice/<scope>/<id>` (Conventional Commits). It invents no test.
+   - Commit on `slice/<scope>/<id>`, the message per `commit-messages.md`. It invents no test. A commit git refuses
+     follows step 3's BLOCKED handling, with git's own output.
    - A failing test the slice did not cause is named in your report, never fixed.
    - A tiny slice you cannot finish follows step 3's BLOCKED handling.
    - Step 3's observation concept, its skipped per-slice review, and step 4's merge, cleanup, ledger, interface, and
@@ -242,11 +247,15 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    Read `${CLAUDE_PLUGIN_ROOT}/references/implement-full-denied.md` and follow its `## A denied dispatch`.
 
    **A `mechanical` or `docs` slice.** Applies to every non-`behavior` slice. Skip the per-slice review.
-4. **Merge, yourself, serially.** In the scopetree: `git -C <run-root>/scopetree merge --no-ff slice/<scope>/<id>`.
+4. **Merge, yourself, serially.** Compose the merge commit's message and write its file per
+   `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md`, its body naming `slice/<scope>/<id>`. In the scopetree:
+   `git -C <run-root>/scopetree merge --no-ff --cleanup=scissors -F <file> slice/<scope>/<id>`.
 
-   **A conflicted merge.** Applies to a merge that stops on a conflict. Read
-   `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md` and resolve it yourself as it states, which includes
-   concluding, aborting, and escalating. Dispatch a fix subagent only where a conflict needs real code work.
+   **A failed merge.** Applies to a merge that exited non-zero. Read
+   `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md`. With no `MERGE_HEAD` set, follow its **A failed merge with no
+   `MERGE_HEAD`**. With `MERGE_HEAD` set, apply its **A refusal is no conflict** test first. Resolve a conflict yourself
+   as it states, which includes concluding, aborting, and escalating, and handle a refusal by its **A refused merge**.
+   Dispatch a fix subagent only where a conflict needs real code work.
 
    **A slice merge runs no suite.** Applies to every slice merge, clean or concluded with `merge --continue`. Go
    straight on to the next dispatch or merge. A break red evidence names goes to the scope review's fix loop.

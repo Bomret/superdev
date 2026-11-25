@@ -26,6 +26,7 @@ Applies to every dispatch.
 - The path to `docs/agents/knowledge-base.md`: the backend (local `docs/kb/`, a remote backend such as Confluence, or none), its audience, its language, and its agreed outline.
 - The staging path: an absolute path, the one `scope.js staging <scope>` printed (`.superdev/kb-pending/<scope>/` in the main working tree). Where the knowledge-base config carries `- **Hierarchy:** links`, the staged pages carry the parent-link keys `references/doc-pass.md` states.
 - On a live scope run, the `docs` targets.
+- On a live scope run, the feature's change type and the scope anchor's store reference, for your commit messages.
 
 ## The `docs` targets
 
@@ -60,6 +61,10 @@ The dispatch hands you compressed recon maps, or `small repo — explore directl
 Applies to every dispatch.
 
 Read a remote knowledge base and write to none, as `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` states in `## Read the knowledge base, never write to it`.
+
+## Commit your changes
+
+Applies to every dispatch that changed a file. Commit your changes on the current branch, the message per `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md` with the change type and store reference the dispatch hands, where it hands them. A commit git refuses ends your dispatch with your edits uncommitted and git's own output in your report.
 
 ## Read economically
 

@@ -24,9 +24,35 @@ the scope branch in the same resolution, and name each renumber, old and new, in
 
 - In the base merge, base's number never moves.
 
-**Conclude a resolved conflict with `git -C <run-root>/scopetree merge --continue`.** Applies to every resolved
-conflict. Stage the resolution first. Spell `<run-root>` out as the real absolute path in the command text, never as a
-shell variable: `hooks/run-trace.js` and `hooks/merge-guard.js` read the command text alone.
+**Conclude a resolved conflict with `git -c commit.cleanup=scissors -C <run-root>/scopetree merge --continue`.**
+Applies to every resolved conflict. Stage the resolution first. The merge's own `-F <file>` message waits in
+`MERGE_MSG`, and the scissors cleanup keeps every line of it while dropping git's `# Conflicts:` block. Spell
+`<run-root>` out as the real absolute path in the command text, never as a shell variable: `hooks/merge-guard.js`
+reads the command text alone.
+
+**A failed merge with no `MERGE_HEAD`.** Applies to a controller's merge in the scopetree that exited non-zero and
+left no `MERGE_HEAD` (`git -C <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds none). It recorded
+nothing. Relay git's output, check that `git -C <run-root>/scopetree status --porcelain` shows the scopetree
+unchanged, and stop and escalate. **`--unattended` → block** (`scope-mode.md`'s `## Unattended`).
+
+**A refusal is no conflict.** Applies to a merge that exited non-zero and left `MERGE_HEAD` set, before any branch
+reads it as a conflict. Run `git -C <run-root>/scopetree diff --name-only --diff-filter=U`. An empty listing means a
+hook or git refused to record the merge commit, so take **A refused merge**. A listing names a conflict, resolved or
+escalated above.
+
+**A refused merge.** Applies to a refusal (`references/commit-messages.md`'s `## A refused commit or merge`). Report
+git's own output, stop, and escalate to the operator. **`--unattended` → block** (`scope-mode.md`'s `## Unattended`).
+
+- **A refused first attempt** → run `git -C <run-root>/scopetree merge --abort` before you stop. The scopetree is clean
+  again.
+- **A refused `merge --continue`** after a resolution → leave the merge in place with its staged resolution. The next
+  base step's **Check the scopetree first** stops on the set `MERGE_HEAD` until the operator concludes it.
+- **A refused slice merge** → the slice stays unmerged with its slicetree. Record it `blocked` in the ledger and in the
+  store, and append the line `merge refused` to its progress log, `<run-root>/reports/<id>/progress.md`.
+  `implement-full-resume.md` reads that line and merges the slicetree again, never re-dispatching an implementer.
+- **A refused integration-branch merge** → the scopetree stays on the scope branch. Record the integrate-and-verify
+  slice `blocked`, append `merge refused` to its progress log the same way, and `implement-full-resume.md` runs its
+  merge again.
 
 **A genuine winner-picking overlap escalates.** Applies to the same decision made two incompatible ways, where
 honouring one spec violates the other. Compatible intents on the same lines compose instead.

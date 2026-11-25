@@ -80,7 +80,9 @@ docs/adr/ docs/invariants.md` in the invoking checkout. Nothing dirty or untrack
 3. **Check for a conflicting capture.** A captured path that already differs in `<run-root>/scopetree` → name both
    versions and stop instead of choosing. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 4. **Copy and commit.** Copy the captured content into `<run-root>/scopetree` at the same relative paths, and commit
-   it there on the scope branch (Conventional Commits).
+   it there on the scope branch, the message per `commit-messages.md` with the change type and the scope anchor's
+   store reference. A commit git refuses stops the run with git's own output, before the revert, and leaves the
+   invoking checkout as it was. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 5. **Revert.** Revert the invoking checkout one path at a time, only for a path whose content still matches the
    capture: `git checkout -- <path>` for a tracked modification, `rm <path>` for an untracked file. A path that no
    longer matches stays exactly as found, dirty and uncommitted; report which path and move on.

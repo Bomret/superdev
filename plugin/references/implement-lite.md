@@ -89,10 +89,14 @@ it now, per `scope-findings.md`'s `## Observations`.
 → `blocked` and escalate, re-slice or hand to the human, per the Invariants' fix-loop cap. **`--unattended` → block**,
 per `scope-mode.md`'s `## Unattended`.
 
-**Commit and record.** Applies to every slice as it goes green. Commit on the scope branch in the scopetree
-(Conventional Commits), and move the ledger with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> <status>
+**Commit and record.** Applies to every slice as it goes green. Commit on the scope branch in the scopetree, the
+message per `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md` with the change type and the slice's store reference,
+and move the ledger with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> <status>
 --root <run-root>`: `todo` → `in-progress` → `merged`. `merged` means committed to the scope branch. Update the tracker
 status too, skipping `in-review`.
+
+- **A refused commit** → report git's own output and stop, the slice left `in-progress`, per `commit-messages.md`'s
+  `## A refused commit or merge`. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 
 **A `behavior` slice's range and fail-to-pass run.** Applies to every `behavior` slice. Its `merged` write carries
 `--range <base>..<tip>`, both full commits: `<base>` the scope branch's tip before the slice's first commit, `<tip>`
@@ -153,7 +157,9 @@ after this pass, whatever it changed. The `full` tier runs no inline pass.
 - **The `docs` targets.** Hand the pass every open `docs`-tagged line `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"
   dod-open --root <run-root> --tag docs` prints, verbatim. `/superdev:review`'s `holds` verdict ticks each one the pass
   made true (`review-scope-mode.md`'s `### 4.5 The Definition-of-Done criteria`).
-- **The commit.** Commit the doc changes on the scope branch, in this scopetree, as their own commit.
+- **The commit.** Commit the doc changes on the scope branch, in this scopetree, as their own commit, the message per
+  `commit-messages.md` with the change type and the scope anchor's store reference. A refused commit stops as
+  **Commit and record** states.
 
 **Record the pass.** Applies once the pass ran. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs set inline
 --root <run-root>` after the pass, never before. A pass that changed nothing still records.

@@ -63,7 +63,7 @@ disable-model-invocation: true
 - **The file is missing from your checkout**, or lacks a `## Start` or `## Stop` heading → a concern. It never reads as `none`.
 - **A section the work needs holds an unresolved `TODO`** → the same concern.
 
-**A committed tree.** Applies once the file reads whole. Commit your own change first. Start the skill only when `git status --porcelain` prints nothing, an untracked file outside ignored paths included. A tree that still prints something is a concern naming what it printed.
+**A committed tree.** Applies once the file reads whole. Commit your own change first, the message per `commit-messages.md`, a refused commit stopping you as that file's `## A refused commit or merge` states. Start the skill only when `git status --porcelain` prints nothing, an untracked file outside ignored paths included. A tree that still prints something is a concern naming what it printed.
 
 **Stop before Start.** Applies once the tree is committed. Run the skill's `## Stop` before its `## Start`, so an instance an earlier, ended run left in this checkout stops first. A Stop that fails there is a concern naming the failed Stop. On that concern, or on an uncommitted tree's, nothing starts, and every item the skill would observe reads `not observable`.
 

@@ -201,6 +201,10 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
 - `/superdev:plan`'s own cut never reads this step.
 - `<remote>` and `<base>` come from `docs/agents/code-management.md`. `<branch>` is the scope branch the playbook's
   branch step left you on.
+- Every commit this step makes, a renumber, a citation fix, or a merge, takes its message per `commit-messages.md`, with
+  the change type and the scope anchor's store reference. A renumber or citation commit git refuses is reported with
+  git's own output and stops the step, dispatching no slice. **`--unattended` → block**, per `scope-mode.md`'s
+  `## Unattended`.
 
 1. **Check the scopetree first.** `git -C <run-root>/scopetree status --porcelain` returns nothing, and `git -C
    <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds no unfinished merge.
@@ -244,8 +248,14 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
       - Exit 2 → the check could not run. Name its message and stop, dispatching no slice. **`--unattended` →
         block**, per `scope-mode.md`'s `## Unattended`.
    3. **Merge.** `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>` succeeds → nothing to merge.
-      Otherwise run `git -C <run-root>/scopetree merge <tip>`, `<run-root>` spelled out as the real absolute path. A
-      conflict, `MERGE_HEAD` still set, is resolved, concluded, or escalated per `merge-conflicts.md`.
+      Otherwise compose the merge commit's message and write its file per `commit-messages.md`, its body naming
+      `<tip>`, and run `git -C <run-root>/scopetree merge --cleanup=scissors -F <file> <tip>`, `<run-root>` spelled
+      out as the real absolute path. Read its outcome in this order:
+      - **No `MERGE_HEAD` set** after a non-zero exit → follow `merge-conflicts.md`'s **A failed merge with no
+        `MERGE_HEAD`**, dispatching no slice.
+      - **`MERGE_HEAD` still set** → apply `merge-conflicts.md`'s **A refusal is no conflict** test first. A refusal
+        is handled by its **A refused merge**, and a conflict is resolved, concluded, or escalated per that file.
+      - **A clean merge** → the merge exited 0. Go on to step 4.
    4. **Record the tip.** Once `<tip>` is in the scope branch, merged now or already there, run `node
       "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base set <tip> --root <run-root>`. `scope-mode.md`'s `## The scope's
       range base` reads the record.
@@ -254,8 +264,9 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
       unattended run.
 
 **A base that cannot be fetched is a degraded pass.** Applies to no `<remote>` configured, a failed or killed fetch, or
-a remote that does not carry `<base>`. Skip steps 2 and 3, run step 4 with the local `<base>` in place of `<tip>`, and
-record no `**Base:**` line. Record the reason with `scope.js degraded add` after `scope.js get degraded --root
+a remote that does not carry `<base>`. Skip steps 2 and 3, and run step 4 with the local `<base>` in place of `<tip>`,
+resolved to a full sha with `git rev-parse <base>` first, so the merge commit's body names a commit. Record no
+`**Base:**` line. Record the reason with `scope.js degraded add` after `scope.js get degraded --root
 <run-root>` shows no entry for the same reason, the second shape in `scope-findings.md`'s `## Degraded passes`.
 
 - Record and continue, attended or unattended alike.

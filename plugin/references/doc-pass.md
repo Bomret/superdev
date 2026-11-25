@@ -7,6 +7,7 @@ alone.
 - **The dispatched agent's brief, bootstrap mode, and report** → `agents/doc-writer.md` owns them.
 - **When a `lite` run's step runs, what it commits, and the ledger record it writes** → the execution playbook owns
   them.
+- **The doc commit's message, and a commit git refuses** → `commit-messages.md` owns them.
 
 **The callers.** Applies to every pass.
 
