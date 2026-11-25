@@ -1,7 +1,8 @@
 'use strict';
 
 // Selftest suite: every registered check, against an empty tree. A check that reads a named document
-// fails, naming the path, when that document is missing. A check that walks a directory reads whatever
+// fails, naming the path, when that document is missing, unless its own `scripts/AGENTS.md` row says an absent named
+// document holds nothing; such a check sits in DIRECTORY_WALKERS below. A check that walks a directory reads whatever
 // the directory holds, so an empty tree gives it nothing to report. `formatGap` prints a missing document by its path and
 // the check's id. Every other gap shape is pinned to the exact line it prints: each of the heading-citation check's three
 // messages, each check's own message, and the shared contract-gap message for every registered check that prints it. A

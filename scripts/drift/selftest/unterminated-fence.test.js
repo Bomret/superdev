@@ -43,6 +43,8 @@ module.exports = ({ assert, fs, path, fixture, found }) => {
     ['a CRLF file whose closer ends in \\r', '# T\r\n\r\n```\r\nbody\r\n```\r\n'],
     ['an empty file', ''],
     ['a file with no fence', '# T\n\nPlain text.\n'],
+    ['an opener indented four spaces', '    ```\nbody\n'],
+    ['a backtick opener whose info string holds a backtick', '``` a`b\nbody\n'],
   ]) {
     assert.deepEqual(scan({ 'plugin/references/x.md': text }), [], `unterminated-fence: ${label} is clean`);
   }

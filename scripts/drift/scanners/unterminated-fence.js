@@ -4,14 +4,9 @@
 // file, so every fence-masking check reads nothing below its opener, and a forbidden form there passes unreported.
 // This scanner reports each Markdown file in its read set that holds such a fence, once, by the 1-based line of the
 // opener from which the mask runs to end of file. It reads fences only through `lib.js`'s `fenceLines`, so it agrees
-// with every fence-masking reader line for line.
-//
-// The read set, by literal path under the root: every `.md` file at any depth below `plugin/` but a `README.md`, its
-// `AGENTS.md` files included; every `.md` file in `docs/adr/` but a `README.md`; `docs/invariants.md`; and `CONTEXT.md`. A doc pass edits the rest of the
-// repository's Markdown (ADR 0189), so the set holds no `README.md` and no `AGENTS.md` outside `plugin/`. The walk
-// enters no `node_modules/` or `.git/` directory at any depth and follows no symlink. An absent directory or file
-// holds nothing. A directory or file the walk cannot read throws, so `drift-check.js`'s `runChecks` reports the check
-// as failed rather than clean.
+// with every fence-masking reader line for line. A file or directory it cannot read throws, so `drift-check.js`'s
+// `runChecks` reports the check as failed. Its read set and walk rules are its `unterminated-fence` row in
+// `scripts/AGENTS.md`.
 // ceiling: a fence in a non-Markdown document a contract row masks (such as `lib/ledger.js`) is outside the read set.
 
 const fs = require('node:fs');

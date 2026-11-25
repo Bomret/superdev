@@ -4,7 +4,7 @@
 // matches this pattern". The table-driven ones run through `lib.js`’s scanContract() instead.
 // Each scanner is pure over a root dir and returns an array of gaps; `checks.js` orders them and
 // owns how each gap is printed. A scanner that reads a named document reports it with `missingDoc()`
-// when it is absent. A scanner that walks a directory reads whatever the directory holds, and an absent
+// when it is absent, unless its own `scripts/AGENTS.md` row says an absent named document holds nothing. A scanner that walks a directory reads whatever the directory holds, and an absent
 // directory holds nothing. This barrel re-exports every scanner; the topic files beside it hold them,
 // and `walkers.js` holds the walks they share.
 
