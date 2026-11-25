@@ -16,7 +16,7 @@ const realRoot = path.join(__dirname, '..', '..', '..');
 
 // A throwaway repository carrying only the documents one assertion exercises: `{ 'skills/x/SKILL.md': '…' }`.
 // A check that reads a named document reports it missing (`lib.js`'s `missingDoc()`) when the fixture lacks
-// it, and `found()` below filters those gaps, so a fixture never carries a document it does not test.
+// it, unless its `scripts/AGENTS.md` row says an absent named document holds nothing, and `found()` below filters those gaps, so a fixture never carries a document it does not test.
 // Each directory is recorded and removed below, instead of being left in os.tmpdir() per run.
 const created = [];
 const fixture = (files) => {
@@ -78,6 +78,7 @@ try {
   require('./register-join.test')(context);
   require('./root-inventory.test')(context);
   require('./lib.test')(context);
+  require('./unterminated-fence.test')(context);
 
   // Every table any suite above scanned, and every table the registry declares, gets checked here, once,
   // against what it actually observed — not a curated subset. All the tables at fault are in the one

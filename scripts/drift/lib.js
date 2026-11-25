@@ -83,7 +83,8 @@ function readDoc(root, rel) {
 
 // missingDoc(): the gap a check reports for a named document it reads and cannot find. A check that
 // skipped such a document would pass on a rename while the fact it tests went unchecked, so every check
-// reading a named document reports it by path instead. `scripts/drift-check.js` prints it.
+// reading a named document reports it by path instead, unless its own `scripts/AGENTS.md` row says an absent named
+// document holds nothing. `scripts/drift-check.js` prints it.
 function missingDoc(rel) {
   return { source: rel, missing: true };
 }
@@ -206,6 +207,7 @@ module.exports = {
   readDoc,
   missingDoc,
   maskFences,
+  fenceLines,
   maskedSentences,
   normalizeWhitespace,
   scanContract,
