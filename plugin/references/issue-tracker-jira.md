@@ -33,6 +33,9 @@ makes, creating issues and writing anchor lines, live in `docs/agents/issue-trac
   slices. `<type>` is the **change type**, the Conventional Commits type of the work, per
   `references/scope-mode.md`. The label doubles as the scope branch name.
 - **`depends-on` link type**: `<Blocks>`, the link type's **name**, never its inward description (`is blocked by`).
+- **Absorbs link type** (optional): `<Relates>`, the link type's **name**, which differs from the **`depends-on`
+  link type**. `/superdev:plan` links an absorbed triage record to its scope anchor with it. Without the bullet, plan
+  connects an absorbed record by a comment only.
 - **Ready status/label**: `<ready-for-agent>`, which marks a slice an agent may pick up.
 - **Triage label**: `<triage>`, the only label a **triage record** carries. Default `triage`.
 - **Intent label:** `<intent>`, the only label an **intent record** carries. Default `intent`.
@@ -74,8 +77,10 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
   pages, deduplicated on `key`. Every search pages this way.
 - **Name the fields.** Search through `/search/jql`, never `/rest/api/3/search`, and name `fields` on every
   search.
-- **Link direction.** On a link, `inwardIssue` is the blocker and `outwardIssue` the blocked issue. On the
-  blocked issue the blocker appears under `issuelinks[].inwardIssue`.
+- **Link direction.** On a link of the **`depends-on` link type**, `inwardIssue` is the blocker and `outwardIssue`
+  the blocked issue. On the blocked issue the blocker appears under `issuelinks[].inwardIssue`. A dependency reader
+  keeps only the `issuelinks[]` entries whose `type.name` is that link type, so a link of any other type, the
+  absorbs link included, never reads as a blocker.
 - **Done.** An issue is done when `.fields.status.statusCategory.key == "done"`. A transition into Done that
   the workflow rejects may need `"fields": {"resolution": {"name": "<resolution>"}}` in the transition body.
 - **A label-refused create.** A create rejected with a `400` whose `errors` names `labels` is retried once
@@ -103,7 +108,7 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 - `title` ↔ `summary`. `spec` ↔ description body ("What to build").
 - `acceptance` ↔ a checklist in the description, one ADF `paragraph` per `[ ] <criterion>` line.
 - `test-applicability` ↔ a label (`behavior`/`mechanical`/`docs`).
-- `depends-on` ↔ "is blocked by" issue links of the configured link type.
+- `depends-on` ↔ "is blocked by" issue links of the **`depends-on` link type** only (**Link direction**).
 - `status` ↔ Jira status.
 - Global DoD ↔ the scope anchor's own issue (an anchor-role type, `Epic` in the examples); slices are its
   children. **A single-slice feature has no anchor-type issue**: the lone slice issue's `acceptance`
@@ -188,8 +193,9 @@ anchor.
 ## Triage record
 
 `store-records.md` → *Triage record*. On this store it is an ordinary issue in the configured project
-carrying the **Triage label** and nothing else: no feature label, no ready status or label, no issue link,
-no parent, and no status transition until **Close it**.
+carrying the **Triage label** and nothing else: no feature label, no ready status or label, no parent, and no
+status transition until **Close it**. It carries exactly one issue link, and only once a scope absorbs it: the
+absorbs link to the anchor that absorbed it (**Absorbs link type**).
 
 - **Create it:** `POST <base>/rest/api/3/issue` with
   `{ "fields": { "project": {"key":"<PROJ>"}, "summary": "<the finding, one line>",

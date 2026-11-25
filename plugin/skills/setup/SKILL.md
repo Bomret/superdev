@@ -125,7 +125,7 @@ Applies to the full interview. Scan these before any decision:
 |---|---|---|
 | **GitHub Issues** | `references/issue-tracker-github.md` | owner/repo, the feature label, and the **env-var name** for the API token (never the secret) |
 | **Forgejo / Codeberg Issues** (Forgejo or Gitea, Codeberg included; hint: a `codeberg.org` or self-hosted Forgejo/Gitea remote) | `references/issue-tracker-forgejo.md` | host/owner/repo and the feature label, and no token env var. Take **The tea check**. |
-| **Jira** | `references/issue-tracker-jira.md` | base URL, project key, the issue types per role, the "is blocked by" link type, the ready status or label, and the **env-var names** for the API token and email (never the secrets) |
+| **Jira** | `references/issue-tracker-jira.md` | base URL, project key, the issue types per role, the "is blocked by" link type, the optional absorbs link type, the ready status or label, and the **env-var names** for the API token and email (never the secrets) |
 | **Other** (GitLab Issues, Linear, …) | none | a paragraph describing create, read, list, update, and the dependency-link mechanism; write `issue-tracker.md` from that prose |
 
 **The tea check.** Applies to a Forgejo slice store. Check that `tea` is installed. Check that `tea login list -o json` has an entry whose `url` equals the host.
@@ -148,6 +148,10 @@ Applies to the full interview. Scan these before any decision:
 - Offer the anchor role only types with `hierarchyLevel` 1, and the slice and triage roles only types with `hierarchyLevel` 0 and `subtask: false`.
 - Ask which types the operator allows per role, the first being the role's default, each with a one-line "use for" in the operator's words. Finish no role without a type.
 - A failed or denied probe is reported with its HTTP status, and setup asks for the types by name and id.
+
+**Jira absorbs link type.** Applies to Jira. Ask for the optional **Absorbs link type**. List `GET <base>/rest/api/3/issueLinkType`. Offer each link type's name other than the `depends-on` link type, plus `none`. `none`, or an instance with no other type, writes no bullet, and plan then connects an absorbed record by a comment only. A re-run offers a missing bullet as a seed gap (**Seed gaps**).
+
+- A failed or denied listing is reported with its HTTP status, and setup asks for the type by name or `none`.
 
 **Jira component.** Applies to Jira. Ask for the optional **repository component** (CONTEXT.md → *Repository component*). List `GET <base>/rest/api/3/project/<PROJ>/components`. Offer each component plus `none`, which writes no bullet and changes nothing.
 

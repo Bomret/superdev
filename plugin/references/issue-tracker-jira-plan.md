@@ -58,7 +58,15 @@ issue's body**, never an issue link.
 
 **Connect an absorbed record:** post a comment on the record through the store document's triage record
 **Comment on it** call, its text from a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`). The text names the scope
-anchor as `<anchor-key>` and the feature label, and names no pull-request URL. The comment is the whole call.
+anchor as `<anchor-key>` and the feature label, and names no pull-request URL.
+
+- **The link.** After the comment, when `docs/agents/issue-tracker.md` names an **Absorbs link type** that is no
+  `<…>` placeholder and differs from the **`depends-on` link type**: `POST <base>/rest/api/3/issueLink` with
+  `{ "type": {"name":"<absorbs link type name>"}, "inwardIssue":{"key":"<record>"}, "outwardIssue":{"key":"<anchor-key>"} }`,
+  sent through the **Transport** rule. Read the link back once after writing it.
+- **No usable link type** (the bullet absent, a placeholder, or the `depends-on` link type) → post the comment only,
+  and report the gap once per plan run, naming `/superdev:setup`.
+- **A link Jira rejects** (an unknown type) → report it with Jira's answer. The comment stands.
 
 ## Assignee
 
