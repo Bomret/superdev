@@ -32,16 +32,18 @@ never serial rebuilds.
 <start>`, never `-B`. Build every prototype file inside `<tree>`.
 
 - **The cut fails** (the branch or the directory exists, a ref conflicts, or `<start>` does not exist) → build
-  nothing, and report git's own output.
+  nothing, report git's own output, and return the question as `cross-exam.md`'s **Prototype what must be seen or
+  run** returns a declined or inconclusive detour.
 
 **Commit, then remove the worktree.** Applies once the detour ends, its prototype conclusive or not, or abandoned.
 Commit a built prototype inside `<tree>`, never onto the base branch, its message per
 `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md`'s **A featureless commit**. After a successful commit, run
 `git -C <main> worktree remove <tree>` without `--force`, and keep `<branch>`.
 
-- **A refused commit** → report git's own output to the operator.
-- **A removal git refuses because files are left in the worktree, a refused commit, or an abandoned detour** → keep
-  the worktree and the branch, and tell the operator both. Nothing is removed by force.
+- **An abandoned detour** → commit nothing, keep the worktree and the branch, and tell the operator both.
+- **A refused commit** → report git's own output, keep the worktree and the branch, and tell the operator both.
+- **A removal git refuses because files are left in the worktree** → keep the worktree and the branch, and tell the
+  operator both. Nothing is removed by force.
 
 **Route the decision.** Applies once the operator's judgment of the running prototype answers its question. Route the
 validated decision to where the detour was opened, naming `<branch>` wherever it lands.
