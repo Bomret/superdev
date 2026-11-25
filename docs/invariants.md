@@ -1664,5 +1664,5 @@ Class: process
 Concepts: Controller, Scopetree, Commit convention
 Statement: Every local merge commit superdev instructs in a scopetree, a slice merge, the integration-branch merge, or a merge that brings base in, carries a message that follows the repository's commit convention, passed to git as a message file written outside every worktree through a quoted heredoc, so the shell expands none of its text, and its body names the merged branch or commit. A merge commit the repository's commit-msg hook refuses is escalated to the operator, and blocks an unattended run; superdev never bypasses the hook, never commits the refused merge itself, and never invents a message to satisfy it.
 Breaks: silently
-Check: scripts/drift-check.js merge-message-required (registered by this scope) — no shipped prose instructs a local merge commit without a message
+Check: scripts/drift-check.js `merge-message-required` — no shipped prose instructs a local merge commit without a message
 Paths: plugin/references/implement-full.md, plugin/references/implement-full-resume.md, plugin/references/scope-branch.md, plugin/references/merge-conflicts.md, plugin/references/plan-authoring.md, plugin/skills/ship/SKILL.md

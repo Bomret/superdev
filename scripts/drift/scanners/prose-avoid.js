@@ -31,6 +31,7 @@ const {
   SCOPE_REVIEW_OPERATOR_ASKED,
   PLUGIN_ROOT_UNQUOTED_PATTERN,
   PLUGIN_PREFIX_PATH_PATTERN,
+  MERGE_INVOCATION_PATTERN,
 } = require('../contracts');
 const { proseDocuments, scanDocsAvoid, walkFiles, NEVER_NEGATION_WINDOW } = require('./walkers');
 
@@ -184,6 +185,32 @@ const scanPluginRootQuoted = (root) =>
 const scanPluginPrefixPath = (root) =>
   scanShippedMarkdownForm(root, PLUGIN_PREFIX_PATH_PATTERN, (hit) =>
     `name a shipped path relative to the plugin root — \`${hit}\` carries the repository's \`plugin/\` prefix, which no install holds`);
+
+// INV-0209: no shipped prose instructs a local merge commit without a message. Whitespace runs, line wraps included, are
+// normalized first, and fences are read too, since a fenced command is one an agent copies. A hit passes when its
+// arguments carry `-m`, `--message`, `-F`, or `--file`, when they conclude or abandon a merge (`--abort`, `--continue`,
+// `--quit`) or only fast-forward (`--ff-only`), or when they name no ref: a bare `git merge` mention invokes nothing.
+const MERGE_MESSAGE_OPTION = /(?:^|\s)(?:-m|--message|-F|--file)(?:[=\s]|$)/;
+const MERGE_NO_COMMIT_OPTION = /(?:^|\s)--(?:abort|continue|quit|ff-only)\b/;
+function scanMergeMessageRequired(root) {
+  const gaps = [];
+  for (const rel of shippedMarkdown(root)) {
+    const text = readDoc(root, rel);
+    if (text === null) continue;
+    for (const hit of normalizeWhitespace(text).matchAll(MERGE_INVOCATION_PATTERN)) {
+      const args = hit[2].trim();
+      if (MERGE_MESSAGE_OPTION.test(args) || MERGE_NO_COMMIT_OPTION.test(args)) continue;
+      if (!args.split(' ').some((arg) => arg !== '' && !arg.startsWith('-'))) continue;
+      gaps.push({
+        source: rel,
+        expectation:
+          `pass the merge commit's message as a file, \`git merge -F <file> <ref>\` per references/commit-messages.md — ` +
+          `\`${hit[0].trim()}\` leaves git's default message, which a commit-msg hook can refuse (INV-0209)`,
+      });
+    }
+  }
+  return gaps;
+}
 
 // ADR 0232: no shipped skill, agent, or reference, and no shipped AGENTS.md at any depth beside them, states the
 // background rule against an unnamed Bash limit. Fences are masked and whitespace runs, line wraps included, are
@@ -424,4 +451,5 @@ module.exports = {
   scanDodBoxRule,
   scanPluginRootQuoted,
   scanPluginPrefixPath,
+  scanMergeMessageRequired,
 };

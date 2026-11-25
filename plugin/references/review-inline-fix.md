@@ -81,7 +81,7 @@
 - What changed, one line per item of `<list>`.
 - The step 5 result.
 - What the re-review still lists, by severity.
-- How the operator brings the branch in: `git merge <branch>`, or `git cherry-pick <tip>..<branch>`.
+- How the operator brings the branch in: `git merge -m "<message>" <branch>`, the operator writing the message, or `git cherry-pick <tip>..<branch>`.
 - A kept dirty worktree, by path.
 
 ## The early-exit cleanup

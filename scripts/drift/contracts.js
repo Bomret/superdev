@@ -465,6 +465,13 @@ const DOD_BOX_RULE_PATTERNS = [
 // that adjacency; a call that puts another word between `node` and the path walks past.
 const PLUGIN_ROOT_UNQUOTED_PATTERN = /\bnode[\s`]+\$\{?CLAUDE_PLUGIN_ROOT\b/g;
 
+// INV-0209: a local merge commit superdev instructs carries a message. The form matched is a `git` invocation, its
+// `-C <path>` and `-c <key=value>` options allowed, whose `merge` verb (never `merge-base` or `merge-tree`) heads an
+// argument list that runs to the next backtick, `;`, `|`, `&`, or `,`. `scanMergeMessageRequired` judges the list.
+// simplicity: the ceiling is that terminator set; an unquoted mention in running prose takes the rest of its clause
+// as arguments.
+const MERGE_INVOCATION_PATTERN = /\bgit((?:\s+-[cC]\s+[^\s`]+)*)\s+merge(?![-\w])([^`;|&,]*)/g;
+
 // Shipped prose names a shipped file relative to the plugin root, the tree an install copies, so a path written with this
 // repository's `plugin/` prefix resolves nowhere in an install. The form refused is `plugin/` before one of the shipped
 // directories, with no word character, `.`, `/`, or `-` before it: `.claude-plugin/` and a URL's `/plugin/` path stay
@@ -632,6 +639,7 @@ module.exports = {
   UNNAMED_BASH_LIMIT_PATTERN,
   PLUGIN_ROOT_UNQUOTED_PATTERN,
   PLUGIN_PREFIX_PATH_PATTERN,
+  MERGE_INVOCATION_PATTERN,
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,
   TEA_ONLY_DOCS,

@@ -31,6 +31,7 @@ const {
   scanBackgroundRuleNamesLimit,
   scanDodBoxRule,
   scanPluginRootQuoted,
+  scanMergeMessageRequired,
   scanPluginPrefixPath,
   scanTeaOnly,
   scanGithubWikiGhOnly,
@@ -226,6 +227,12 @@ module.exports = [
     id: 'plugin-prefix-path',
     ok: "no shipped prose names a path with the repository's `plugin/` prefix",
     run: scanPluginPrefixPath,
+    format: contractGap,
+  },
+  {
+    id: 'merge-message-required',
+    ok: 'no shipped prose instructs a local merge commit without a message (INV-0209)',
+    run: scanMergeMessageRequired,
     format: contractGap,
   },
   {

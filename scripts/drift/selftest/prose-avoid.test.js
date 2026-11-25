@@ -20,6 +20,7 @@ const {
   scanDodBoxRule,
   scanPluginRootQuoted,
   scanPluginPrefixPath,
+  scanMergeMessageRequired,
 } = require('../scanners');
 
 module.exports = ({ assert, path, fixture, found }) => {
@@ -664,6 +665,56 @@ module.exports = ({ assert, path, fixture, found }) => {
     }).map((gap) => gap.source).sort(),
     ['agents/implementer.md', 'references/AGENTS.md', 'skills/ship/SKILL.md'],
     'plugin-root-quoted: references/AGENTS.md, an agent, and a skill are each read',
+  );
+
+  // --- merge-message-required: every local merge commit shipped prose instructs carries a message (INV-0209) ---
+
+  const mergeGaps = (files) => found(scanMergeMessageRequired(fixture(files)));
+  for (const [text, label] of [
+    ['Run `git merge <ref>`.\n', 'a bare git merge <ref>'],
+    ['Run `git merge --no-ff slice/s/01`.\n', 'a --no-ff merge'],
+    ['Run `git -C <run-root>/scopetree merge <tip>`.\n', 'a -C <path> merge'],
+    ['```sh\ngit -C "$tree" merge "$sha"\n```\n', 'a fenced merge'],
+    ['Run `git -C <run-root>/scopetree\nmerge --no-ff <branch>`.\n', 'a merge wrapped across a line break'],
+    ['Run `git -c x.y=z merge <ref>`.\n', 'a -c <key=value> merge'],
+  ]) {
+    assert.equal(mergeGaps({ 'references/scope-branch.md': text }).length, 1, `merge-message-required: flags ${label}`);
+  }
+  assert.equal(
+    mergeGaps({ 'references/implement-full.md': 'First `git merge <a>`, then `git merge --no-ff <b>`, then `git -C <t> merge <c>`.\n' }).length,
+    3,
+    'merge-message-required: every hit in one document is reported',
+  );
+  assert.equal(
+    mergeGaps({
+      'references/merge-conflicts.md':
+        'Run `git merge-base <a> <b>`, `git merge-tree --write-tree <a> <b>`, `git merge --abort`, ' +
+        '`git -c commit.cleanup=scissors -C <t> merge --continue`, `git merge --quit`, `git merge --ff-only <base>`, ' +
+        '`gh pr merge <n> --squash`, `tea pr merge <n>`, `scope.js route --merge`, and `scope.js dod-merge`.\n',
+      'references/scope-branch.md':
+        'Run `git -C <t> merge --no-ff -F <file> <ref>`, `git merge -m "<message>" <branch>`, ' +
+        '`git merge --message=<m> <ref>`, `git merge --file <f> <ref>`, and `git log --no-merges`.\n',
+    }).length,
+    0,
+    'merge-message-required: the exemptions and a merge carrying -m, --message, -F, or --file pass',
+  );
+  assert.equal(
+    mergeGaps({
+      'skills/review/SKILL.md': '- `git merge`, `git push`, `git rebase`, `git pull`, or `git subtree push`;\n',
+      'agents/doc-reader.md': 'A hook blocks `git merge`, `push`, `rebase`, and `pull`.\n',
+      'agents/simplicity-reviewer.md': 'A hook blocks `git merge`, `push`, and `rebase`.\n',
+    }).length,
+    0,
+    'merge-message-required: a git merge mention naming no ref, the hook-blocked lists, passes',
+  );
+  assert.deepEqual(
+    mergeGaps({
+      'references/AGENTS.md': 'Run `git merge <ref>`.\n',
+      'agents/implementer.md': 'Run `git merge <ref>`.\n',
+      'skills/ship/SKILL.md': 'Run `git merge <ref>`.\n',
+    }).map((gap) => gap.source).sort(),
+    ['agents/implementer.md', 'references/AGENTS.md', 'skills/ship/SKILL.md'],
+    'merge-message-required: references/AGENTS.md, an agent, and a skill are each read',
   );
 
   // --- plugin-prefix-path: shipped prose names a shipped path without the repository's plugin/ prefix ---

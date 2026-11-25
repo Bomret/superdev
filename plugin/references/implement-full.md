@@ -39,9 +39,12 @@ dispatch, per `scope-branch.md`'s `## Preparing a worktree`; a failing preparati
 **An epic carrying `## Integration branch`.** Applies to a wide refactor whose batches cannot stay green alone
 (`plan-authoring.md` → *Wide refactors*). Cut `integration/<scope>` from `<branch>` at run start, keep it checked out
 in the scopetree, and merge every slice into it instead of `<branch>`. The plan's final **integrate-and-verify** slice
-switches that scopetree back to `<branch>` and merges `integration/<scope>` into it.
+switches that scopetree back with `git -C <run-root>/scopetree switch <branch>` and merges `integration/<scope>` into
+it with `git -C <run-root>/scopetree merge --cleanup=scissors -F <file> integration/<scope>`, `<file>` the message file
+`commit-messages.md` states, its body naming `integration/<scope>`.
 
 - That merge runs no suite: the full-suite evidence `/superdev:ship` takes verifies it.
+- A conflict or a refusal there follows step 4's **A conflicted merge**.
 - Everything else in the loop is unchanged.
 
 ## Run lock
@@ -242,11 +245,19 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    Read `${CLAUDE_PLUGIN_ROOT}/references/implement-full-denied.md` and follow its `## A denied dispatch`.
 
    **A `mechanical` or `docs` slice.** Applies to every non-`behavior` slice. Skip the per-slice review.
-4. **Merge, yourself, serially.** In the scopetree: `git -C <run-root>/scopetree merge --no-ff slice/<scope>/<id>`.
+4. **Merge, yourself, serially.** Compose the merge commit's message and write its file per
+   `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md`, its body naming `slice/<scope>/<id>`. In the scopetree:
+   `git -C <run-root>/scopetree merge --no-ff --cleanup=scissors -F <file> slice/<scope>/<id>`.
 
-   **A conflicted merge.** Applies to a merge that stops on a conflict. Read
-   `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md` and resolve it yourself as it states, which includes
-   concluding, aborting, and escalating. Dispatch a fix subagent only where a conflict needs real code work.
+   **A failed merge with no `MERGE_HEAD`.** Applies to a merge that exited non-zero and left no `MERGE_HEAD`
+   (`git -C <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds none). It recorded nothing: relay git's
+   output, check that `git -C <run-root>/scopetree status --porcelain` shows the scopetree unchanged, and stop and
+   escalate. **`--unattended` → block** (`scope-mode.md`'s `## Unattended`).
+
+   **A conflicted merge.** Applies to a merge that exited non-zero and left `MERGE_HEAD` set. Read
+   `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md` and apply its **A refusal is no conflict** test first. Resolve
+   a conflict yourself as it states, which includes concluding, aborting, and escalating, and handle a refusal by its
+   **A refused merge**. Dispatch a fix subagent only where a conflict needs real code work.
 
    **A slice merge runs no suite.** Applies to every slice merge, clean or concluded with `merge --continue`. Go
    straight on to the next dispatch or merge. A break red evidence names goes to the scope review's fix loop.

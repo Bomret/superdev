@@ -231,7 +231,8 @@ expand–contract in place of tracer-bullet slices:
 one node instead of per slice. The epic carries an `## Integration branch` section naming `integration/<scope>`, and
 the full playbook merges every slice into that branch, which keeps the scope branch green between invocations.
 
-- **A final integrate-and-verify slice**, depending on every batch, merges `integration/<scope>` into the scope branch.
+- **A final integrate-and-verify slice**, depending on every batch, merges `integration/<scope>` into the scope branch
+  with an explicit message file, as `implement-full.md`'s **An epic carrying `## Integration branch`** states.
 - The full-suite evidence `/superdev:ship` takes verifies that merge.
 
 ## Append mode

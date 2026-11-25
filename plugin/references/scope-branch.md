@@ -244,8 +244,16 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
       - Exit 2 → the check could not run. Name its message and stop, dispatching no slice. **`--unattended` →
         block**, per `scope-mode.md`'s `## Unattended`.
    3. **Merge.** `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>` succeeds → nothing to merge.
-      Otherwise run `git -C <run-root>/scopetree merge <tip>`, `<run-root>` spelled out as the real absolute path. A
-      conflict, `MERGE_HEAD` still set, is resolved, concluded, or escalated per `merge-conflicts.md`.
+      Otherwise compose the merge commit's message and write its file per `commit-messages.md`, its body naming
+      `<tip>`, and run `git -C <run-root>/scopetree merge --cleanup=scissors -F <file> <tip>`, `<run-root>` spelled
+      out as the real absolute path. Read its outcome in this order:
+      - **A failed merge with no `MERGE_HEAD`** → the merge exited non-zero and `git -C <run-root>/scopetree rev-parse
+        -q --verify MERGE_HEAD` finds none, so it recorded nothing. Relay git's output, check that `git -C
+        <run-root>/scopetree status --porcelain` shows the scopetree unchanged, and stop, dispatching no slice.
+        **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
+      - **`MERGE_HEAD` still set** → apply `merge-conflicts.md`'s **A refusal is no conflict** test first. A refusal
+        is handled by its **A refused merge**, and a conflict is resolved, concluded, or escalated per that file.
+      - **A clean merge** → the merge exited 0. Go on to step 4.
    4. **Record the tip.** Once `<tip>` is in the scope branch, merged now or already there, run `node
       "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base set <tip> --root <run-root>`. `scope-mode.md`'s `## The scope's
       range base` reads the record.
@@ -254,8 +262,9 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
       unattended run.
 
 **A base that cannot be fetched is a degraded pass.** Applies to no `<remote>` configured, a failed or killed fetch, or
-a remote that does not carry `<base>`. Skip steps 2 and 3, run step 4 with the local `<base>` in place of `<tip>`, and
-record no `**Base:**` line. Record the reason with `scope.js degraded add` after `scope.js get degraded --root
+a remote that does not carry `<base>`. Skip steps 2 and 3, and run step 4 with the local `<base>` in place of `<tip>`,
+resolved to a full sha with `git rev-parse <base>` first, so the merge commit's body names a commit. Record no
+`**Base:**` line. Record the reason with `scope.js degraded add` after `scope.js get degraded --root
 <run-root>` shows no entry for the same reason, the second shape in `scope-findings.md`'s `## Degraded passes`.
 
 - Record and continue, attended or unattended alike.

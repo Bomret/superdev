@@ -31,6 +31,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'dod-box-rule',
     'plugin-root-quoted',
     'plugin-prefix-path',
+    'merge-message-required',
     'no-offer-start',
     'no-ci-wait',
     'unterminated-fence',
