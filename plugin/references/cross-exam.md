@@ -78,7 +78,7 @@ answer.
   waits for it too: `## Termination` below, or the readiness test of a skill that stops there instead.
 - **A declined, inconclusive, or abandoned detour** → return the question to the frontier, or record it where the
   skill keeps its open questions (plan's **Park explicitly, write it down**, brainstorm's **Still-open decisions**),
-  naming the prototype branch.
+  naming the prototype branch where the detour cut one.
 
 **Surface, never smuggle.** Applies to every assumption and every answer. State assumptions out loud.
 

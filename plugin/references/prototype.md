@@ -33,7 +33,8 @@ never serial rebuilds.
 
 - **The cut fails** (the branch or the directory exists, a ref conflicts, or `<start>` does not exist) → build
   nothing, report git's own output, and return the question as `cross-exam.md`'s **Prototype what must be seen or
-  run** returns a declined or inconclusive detour.
+  run** returns a declined or inconclusive detour, naming no branch of this detour, because the cut made none. Where
+  the cut failed on an existing `<branch>`, name that branch as an earlier prototype of the same question.
 
 **Commit, then remove the worktree.** Applies once the detour ends, its prototype conclusive or not, or abandoned.
 Commit a built prototype inside `<tree>`, never onto the base branch, its message per
