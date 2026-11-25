@@ -71,7 +71,7 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 - **Non-ASCII text reaches `jq`** through stdin or a file, never through `--arg` or a path argument. A `jq`
   filter carries no title, body, or label.
 - **A file path is an argument** only where the program reads a file by path alone: `scope.js dod-line
-  --match-file` and `--note-file`, and `jq --rawfile` and `--slurpfile`. Name those files with
+  --match-file`, `--note-file`, and `--tag-file`, and `jq --rawfile` and `--slurpfile`. Name those files with
   `mktemp ./sd-XXXXXXXX` and remove them afterwards.
 - **ADF lines.** A line written into a description (an anchor line, a section heading, a checklist line)
   is a single ADF `paragraph` node whose one `text` node is the literal line. A section is a `heading`
@@ -332,8 +332,16 @@ a live shape that differs.
   Write the amended ADF body to `"$f"`. On no matching line `dod-line` prints nothing and exits 1, so the
   gate stops the edit. **Best-effort:** a failed write is reported once per run and never stops the run;
   `dod.md` stays authoritative.
+- **With a *Repository component* configured** the producer matches by criterion text and tag, so a sibling
+  repository's line with the same text is never edited. Write the line's tag as `dod.md` carries it, empty for an
+  untagged line, to its own file too. The producer runs `dod-line --line` with `--tag-file <path> --component
+  <component>` on each paragraph whose joined text starts `[ ] ` or `[x] ` and holds the criterion, and takes the
+  one paragraph on which it exits 0 with non-empty output. No such paragraph, or two, stops the edit at the gate.
+  Under `--component`, a plain `scope` or `docs` tag in `dod.md` matches its own `scope (<component>)` or `docs
+  (<component>)` line on the anchor.
 - **A criterion's tag renders as the issue `key`** (`<PROJ>-<n>`, for example `PROJ-12`), several as
-  `<PROJ>-<n>, <PROJ>-<m>`, never bracketed. A `scope` tag stays `scope`, and a `docs` tag `docs`.
+  `<PROJ>-<n>, <PROJ>-<m>`, never bracketed. A `scope` tag stays `scope`, and a `docs` tag `docs`, in their
+  qualified forms `scope (<component>)` and `docs (<component>)` too.
 
 ## Status workflow (fill in at setup)
 
