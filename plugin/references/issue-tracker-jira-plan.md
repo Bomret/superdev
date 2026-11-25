@@ -54,6 +54,12 @@ issue's body**, never an issue link.
 - **Record the Intent line:** append `**Intent:** <key>[, <key>]` (every seeding intent record's key),
   revising the line in place on an append seeded from another one.
 
+## Absorbed records
+
+**Connect an absorbed record:** post a comment on the record through the store document's triage record
+**Comment on it** call, its text from a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`). The text names the scope
+anchor as `<anchor-key>` and the feature label, and names no pull-request URL. The comment is the whole call.
+
 ## Assignee
 
 Operator configuration, not a slice field (`assignee.md` → *Assignee*). The identifier is a Jira

@@ -57,6 +57,13 @@ dependencies endpoint, so the slice-level and feature-level relations never coll
 - **Record the Intent line:** append `**Intent:** #<n>[, #<n>]` (every seeding intent record's
   reference), revising the line in place on an append seeded from another one.
 
+## Absorbed records
+
+**Connect an absorbed record:** post a comment on the record through the store document's triage record
+**Comment on it** call, its text from a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`). The text names the scope
+anchor as `#<anchor>` and the feature label, and names no pull-request URL. No native link is written: Forgejo offers no relation between
+issues besides a dependency, and a dependency would make the record block the anchor.
+
 ## Assignee
 
 Operator configuration, not a slice field (`assignee.md` → *Assignee*). The identifier is a Forgejo

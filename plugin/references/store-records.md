@@ -46,6 +46,13 @@ that plainly states the same defect gets a comment through the store's **Comment
 - **A store document with no List the records call** → skip the read and create the record.
 - **A store document with no Comment on it call** → create a new record on a match.
 
+**Absorbed.** Applies to a record a scope anchor's Absorbs line names. The record carries a comment naming that anchor,
+posted by the `/superdev:plan` run that absorbed it. The store's `-plan` document's **Connect an absorbed record** call
+owns the mechanism.
+
+- **A store document with no Comment on it call** → the plan posts no comment, reports the gap once per plan run
+  naming `/superdev:setup`, and creates no new record.
+
 **Best-effort.** Applies to every record write. A failed or denied write is reported once per run.
 
 - **The deferred trigger** → the ledger bullet stays written, and the review stays unblocked.

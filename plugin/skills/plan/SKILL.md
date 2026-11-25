@@ -275,6 +275,15 @@ A triage record already written is amended instead, through the store's own `## 
 | `**Absorbs:** #<n>[, #<n>]` | The operator picked records to absorb: through the **Record the Absorbs line** call, naming every pick. An append that absorbs more keeps the records the line already names. |
 | `**Intent:** #<n>[, #<n>]` | §1 seeded this plan from an intent record: name that record, through the **Record the Intent line** call, whether or not the intent turns out fully planned. A plan seeded from a local file or from nothing writes none. An append seeded from another record keeps the records the line already names. |
 
+**Connecting absorbed records.** Applies once the anchor's Absorbs line write succeeded. Make the plan document's **Connect an absorbed record** call for every record this plan newly absorbed, handing it the anchor's reference and the feature label.
+
+- **Newly absorbed** → on a new, single-slice, or repair plan, every entry of the line. On an append, only the entries the revised line adds over the line it read, both compared after the Absorbs-line read rule (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *The Absorbs line*): each entry trimmed, a malformed entry ignored, a repeated entry counted once.
+- **An append that makes a single-slice feature an epic** → connect every record the moved Absorbs line names to the new epic. The connection to the former lone slice stays.
+- **A failed or denied call** → report it once, naming the record, and connect the next record. The filed scope stands, as in **A failed settle**.
+- **An Absorbs-line write that failed** → connect nothing.
+- **A plan document that states no Connect an absorbed record call** → connect nothing, and name `/superdev:setup` once per plan run, whose re-run offers the call.
+- **The record's lifecycle** → the call changes no status, label, parent, or assignee on the record. Only `/superdev:wrap-up` closes it.
+
 **A missing Intent call.** Applies to a plan document that states no **Record the Intent line** call. Write no line and name `/superdev:setup`, whose re-run offers the call. A failed Intent write is reported once, and the filed scope stands.
 
 **Deleting the draft.** Applies once the Definition of Done is durably in the slice store. Delete the draft and the slice draft.
