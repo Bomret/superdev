@@ -14,8 +14,9 @@ question whose answer turns on seeing or running something: how a screen looks o
 variants reads better, whether a state model or data shape survives real data. The move recommends the detour as
 that question's answer, and the question waits for the prototype's result. `/superdev:plan` reaches the move because
 it runs the whole discipline, and `/superdev:brainstorm` names it among its core moves in place of its own concept.
-A prototype is built and committed in its own worktree, `.superdev/prototypes/<slug>` under the main working tree, on
-a `prototype/<slug>` branch cut from the base, or from the current commit where no base branch is recorded, and every prototype commit is a featureless commit. The validated
+The prototype lives in its own worktree, `.superdev/prototypes/<slug>` under the main working tree. The interview
+cuts a `prototype/<slug>` branch for it from the base, or from the current commit where no base branch is recorded.
+The interview builds and commits the prototype there, and every prototype commit is a featureless commit. The validated
 decision lands where the detour was opened: brainstorm's intent file, or plan's interview answer, an ADR, and a
 `Prototype: prototype/<slug>` line in the `spec` of the slice the decision shapes, which `plan-contract.md` admits
 beside its prototype-sourced snippet.
