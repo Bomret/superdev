@@ -532,6 +532,9 @@ _Avoid: "issue tracker" as the concept name (that is one backend), "database"_
 **Repository component**: the slice-store value that marks an issue as this repository's, for a store several repositories share — a Jira component, set on every issue superdev creates and required by every query it runs. Optional: a store one repository owns names none. Recorded in `docs/agents/issue-tracker.md`.
 _Avoid: "component" alone (that names a unit of code, **Component** above), "project" (the shared store itself)_
 
+**Shared anchor**: a scope anchor with slices from more than one repository, each slice under its own repository's **Repository component**. Each repository runs its own scope against it. A run owns only its repository's slices and the Definition-of-Done lines they deliver. The anchor closes once every repository's slices are closed and every line on it is settled. An anchor counts as shared only for a repository that has a Repository component.
+_Avoid: "multi-repo epic" (an anchor need not be an epic), "cross-repo scope" (each repository still runs its own scope)_
+
 **Issue-type role**: what an issue does for superdev in a slice store with typed issues — scope anchor, slice, or triage record. Each role names the issue types it allows, each with a one-line "use for", the first being the role's default; superdev creates an issue only in a type its role allows and counts an issue of any other type as none of its own (ADR 0195).
 _Avoid: "issue type" for the role (one role allows several types), "kind"_
 
