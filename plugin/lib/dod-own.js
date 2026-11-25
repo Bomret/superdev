@@ -27,7 +27,7 @@ function readSlices(file) {
   return slices;
 }
 
-// An owned line: the component that owns a checklist line's tag, or the problem that keeps its owner unknown.
+// The component that owns a checklist line's tag, or the problem that keeps its owner unknown, with the fix.
 function ownerOf(tag, slices, components) {
   if (!tag) return { problem: 'untagged line', fix: 'tag it with its slices, or with scope (<component>) or docs (<component>)' };
   if (tag === 'scope' || tag === 'docs') return { problem: `plain ${tag} tag`, fix: `name its repository: ${tag} (<component>)` };
