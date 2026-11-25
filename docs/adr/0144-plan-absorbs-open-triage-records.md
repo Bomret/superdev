@@ -6,7 +6,9 @@
 deferred "Have `/superdev:plan` read and close open triage records". This record takes that option.
 
 **Amended by:** [ADR 0233](0233-scope-js-checks-an-anchor-definition-of-done.md), which has `scope.js
-dod-check` check the correspondence between the Absorbs line and the `(triage <reference>)` citations.
+dod-check` check the correspondence between the Absorbs line and the `(triage <reference>)` citations, and by
+[ADR 0283](0283-plan-connects-an-absorbed-record-to-its-scope-anchor.md), which has the plan connect each absorbed
+record to the scope anchor.
 
 **Context.** On 2026-10-12, `bomret/superdev` held 185 triage records, 82 of them open. 74 were created in
 ISO week 41 alone. The 9 scopes that created the most records closed 33 and created 44. `/superdev:plan`'s
