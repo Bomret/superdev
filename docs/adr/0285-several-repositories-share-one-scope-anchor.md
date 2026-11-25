@@ -1,4 +1,4 @@
-# 0284: Several repositories share one scope anchor
+# 0285: Several repositories share one scope anchor
 
 **Status:** Accepted
 
