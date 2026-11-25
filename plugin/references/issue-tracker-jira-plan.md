@@ -26,13 +26,16 @@ Every create sends its payload file through the **Transport** rule.
   "assignee": {"accountId":"<assignee>"}, "components": [{"name":"<component>"}] } }`. `<test-applicability>`
   is `behavior`, `mechanical`, or `docs`; `<ready>` is the *Ready status/label*. Omit `parent` on a
   single-slice feature (the lone slice is the anchor), the `assignee` field when the assignee resolves to
-  `none`, and the `components` field when no *Repository component* is configured. Capture the returned
-  `key` (e.g. `<PROJ>-123`) as this slice's external id.
+  `none`, and the `components` field when no *Repository component* is configured. `<component>` is the
+  component the create is given, the slice's `repository` field on a multi-repository plan (`plan-contract.md`
+  → *Fields*), and the configured *Repository component* otherwise. Capture the returned `key` (e.g.
+  `<PROJ>-123`) as this slice's external id.
 - **Create the Epic** (the scope anchor, an issue of the *Scope anchor* role's type, by id): the same
   `POST` with `"summary": "<feature title>"`, `"issuetype": {"id":"<anchor type id>"}`,
   `"description": <ADF body: the global DoD checklist and the plan-only sections>`,
   `"labels": ["<feature-label>"]`, and the `assignee` and `components` fields as the slice create carries
-  them. It carries no ready label, no `test-applicability` label, and no `parent`.
+  them. On a multi-repository plan `components` carries every participating repository's component, one
+  `{"name":"<component>"}` entry each. It carries no ready label, no `test-applicability` label, and no `parent`.
 - **A label-refused create** is retried once without `labels`, as `docs/agents/issue-tracker.md` states.
 - **Link a dependency** (`depends-on`):
   `POST <base>/rest/api/3/issueLink` with

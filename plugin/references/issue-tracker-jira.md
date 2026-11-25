@@ -22,11 +22,16 @@ makes, creating issues and writing anchor lines, live in `docs/agents/issue-trac
 - **Repository component** (optional; CONTEXT.md → *Repository component*): `<component name>`, the Jira
   component that marks an issue as this repository's in a shared project. Without the bullet, creates and
   listings stay as written. Setup offers the project's components plus `none`.
+  - **The name rule.** A component name holds no `,`, `(`, `)`, or ` — ` (space, em dash, space), because a
+    shared anchor's Definition of Done names it inside a `scope (<component>)` or `docs (<component>)` tag
+    (`plan-contract.md` → *A shared anchor*). Setup refuses to record a name that breaks the rule.
   - **With a component set**, every create carries `"components": [{"name": "<component>"}]` (slice,
     Epic, append-mode Epic, triage record, intent record, and each retry), and every JQL query adds
     `AND component = "<component>"` after its own conditions, outside its parenthesised group, before any
     `ORDER BY`. Inside a JQL string, `\` becomes `\\` and `"` becomes `\"`, in the component name and in
-    every label.
+    every label. The exceptions: the every-repository calls of *Scope anchor* add no component clause, a
+    create given another repository's component carries that one instead, and an Epic create given several
+    components carries each of them.
   - **A create Jira rejects for `components`** (a `400` naming `components` in `errors` or
     `errorMessages`) is reported once and never retried without the component.
 - **Feature label**: one label per feature/scope, `<type>/<slug>` (e.g. `fix/<slug>`), on the root and its
@@ -161,6 +166,29 @@ allows is skipped by every listing below.
 - **Ambiguous.** Two or more parentless issues under one feature label that are not done. A consumer
   reports an ambiguous shape instead of choosing.
 
+**A shared anchor** (`plan-contract.md` → *A shared anchor*) holds slices of several repositories, each slice
+under its own repository's Repository component. The calls below add **no component clause**, and only a
+repository with a *Repository component* configured makes them.
+
+- **List an anchor's slices in every repository.** `GET <base>/rest/api/3/search/jql` with the JQL `project =
+  <PROJ> AND parent = "<anchor-key>"` and `fields=summary,status,components,labels,issuetype`, paged per
+  **Paging**. Keep the issues whose `issuetype.id` the *Slice* role allows. Each slice reads as its `key`, its
+  status (done per **Done**, else open), and its component names (`fields.components[].name`). A slice carrying
+  no component, or more than one, stops the caller, naming the slice's `key` and the fix: give it exactly one
+  Repository component in Jira. A failed call is a failed listing, and its caller states what a failure does.
+- **Find an anchor in every repository** (`/superdev:plan`'s extend, joining an anchor that holds none of
+  this repository's slices). **List feature slices** with no component clause: `project = <PROJ> AND labels =
+  "<feature-label>"` and `fields=summary,description,status,labels,issuetype,parent,assignee,components`, paged per
+  **Paging**. Apply **Recognise one** and **Ambiguous** to the result.
+- **Add a repository's component to an anchor.** Build `{ "update": { "components": [{ "add": { "name":
+  "<component>" } }] } }` into `$p`, send it with `PUT <base>/rest/api/3/issue/<anchor-key>` per **Transport**,
+  then read `GET <base>/rest/api/3/issue/<anchor-key>?fields=components` back: a `fields.components[].name`
+  list without `<component>` is a failed write, reported with Jira's answer. An anchor already carrying the
+  component needs no write.
+- **Tell a shared anchor.** The anchor is shared when **List an anchor's slices in every repository** holds a
+  slice whose one component is not this repository's *Repository component*. With no *Repository component*
+  configured, no anchor is shared and none of these calls runs.
+
 ## Claim
 
 `assignee.md` → *Claim*. The identifier is a Jira **`accountId`**.
@@ -198,7 +226,9 @@ that absorbed it, and none until a scope absorbs it.
 
 - **Create it:** `POST <base>/rest/api/3/issue` with
   `{ "fields": { "project": {"key":"<PROJ>"}, "summary": "<the finding, one line>",
-  "components": [{"name":"<component>"}] (only with a *Repository component* configured),
+  "components": [{"name":"<component>"}] (only with a *Repository component* configured; a caller that names
+  a sibling repository's component, for a deferred finding whose fix belongs there, passes that one in place
+  of the configured one),
   "issuetype": {"id":"<triage type id>"}, "description": <ADF body: the finding, why it needed a record —
   for a deferred finding, why no Definition of Done criterion covered it; for an observation, that no
   slice of the scope covers it and the scope did not cause it — the date, the feature label, the scope
@@ -343,3 +373,8 @@ The table records transition **ids**, read from `GET <base>/rest/api/3/issue/<ke
 JQL-search the feature's issues (**List feature slices**), read each, and reconstruct slice fields from the
 mapping above. No Epic among the results (single-slice feature) → the global DoD is the lone slice issue's
 own `acceptance`.
+
+- **A sibling blocker.** On a shared anchor (**Tell a shared anchor**), an "is blocked by" link of the
+  **`depends-on` link type** to an issue outside this repository's listing that **List an anchor's slices in
+  every repository** holds is a **sibling blocker**. Carry it with its `key`, and read its status through **Read a slice**:
+  a done status (**Done**) satisfies it. Any other blocker outside the feature's slice set stays outside it.
