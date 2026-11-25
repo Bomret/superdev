@@ -251,10 +251,8 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
       Otherwise compose the merge commit's message and write its file per `commit-messages.md`, its body naming
       `<tip>`, and run `git -C <run-root>/scopetree merge --cleanup=scissors -F <file> <tip>`, `<run-root>` spelled
       out as the real absolute path. Read its outcome in this order:
-      - **A failed merge with no `MERGE_HEAD`** → the merge exited non-zero and `git -C <run-root>/scopetree rev-parse
-        -q --verify MERGE_HEAD` finds none, so it recorded nothing. Relay git's output, check that `git -C
-        <run-root>/scopetree status --porcelain` shows the scopetree unchanged, and stop, dispatching no slice.
-        **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
+      - **No `MERGE_HEAD` set** after a non-zero exit → follow `merge-conflicts.md`'s **A failed merge with no
+        `MERGE_HEAD`**, dispatching no slice.
       - **`MERGE_HEAD` still set** → apply `merge-conflicts.md`'s **A refusal is no conflict** test first. A refusal
         is handled by its **A refused merge**, and a conflict is resolved, concluded, or escalated per that file.
       - **A clean merge** → the merge exited 0. Go on to step 4.

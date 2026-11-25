@@ -36,7 +36,7 @@ the scope tip the cycle began from, when the cycle starts, then run these steps 
    - the range base from `scope.js base resolve`, for the same-defect search over `<range-base>..HEAD`;
    - the verify skill's path, or `none` (`skills/implement/SKILL.md`'s **The config**);
    - the feature's change type and the scope anchor's store reference: its fix commits' messages take both, per
-     `commit-messages.md`, and a refused commit ends it `BLOCKED`.
+     `commit-messages.md`.
 
    Tell it to fix the list and to work its sibling surfaces, per `skills/implement/SKILL.md`'s **Sibling surfaces**.
    `agents/implementer.md` owns the rest: `## The sweep fix dispatch`, `### Sibling surfaces`, `### Running tests`,

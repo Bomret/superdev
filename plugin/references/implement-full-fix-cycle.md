@@ -30,7 +30,7 @@ or Important finding outside the deferred and unclosable ones.
   (`implement-full.md`'s **The implementer dispatch**);
 - for a **Pass-to-pass** finding, that finding's original base;
 - the feature's change type and the slice's store reference, as the slice's own dispatch handed them: its fix commits'
-  messages take both, per `commit-messages.md`, and a refused commit ends it `BLOCKED`.
+  messages take both, per `commit-messages.md`.
 
 Tell it to fix every finding on the list and to work its sibling surfaces, which `skills/implement/SKILL.md`'s
 **Sibling surfaces** requires every fix dispatch to say. `agents/implementer.md` owns the rest: `### Defect repair`, `### RED-test rule`,

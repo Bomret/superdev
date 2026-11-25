@@ -44,7 +44,7 @@ it with `git -C <run-root>/scopetree merge --cleanup=scissors -F <file> integrat
 `commit-messages.md` states, its body naming `integration/<scope>`.
 
 - That merge runs no suite: the full-suite evidence `/superdev:ship` takes verifies it.
-- A conflict or a refusal there follows step 4's **A conflicted merge**.
+- A failure there follows step 4's **A failed merge**.
 - Everything else in the loop is unchanged.
 
 ## Run lock
@@ -111,7 +111,7 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    - the slice `spec`, `acceptance`, and `test-applicability`;
    - the feature's change type, the prefix of the ledger's `**Branch:**` line (`scope.js get branch --root
      <run-root>`), never a reconstructed one, and the slice's store reference, its `issue` column in `scope.js get
-     slices`: its commit messages take both, per `commit-messages.md`, and a refused commit ends it `BLOCKED`;
+     slices`: its commit messages take both, per `commit-messages.md`;
    - its slicetree path (`<run-root>/slicetrees/<id>`), branch (`slice/<scope>/<id>`), and `<base>`, the commit the
      slice branch was cut from, as a full commit;
    - its progress-log path, seeded first, and the heading of its self-check entry, `Self-check — build`;
@@ -251,15 +251,11 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md`, its body naming `slice/<scope>/<id>`. In the scopetree:
    `git -C <run-root>/scopetree merge --no-ff --cleanup=scissors -F <file> slice/<scope>/<id>`.
 
-   **A failed merge with no `MERGE_HEAD`.** Applies to a merge that exited non-zero and left no `MERGE_HEAD`
-   (`git -C <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds none). It recorded nothing: relay git's
-   output, check that `git -C <run-root>/scopetree status --porcelain` shows the scopetree unchanged, and stop and
-   escalate. **`--unattended` → block** (`scope-mode.md`'s `## Unattended`).
-
-   **A conflicted merge.** Applies to a merge that exited non-zero and left `MERGE_HEAD` set. Read
-   `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md` and apply its **A refusal is no conflict** test first. Resolve
-   a conflict yourself as it states, which includes concluding, aborting, and escalating, and handle a refusal by its
-   **A refused merge**. Dispatch a fix subagent only where a conflict needs real code work.
+   **A failed merge.** Applies to a merge that exited non-zero. Read
+   `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md`. With no `MERGE_HEAD` set, follow its **A failed merge with no
+   `MERGE_HEAD`**. With `MERGE_HEAD` set, apply its **A refusal is no conflict** test first. Resolve a conflict yourself
+   as it states, which includes concluding, aborting, and escalating, and handle a refusal by its **A refused merge**.
+   Dispatch a fix subagent only where a conflict needs real code work.
 
    **A slice merge runs no suite.** Applies to every slice merge, clean or concluded with `merge --continue`. Go
    straight on to the next dispatch or merge. A break red evidence names goes to the scope review's fix loop.

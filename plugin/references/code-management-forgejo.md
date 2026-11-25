@@ -36,7 +36,7 @@ The repository's commit convention, filled in at setup and owned by the operator
 pull-request title superdev writes here follows it (`references/commit-messages.md`).
 
 - **Rule**: Conventional Commits. A header `type(scope): subject`, the type the kind of change, the scope the feature's
-  slug, the subject in the imperative; a body where the change needs one.
+  slug where there is a feature (optional otherwise), the subject in the imperative; a body where the change needs one.
 - **Commit**: `test(lite-perf): cover the tier switch at four behavior slices`
 - **Merge commit**: `feat(lite-perf): merge slice/lite-perf/02`, its body naming the merged branch or commit.
 - **Pull-request title**: `feat(lite-perf): size the execution tier by behavior slices`

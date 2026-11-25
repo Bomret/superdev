@@ -73,7 +73,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 - **The seed** is the one for the backend the document records, read from `${CLAUDE_PLUGIN_ROOT}/references/`: `issue-tracker-<backend>.md`, `issue-tracker-<backend>-plan.md` for `issue-tracker-plan.md`, `code-management-<host>.md`, `documentation.md`, `knowledge-base-<backend>.md`, `deployment.md`.
 - **A knowledge-base document recording a Forgejo, Codeberg, Gitea, or GitHub wiki** maps to its own seed, whoever wrote it: `knowledge-base-forgejo.md` for the first three, `knowledge-base-github-wiki.md` for GitHub, never the other's.
 - **An absent `issue-tracker-plan.md`** beside a present `issue-tracker.md` with a seed is one seed gap of the store document: name the `-plan` seed and the store-document sections that move into it (§3's **An absent plan document**).
-- **No matching seed** reports `no seed to compare`: an "Other" prose backend, a `None` knowledge base, a `documentation.md` recording the user's own convention, `toolchain.md`, and `verification.md`. The last two keep the fact checks.
+- **No matching seed** reports `no seed to compare`: an "Other" prose backend, a `None` knowledge base, a `documentation.md` recording the user's own convention, `toolchain.md`, and `verification.md`. The last two keep the fact checks, and an "Other" host's `code-management.md` keeps **The commit-messages heading**'s gap.
 
 **Matching.** Applies to a document with a seed. Pair each seed section with the document section that does the same job, whatever its heading. A seed gap is a seed section with no matching document section, or a seed rule that a matched section lacks or contradicts. List each by the seed's name for it, with the document section it belongs under.
 
@@ -88,7 +88,9 @@ Applies to every start. You write the per-repo config documents the superdev ski
 
 - The rule and examples under a code-management document's `## Commit messages` are filled-in values: the operator owns them, and no seed rule there is compared word for word.
 
-**The commit-messages heading.** Applies to a code-management seed's `## Commit messages`, an exception to **No gap**'s renamed heading. Writers read only that literal heading (`references/commit-messages.md`), so a matching commit rule under another heading is a seed gap: offer to move it under `## Commit messages`. A document with no commit rule at all lacks the section, and its gap is applied by decision B's **The commit convention**.
+**The commit-messages heading.** Applies to a code-management seed's `## Commit messages` and to an "Other" host's `code-management.md`, an exception to **No gap**'s renamed heading. Writers read only that literal heading (`references/commit-messages.md`), so a matching commit rule under another heading is a seed gap: offer to move it under `## Commit messages`. A document with no commit rule at all lacks the section, and its gap is applied by decision B's **The commit convention**.
+
+- An "Other" host's `code-management.md`, which has no seed to compare, still gets this one gap where it lacks the literal `## Commit messages` heading. A commit rule it records under another heading is offered for the move, and a document with none gets the section through **The commit convention**.
 
 **`## Seed deviations`.** Applies to a document carrying the section, the document's record of a gap the operator declined. Each bullet is `- Seed deviation: <seed section or rule, as the seed names it> — <the operator's reason> (<YYYY-MM-DD>)`. List a gap a bullet names as `recorded`, with the bullet's reason.
 
@@ -214,12 +216,22 @@ merge commit, and a pull-request title. Write it as the `## Commit messages` sec
 **The convention evidence.** Applies to **The commit convention**. Read each source below that exists, and run no
 hook. A shallow clone, or one with fewer commits, works from what it has.
 
-- **commitlint configs**: `commitlint.config.{js,cjs,mjs,ts,cts,mts}`, `.commitlintrc` and `.commitlintrc.{json,yaml,yml,js,cjs,mjs,ts}`, and a `commitlint` key in `package.json`.
-- **commit-msg hooks**: `.husky/commit-msg`, `lefthook.yml`, `lefthook.yaml`, and `.lefthook.yml`, a
-  `.pre-commit-config.yaml` hook at the `commit-msg` stage, a `simple-git-hooks` key in `package.json`, the directory
-  `git config core.hooksPath` names, the file `git rev-parse --git-path hooks/commit-msg` names (a linked worktree's
-  included), and every config-based hook whose `hook.<name>.event` is `commit-msg`, read with `git config
-  --get-regexp '^hook\..*\.event$'`.
+- **commitlint configs**: `commitlint.config.{js,cjs,mjs,ts,cts,mts}`, `.commitlintrc` and
+  `.commitlintrc.{json,yaml,yml,js,cjs,mjs,ts,cts,mts}`, and a `commitlint` key in `package.json` or `package.yaml`
+  ([commitlint configuration](https://commitlint.js.org/reference/configuration.html), checked 2026-11-25).
+- **commit-msg hooks**: every source in the list below.
+  - husky: `.husky/commit-msg`, and husky v4's `husky.hooks` key in `package.json`, `.huskyrc`,
+    `.huskyrc.{json,yaml,yml,js}`, and `husky.config.js`
+    ([husky v4](https://github.com/typicode/husky/tree/v4.3.8), checked 2026-11-25).
+  - lefthook: `lefthook.{yml,yaml,toml,json,jsonc}`, the same names with a leading dot, the same names under
+    `.config/` without one, and the `lefthook-local` counterpart of each
+    ([lefthook configuration](https://lefthook.dev/configuration/), checked 2026-11-25).
+  - pre-commit: a `.pre-commit-config.yaml` hook at the `commit-msg` stage.
+  - simple-git-hooks: a `simple-git-hooks` key in `package.json`, and `simple-git-hooks.{cjs,js,mjs,json}` with or
+    without a leading dot ([simple-git-hooks](https://github.com/toplenboren/simple-git-hooks), checked 2026-11-25).
+  - git itself: the directory `git config core.hooksPath` names, the file `git rev-parse --git-path hooks/commit-msg`
+    names (a linked worktree's included), and every config-based hook whose `hook.<name>.event` is `commit-msg`, read
+    with `git config --get-regexp '^hook\..*\.event$'`.
 - **recent subjects**: `git log --no-merges -n 50 --format=%s`, leaving out a subject that carries `[skip ci]` (a
   release bot's) and ignoring a trailing ` (#<n>)` a host's squash merge appends.
 
@@ -600,7 +612,7 @@ The focused command selects every test a changed path can affect.
 
 - **A file setup wrote only part of** (the root file holding the `## Agent skills` block, `.gitignore`) → diff it against the commit's parent: `git diff HEAD -- <path>` for the current branch, `git diff <remote>/<base> -- <path>` for a new branch. A hunk setup did not write is named to the operator, and the file joins the commit only on the operator's yes. Otherwise it stays out, and the report says so.
 - **The push** runs as `GIT_TERMINAL_PROMPT=0 git push …`, so a credential prompt fails at once. Pass the Bash tool's `timeout` set to `code-host.pushTimeoutMs` of the operator file, or 60000 milliseconds when unset, and at most the Bash tool's ceiling, 600000 milliseconds unless `BASH_MAX_TIMEOUT_MS` raises it.
-- **A refused commit**, a hook whose tooling the fresh worktree lacks included, is reported with git's output per `references/commit-messages.md`'s `## A refused commit or merge`, and never bypassed. The files stay uncommitted: in the checkout on the current branch, and in the worktree on a new branch, which is kept, not removed, with its path and the files in it named to the operator.
+- **A refused commit**, a hook whose tooling the fresh worktree lacks included, is reported with git's output per `references/commit-messages.md`'s `## A refused commit or merge`. The files stay uncommitted: in the checkout on the current branch, and in the worktree on a new branch, which is kept, not removed, with its path and the files in it named to the operator.
 - **A failed push** is reported with git's output. The commit stays local, and a new branch's worktree is removed with the branch kept.
 
 **Secrets.** Applies to every write. Record only env-var **names** for secrets, never token values. The operator file holds identifiers, display names, and time bounds only.

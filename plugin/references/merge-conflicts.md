@@ -30,9 +30,14 @@ Applies to every resolved conflict. Stage the resolution first. The merge's own 
 `<run-root>` out as the real absolute path in the command text, never as a shell variable: `hooks/merge-guard.js`
 reads the command text alone.
 
+**A failed merge with no `MERGE_HEAD`.** Applies to a controller's merge in the scopetree that exited non-zero and
+left no `MERGE_HEAD` (`git -C <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds none). It recorded
+nothing. Relay git's output, check that `git -C <run-root>/scopetree status --porcelain` shows the scopetree
+unchanged, and stop and escalate. **`--unattended` → block** (`scope-mode.md`'s `## Unattended`).
+
 **A refusal is no conflict.** Applies to a merge that exited non-zero and left `MERGE_HEAD` set, before any branch
 reads it as a conflict. Run `git -C <run-root>/scopetree diff --name-only --diff-filter=U`. An empty listing means a
-hook or git refused to record the merge commit, so take **A refused merge**; a listing names a conflict, resolved or
+hook or git refused to record the merge commit, so take **A refused merge**. A listing names a conflict, resolved or
 escalated above.
 
 **A refused merge.** Applies to a refusal (`references/commit-messages.md`'s `## A refused commit or merge`). Report
@@ -43,10 +48,11 @@ git's own output, stop, and escalate to the operator. **`--unattended` → block
 - **A refused `merge --continue`** after a resolution → leave the merge in place with its staged resolution. The next
   base step's **Check the scopetree first** stops on the set `MERGE_HEAD` until the operator concludes it.
 - **A refused slice merge** → the slice stays unmerged with its slicetree. Record it `blocked` in the ledger and in the
-  store with the reason `merge refused`, and stop the run. `implement-full-resume.md` merges such a slicetree again,
-  never re-dispatching an implementer.
-- **A refused integration-branch merge** → the merge is aborted and the scopetree stays on the scope branch. Record the
-  integrate-and-verify slice `blocked` with the reason `merge refused`, and stop the run.
+  store, and append the line `merge refused` to its progress log, `<run-root>/reports/<id>/progress.md`.
+  `implement-full-resume.md` reads that line and merges the slicetree again, never re-dispatching an implementer.
+- **A refused integration-branch merge** → the scopetree stays on the scope branch. Record the integrate-and-verify
+  slice `blocked`, append `merge refused` to its progress log the same way, and `implement-full-resume.md` runs its
+  merge again.
 
 **A genuine winner-picking overlap escalates.** Applies to the same decision made two incompatible ways, where
 honouring one spec violates the other. Compatible intents on the same lines compose instead.

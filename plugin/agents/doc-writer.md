@@ -64,7 +64,7 @@ Read a remote knowledge base and write to none, as `${CLAUDE_PLUGIN_ROOT}/refere
 
 ## Commit your changes
 
-Applies to every dispatch that changed a file. Commit your changes on the current branch, the message per `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md` with the change type and store reference the dispatch hands, where it hands them. A commit git refuses ends your dispatch with your edits uncommitted and git's own output in your report, no hook bypassed.
+Applies to every dispatch that changed a file. Commit your changes on the current branch, the message per `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md` with the change type and store reference the dispatch hands, where it hands them. A commit git refuses ends your dispatch with your edits uncommitted and git's own output in your report.
 
 ## Read economically
 

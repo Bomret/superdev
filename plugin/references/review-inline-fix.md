@@ -41,7 +41,7 @@
 - **Working directory**: `<tree>`, where its commits land on `<branch>`.
 - **Findings**: the complete `<list>`, and `<cycle-base>` = `<tip>`. One implementer takes the whole list.
 - **Hand no `dod.md`, no run root, and no progress log.**
-- **Commit values**: none. An ad-hoc fix has no feature, so its commits' messages follow `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md` with no change type and no store reference, and a rule that requires one stops the commit there. A refused commit ends it `BLOCKED`.
+- **Commit values**: none. An ad-hoc fix has no feature, so its commits' messages follow `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md` as its **A featureless commit** states.
 
 **You apply no fix yourself.** Applies to every outcome of the dispatch, a denied one included.
 

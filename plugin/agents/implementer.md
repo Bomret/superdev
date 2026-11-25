@@ -134,7 +134,7 @@ GREEN: write the minimal code to pass it → the next increment's run, or the fi
 - **Every acceptance criterion gets at least one increment.** Each criterion is the RED test of its own increment. That includes the failure and boundary cases the criteria name.
 - **A criterion that needs an outward-facing change to verify** (a deploy or a migration) gets no increment. Verifying observes and changes no system outside the repository. An app instance a verify skill starts for your checkout, with the state it alone owns, counts as inside (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Verification ceiling`). Report it as `### Listed lines` states for `ceiling`.
 - **Never refactor while RED.** Get to green first. Then refactor with the suite as your net.
-- **Commit each increment** on your branch once its code is written, its message composed per `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md` from the change type and the store reference your dispatch hands. Those commits are your resume points, and the next increment's run or the final run checks each one green. A commit git refuses ends your dispatch `BLOCKED`, with git's own output in your report and no hook bypassed.
+- **Commit each increment** on your branch once its code is written, its message composed per `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md` from the change type and the store reference your dispatch hands. Those commits are your resume points, and the next increment's run or the final run checks each one green. A commit git refuses ends your dispatch `BLOCKED`, with git's own output in your report.
 
 ### Running tests
 

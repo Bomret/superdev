@@ -24,14 +24,19 @@ compaction, or an interruption mid-loop. Reconcile state with the steps below, t
    - Read the verify skill's path again from `docs/agents/verification.md`'s `## Verify skill` for a `behavior`
      slice's dispatch or resume, and for a resumed sweep's fix and re-review, never from memory (`skills/implement/SKILL.md`'s **The
      config**).
+   - **A `blocked` integrate-and-verify slice whose progress log `<run-root>/reports/<id>/progress.md` holds the line
+     `merge refused`** → its integration
+     merge was refused: run that merge again as `implement-full.md`'s **An epic carrying `## Integration branch`**
+     states, before the runnable set.
    - A `malformed` entry names a slice row the ledger cannot read: resolve it before dispatching.
    - A slice the ledger, or the merge log, marks `merged` is done: **never re-dispatch it**, whatever a stale
      in-progress slicetree suggests.
 3. **Reconcile leftover slicetrees.** For each `<run-root>/slicetrees/<id>` still present, check its branch against
    the ledger.
    - **Already merged** → clean it up: `git worktree remove` and `git branch -D slice/<scope>/<id>`.
-   - **Not yet merged, and `blocked` with the reason `merge refused`** → merge it again by `implement-full.md`'s DAG
-     loop step 4, never re-dispatching an implementer (`merge-conflicts.md`'s **A refused merge**).
+   - **Not yet merged, `blocked`, and its progress log `<run-root>/reports/<id>/progress.md` holding the line `merge
+     refused` below its last `dispatch:` line** → merge it again by `implement-full.md`'s DAG loop step 4, never
+     re-dispatching an implementer (`merge-conflicts.md`'s **A refused merge**).
    - **Not yet merged otherwise** → resume it in place: prepare it per `scope-branch.md`'s `## Preparing a worktree`,
      then dispatch there with its existing commits intact, or continue a tiny slice there yourself.
 4. **Rebuild the runnable set** from reconciled state (`implement-full.md`'s DAG loop step 1) and continue. Where every

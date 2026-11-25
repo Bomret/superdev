@@ -35,7 +35,7 @@ Every commit, merge commit, and pull-request title superdev writes here follows 
 (`plugin/references/commit-messages.md`).
 
 - **Rule:** Conventional Commits. A header `type(scope): subject`, the type the kind of change, the scope the
-  feature's slug, the subject in the imperative; a body where the change needs one. PRs are **squash-merged**, so
+  feature's slug where there is a feature (optional otherwise), the subject in the imperative; a body where the change needs one. PRs are **squash-merged**, so
   the pull-request title becomes the commit message on `main`, and semantic-release parses it for the version bump
   and the changelog. A title without a conventional type is silently ignored, and no release happens.
 - **Commit:** `test(merge-guard): cover a merge refused by the commit-msg hook`
