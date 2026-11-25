@@ -8,6 +8,7 @@ const {
   scanAgentToolAgnostic,
   scanUnmappedPathsForms,
   scanNoForceMerge,
+  scanPrTitleHeredoc,
   scanConflictConclusionNoCommit,
   scanTeaOnly,
   scanGithubWikiGhOnly,
@@ -87,6 +88,29 @@ module.exports = ({ assert, path, fixture, found }) => {
     0,
     'a fenced caution is not an invocation',
   );
+
+  // --- pr-title-heredoc (ADR 0284) ---
+
+  const prTitle = (files) => found(scanPrTitleHeredoc(fixture(files)));
+  const inlineTitleGaps = prTitle({ 'references/code-management-github.md': '`gh pr create --base main --title "<title>" --body-file f`\n' });
+  assert.equal(inlineTitleGaps.length, 1, 'catches an inline `--title "<title>"`');
+  assert.match(inlineTitleGaps[0].expectation, /--title "<title>"/, 'the gap quotes the inline title');
+  assert.equal(
+    prTitle({ 'references/code-management-forgejo.md': 'tea pulls create\n  --title "feat: add it" --description-file -\n' }).length,
+    1,
+    'catches an inline literal title after a line break',
+  );
+  assert.equal(prTitle({ 'docs/agents/code-management.md': '```sh\ngh pr create --title=$title\n```\n' }).length, 1, 'catches a fenced unquoted `$title`');
+  assert.equal(
+    prTitle({
+      'references/code-management-github.md': '`gh pr create --title "$title" --body-file <file>`\n',
+      'references/code-management-forgejo.md': '`tea pulls create\n  --title "${title}" --description-file -`\n',
+      'docs/agents/code-management.md': 'pass `--title "$title"`, set from a quoted heredoc; the `--title` flag takes it\n',
+    }).length,
+    0,
+    'a quoted `$title` or `${title}`, and a bare `--title` mention, pass',
+  );
+  assert.equal(prTitle({ 'references/code-management-github.md': '`gh pr create --title "$title-x"`\n' }).length, 1, 'a quoted variable with text after it is inline text');
 
   // --- conflict-conclusion-no-commit (ADR 0123) ---
 

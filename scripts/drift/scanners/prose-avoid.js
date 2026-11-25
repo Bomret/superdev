@@ -14,6 +14,8 @@ const {
   UNMAPPED_PATHS_DOCS,
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,
+  PR_TITLE_HEREDOC_DOCS,
+  PR_TITLE_INLINE_PATTERN,
   TEA_ONLY_DOCS,
   TEA_ONLY_MARKERS,
   GITHUB_WIKI_GH_ONLY_DOCS,
@@ -103,6 +105,28 @@ function scanNoForceMerge(root) {
   return gaps;
 }
 
+// ADR 0284: no code-management document writes a pull-request title inline. See `PR_TITLE_INLINE_PATTERN`'s own
+// comment for the form and its ceiling.
+function scanPrTitleHeredoc(root) {
+  const gaps = [];
+  for (const rel of PR_TITLE_HEREDOC_DOCS) {
+    const text = readDoc(root, rel);
+    if (text === null) {
+      gaps.push(missingDoc(rel));
+      continue;
+    }
+    for (const hit of text.matchAll(PR_TITLE_INLINE_PATTERN)) {
+      gaps.push({
+        source: rel,
+        expectation:
+          `pass the pull-request title as \`--title "$title"\`, \`title\` set from a quoted heredoc — ` +
+          `\`${normalizeWhitespace(hit[0])}\` writes it inline, where the shell reads its text`,
+      });
+    }
+  }
+  return gaps;
+}
+
 // ADR 0123: no shipped skill, agent, or reference concludes a resolved merge conflict with `git commit`.
 // The documents are the prose directories read at scan time, so a document added later is covered the
 // day it lands. See `CONFLICT_COMMIT_CONCLUSION_PATTERNS`'s own comment for the ceiling.
@@ -187,7 +211,7 @@ const scanPluginPrefixPath = (root) =>
   scanShippedMarkdownForm(root, PLUGIN_PREFIX_PATH_PATTERN, (hit) =>
     `name a shipped path relative to the plugin root — \`${hit}\` carries the repository's \`plugin/\` prefix, which no install holds`);
 
-// ADR 0284: no shipped writer prose names Conventional Commits as the format of a commit or title superdev writes.
+// ADR 0284: no shipped prose writes the two forms `COMMIT_FORMAT_OWNER_PATTERN` refuses.
 const scanCommitFormatOwner = (root) =>
   scanShippedMarkdownForm(root, COMMIT_FORMAT_OWNER_PATTERN, (hit) =>
     `cite references/commit-messages.md for the message — \`${hit}\` fixes a format the repository's commit convention decides (ADR 0284)`);
@@ -446,6 +470,7 @@ module.exports = {
   scanAgentToolAgnostic,
   scanUnmappedPathsForms,
   scanNoForceMerge,
+  scanPrTitleHeredoc,
   scanConflictConclusionNoCommit,
   scanTeaOnly,
   scanGithubWikiGhOnly,

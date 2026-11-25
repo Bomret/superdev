@@ -27,6 +27,7 @@ const {
   scanWorktreeListParsers,
   scanTestSeams,
   scanNoForceMerge,
+  scanPrTitleHeredoc,
   scanConflictConclusionNoCommit,
   scanBackgroundRuleNamesLimit,
   scanDodBoxRule,
@@ -238,7 +239,7 @@ module.exports = [
   },
   {
     id: 'commit-format-owner',
-    ok: 'no shipped writer prose fixes Conventional Commits as the format of a commit or title superdev writes (ADR 0284)',
+    ok: 'no shipped prose writes `(Conventional Commits)` or `Conventional Commits` directly before header, title, message, or format (ADR 0284)',
     run: scanCommitFormatOwner,
     format: contractGap,
   },
@@ -246,6 +247,12 @@ module.exports = [
     id: 'code-management-no-force',
     ok: 'no code-management document invokes a force or bypass option on a merge call',
     run: scanNoForceMerge,
+    format: contractGap,
+  },
+  {
+    id: 'pr-title-heredoc',
+    ok: 'no code-management document writes a pull-request title inline after `--title` (ADR 0284)',
+    run: scanPrTitleHeredoc,
     format: contractGap,
   },
   {

@@ -386,6 +386,18 @@ const SOURCE_SECTION_CONTRACTS = [
     /^#{2,3}\s+Pushing the scope branch\s*$/m,
     'carry the `## Pushing the scope branch` section, which `skills/plan/SKILL.md` §6 cites (ADR 0167)',
   ],
+  // ADR 0284: every commit writer reads `commit-messages.md` by section, and a code-host seed's `## Commit messages`
+  // is the rule `commit-messages.md`'s **No section** falls back to and setup writes into `code-management.md`.
+  ...['Reading the rule', 'Composing a message', 'The message file', 'A refused commit or merge'].map((heading) => [
+    path.join('references', 'commit-messages.md'),
+    new RegExp(`^##\\s+${heading}\\s*$`, 'm'),
+    `carry the \`## ${heading}\` section, which the commit writers cite (ADR 0284)`,
+  ]),
+  ...['code-management-github.md', 'code-management-forgejo.md'].map((seed) => [
+    path.join('references', seed),
+    /^##\s+Commit messages\s*$/m,
+    'carry the `## Commit messages` section — the commit convention setup writes and `commit-messages.md` falls back to (ADR 0284)',
+  ]),
   // Agent-body headings another file cites by name. A template heading counts: the review scope-mode
   // reference and `dod-ticks.md` send their reader to the section the agent's output carries under it, so
   // the rows for headings that exist only inside the fenced output template carry `{ fenced: true }`.
@@ -465,8 +477,8 @@ const DOD_BOX_RULE_PATTERNS = [
 // that adjacency; a call that puts another word between `node` and the path walks past.
 const PLUGIN_ROOT_UNQUOTED_PATTERN = /\bnode[\s`]+\$\{?CLAUDE_PLUGIN_ROOT\b/g;
 
-// ADR 0284: shipped writer prose names no fixed format for a commit or title superdev writes, since the repository's
-// commit convention (`references/commit-messages.md`) decides it. The forms refused are the parenthetical
+// ADR 0284: the repository's commit convention (`references/commit-messages.md`) decides the format of a commit or
+// title superdev writes, so shipped prose refuses two forms that fix Conventional Commits as that format. They are the parenthetical
 // `(Conventional Commits)` and `Conventional Commits` directly before `header`, `title`, `message`, or `format`, a line
 // break allowed between the words. `Conventional Commits type` (the change type's definition) and a seed's
 // `**Rule**: Conventional Commits.` pass. simplicity: the ceiling is that adjacency.
@@ -507,6 +519,14 @@ const NO_FORCE_MERGE_PATTERNS = [
   [/force_merge['"]?\s*:\s*true/i, () => 'invoke `force_merge: true` on a merge call — that is the branch-protection bypass this contract forbids sending'],
   [/--admin\b/, () => 'invoke `--admin` on a merge command — that is the required-check bypass this contract forbids sending'],
 ];
+
+// ADR 0284: a code-management document passes the pull-request title as `--title "$title"`, `title` set from a quoted
+// heredoc, so the shell expands none of the title's text. The form refused is `--title` followed, after `=` or
+// whitespace, by any argument other than a double-quoted `$name` or `${name}`: an inline literal such as
+// `--title "<title>"`, and an unquoted `$title`, which the shell splits. Fences are read too. simplicity: the ceiling
+// is the `--title` spelling; a title passed by another flag (`-t`) walks past.
+const PR_TITLE_HEREDOC_DOCS = NO_FORCE_MERGE_DOCS;
+const PR_TITLE_INLINE_PATTERN = /--title(?:=|\s+)(?!"\$(?:\w+|\{\w+\})"(?![^\s`]))[^\s`]+/g;
 
 // ADR 0111, #794: the Forgejo seeds and this repository's Forgejo backend documents reach the host through
 // `tea` only — no token env var, no `Authorization` header, no curl call. The documents legitimately carry
@@ -650,6 +670,8 @@ module.exports = {
   COMMIT_FORMAT_OWNER_PATTERN,
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,
+  PR_TITLE_HEREDOC_DOCS,
+  PR_TITLE_INLINE_PATTERN,
   TEA_ONLY_DOCS,
   TEA_ONLY_MARKERS,
   GITHUB_WIKI_GH_ONLY_DOCS,
