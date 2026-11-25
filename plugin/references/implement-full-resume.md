@@ -35,7 +35,7 @@ compaction, or an interruption mid-loop. Reconcile state with the steps below, t
    the ledger.
    - **Already merged** → clean it up: `git worktree remove` and `git branch -D slice/<scope>/<id>`.
    - **Not yet merged, `blocked`, and its progress log `<run-root>/reports/<id>/progress.md` holding the line `merge
-     refused` below its last `dispatch:` line** → merge it again by `implement-full.md`'s DAG loop step 4, never
+     refused` below its last `dispatch:` line, or anywhere in a log that holds no `dispatch:` line** → merge it again by `implement-full.md`'s DAG loop step 4, never
      re-dispatching an implementer (`merge-conflicts.md`'s **A refused merge**).
    - **Not yet merged otherwise** → resume it in place: prepare it per `scope-branch.md`'s `## Preparing a worktree`,
      then dispatch there with its existing commits intact, or continue a tiny slice there yourself.

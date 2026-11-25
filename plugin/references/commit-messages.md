@@ -39,8 +39,8 @@ The repository's hook and CI judge the result, so you validate nothing yourself.
 **Setup's commit.** Applies to `/superdev:setup`'s own commit. It has no feature: its kind is `chore`, its scope
 `setup`, and it names no store reference.
 
-**A featureless commit.** Applies to a commit no feature owns: setup's, an ad-hoc review's inline fix, and a
-brainstorm prototype's. It takes the commit's own kind of change and no store reference. A value the rule names only
+**A featureless commit.** Applies to a commit no feature owns other than setup's, which **Setup's commit** fills: an
+ad-hoc review's inline fix, and a brainstorm prototype's. It takes the commit's own kind of change and no store reference. A value the rule names only
 where there is a feature, such as a scope the feature's slug fills, is left out and is no **A missing value**.
 
 **A missing value.** Applies to a rule that requires a value you were not handed and cannot read. Report the rule and
