@@ -58,11 +58,12 @@ after its pass (`references/dod-ticks.md`). `docs` stands alone like `scope`, ne
 
 **The qualified tag.** Applies to a `scope` or `docs` criterion on a shared anchor (*A shared anchor* below). It names
 its owner's Repository component, `scope (<component>)` or `docs (<component>)`, the component non-empty and holding no
-`,`, `(`, `)`, or ` — ` (`issue-tracker-jira.md`'s **The name rule**). A ` — ` inside a tag splits the line at that
-boundary, so no reader can detect it there, and setup refuses such a component name before any tag holds it.
-`scope.js dod-check` refuses a tag that starts `scope (` or `docs (` and fails that form. `dod.md` holds only the run's
-own lines, so every reader of a `dod.md` line reads `scope (<component>)` as `scope` and `docs (<component>)` as
-`docs`.
+`,`, `(`, `)`, or ` — ` (`issue-tracker-jira.md`'s **The name rule**). `scope.js dod-check` refuses a tag that starts
+`scope (` or `docs (` and fails that form. That check reads only a line's rightmost ` — ` segment, so a malformed
+qualified tag whose component holds ` — ` (`scope (A — B, C)`) escapes it, and a ` — ` inside a tag reads to a person
+like the line's other ` — ` separators. Setup refuses such a component name before any tag holds it. `dod.md` holds
+only the run's own lines, so every reader of a `dod.md` line reads `scope (<component>)` as `scope` and
+`docs (<component>)` as `docs`.
 
 ```
 - [ ] <criterion> — scope (Billing API)
