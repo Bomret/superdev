@@ -24,6 +24,10 @@ authenticated through its own login (`gh auth status`): a subcommand where one p
   --body-file "$f"`, the body in the file `$f`, `title` set from a quoted heredoc
   (`title=$(cat <<'SUPERDEV_TEXT_EOF' … SUPERDEV_TEXT_EOF)`) so a backtick or `$(` in it stays literal. The
   `draft` override adds `--draft`. The body is built per `/superdev:submit-pr`'s body rules.
+- **Never interpolate a store-derived value into a shell string.** The title is composed per
+  `plugin/references/commit-messages.md` from the scope anchor's title, which a multi-writer slice store makes
+  untrusted. Pass it only through the quoted heredoc above, and always use `--body-file` for the body. Never build a
+  command line by concatenating a title or body that could carry `"`, `` ` ``, or `$( )`.
 - **A `draft` override** is marked ready with `gh pr ready <number> --repo Bomret/superdev` before merge.
 - **Read the PR:** `gh pr view <number> --repo Bomret/superdev --json
   number,url,state,title,body,headRefName,headRefOid`.
@@ -48,33 +52,37 @@ Every commit, merge commit, and pull-request title superdev writes here follows 
 Do not fall back to a token or a raw HTTP call (curl). No `gh` or `jq` on the path, or no authenticated
 `gh` login for `github.com`: push the branch, then print the compare URL
 (`https://github.com/Bomret/superdev/compare/main...<scope-branch>?expand=1`) and the exact `gh` command
-the step would have run. The merge call below degrades the same way: print the exact `gh pr merge` call
-and merge nothing. The check-status read below degrades the same way: print the exact `gh api` calls and
+the step would have run. The merge call below degrades the same way: print the exact `gh pr merge` or
+`gh api` REST call and merge nothing. The check-status read below degrades the same way: print the exact `gh api` calls and
 judge nothing.
 
 ## Merge
 
 - **Read the pull request:** `gh pr view <number> --repo Bomret/superdev --json
-  state,mergeable,headRefOid,mergeCommit,title`. `state` is `OPEN`, `CLOSED`, or `MERGED`, and `mergeCommit.oid`
-  carries the merge commit once merged. GitHub computes `mergeable` asynchronously and answers `UNKNOWN`
-  while it does. Re-read up to 3 times with a short pause, and when it is still `UNKNOWN`, report it as
-  **unknown**, never as mergeable.
+  state,mergeable,headRefOid,mergeCommit,title` (or `gh api repos/Bomret/superdev/pulls/<number>` for `state`,
+  `merged`, `merge_commit_sha`, `head.sha`, `mergeable`, and `title`). `state` is `OPEN`, `CLOSED`, or `MERGED`,
+  and `mergeCommit.oid` carries the merge commit once merged. GitHub computes `mergeable` asynchronously: while it
+  does, `gh pr view` answers `UNKNOWN` and the REST read answers `null`. Both read as not yet known: re-read up to 3
+  times with a short pause, and when it is still not known, report it as **unknown**, never as mergeable.
 - **Read the draft state:** `gh pr view <number> --repo Bomret/superdev --json isDraft --jq .isDraft` prints
   `true` for a draft.
 - **Mark ready:** `gh pr ready <number> --repo Bomret/superdev` takes a draft pull request out of draft.
   `/superdev:ship` calls it before the merge under the merge consent.
 - **Merge it, pinned:** `gh pr merge <number> --repo Bomret/superdev --squash --match-head-commit
-  <tested-tip-sha> --subject "$title"`, `title` the pull request's title read right before the merge and set from a
-  quoted heredoc as the PR-create line does.
-  `--match-head-commit` pins the merge to that sha: GitHub refuses the merge when the head moved since.
+  <tested-tip-sha> --subject "$title"` (or `gh api -X PUT repos/Bomret/superdev/pulls/<number>/merge
+  -f merge_method=squash -f commit_title="$title" -f sha=<tested-tip-sha>`), `title` the pull request's title read
+  right before the merge and set from a quoted heredoc as the PR-create line does.
+  `--match-head-commit`/`sha` pins the merge to that sha: GitHub refuses the merge when the head moved since.
   Pass no check or review bypass option. This repo's own branch protection on `main` is what a merge must
   never bypass.
 - **A refusal names the reason:** `gh pr merge` exits non-zero and prints GitHub's message. An unmet
   required review or status check, or a pull request that is already merged or closed, cannot be merged.
-  A head that moved since it was read, or a conflict, refuses the merge too. Relay GitHub's own message to
+  A head that moved since it was read, or a conflict, refuses the merge too. On the REST call, 405 means the
+  pull request cannot be merged and 409 means the head moved or a conflict exists. Relay GitHub's own message to
   the operator instead of retrying, and merge nothing.
 - **Find an open pull request by its head branch** (a fallback, when no number is on hand):
-  `gh pr list --repo Bomret/superdev --head <scope-branch> --state open --json number,headRefName`.
+  `gh pr list --repo Bomret/superdev --head <scope-branch> --state open --json number,headRefName` (or
+  `gh api 'repos/Bomret/superdev/pulls?head=Bomret:<scope-branch>&state=open'`).
   Leaving `--state open` off would surface closed and merged pull requests too, including an old one left
   over from a reused branch name. Never widen the filter to catch one of those.
 - **`<tested-tip-sha>` above is never read from the host.** It is the local scope-branch tip
@@ -119,8 +127,9 @@ A run that resolves a deferred finding after `/superdev:submit-pr` opened the pu
 pull request's `## Deferred to a plan` section (`references/scope-findings.md`'s `## Deferred findings`,
 ADR 0121). Only an open pull request is edited.
 
-- **Read it**: `gh pr view <number> --repo Bomret/superdev --json state,body`, into a file. Only `state`
-  `OPEN` is edited. A merged or closed pull request gets no edit.
+- **Read it**: `gh pr view <number> --repo Bomret/superdev --json state,body` (or
+  `gh api repos/Bomret/superdev/pulls/<number>` for `state`, `merged`, and `body`), into a file. Only `state`
+  `OPEN` (`open` and `merged` false on the REST read) is edited. A merged or closed pull request gets no edit.
 - **Edit it, by file**: read into one file, build the new body into a second, and edit only when every
   step succeeded: `gh pr view <number> --repo Bomret/superdev --json state,body > "$r" &&
   jq -e '.state == "OPEN"' "$r" >/dev/null && jq -je .body "$r" > "$b" && <producer> < "$b" > "$f" &&
