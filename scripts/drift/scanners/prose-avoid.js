@@ -14,6 +14,8 @@ const {
   UNMAPPED_PATHS_DOCS,
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,
+  PR_TITLE_HEREDOC_DOCS,
+  PR_TITLE_INLINE_PATTERN,
   TEA_ONLY_DOCS,
   TEA_ONLY_MARKERS,
   GITHUB_WIKI_GH_ONLY_DOCS,
@@ -31,6 +33,8 @@ const {
   SCOPE_REVIEW_OPERATOR_ASKED,
   PLUGIN_ROOT_UNQUOTED_PATTERN,
   PLUGIN_PREFIX_PATH_PATTERN,
+  MERGE_INVOCATION_PATTERN,
+  COMMIT_FORMAT_OWNER_PATTERN,
 } = require('../contracts');
 const { proseDocuments, scanDocsAvoid, walkFiles, NEVER_NEGATION_WINDOW } = require('./walkers');
 
@@ -96,6 +100,28 @@ function scanNoForceMerge(root) {
         const before = text.slice(Math.max(0, hit.index - NEVER_NEGATION_WINDOW), hit.index);
         if (!/\bnever\b/i.test(before)) gaps.push({ source: rel, expectation: expectation(hit) });
       }
+    }
+  }
+  return gaps;
+}
+
+// ADR 0284: no code-management document writes a pull-request title inline. See `PR_TITLE_INLINE_PATTERN`'s own
+// comment for the form and its ceiling.
+function scanPrTitleHeredoc(root) {
+  const gaps = [];
+  for (const rel of PR_TITLE_HEREDOC_DOCS) {
+    const text = readDoc(root, rel);
+    if (text === null) {
+      gaps.push(missingDoc(rel));
+      continue;
+    }
+    for (const hit of text.matchAll(PR_TITLE_INLINE_PATTERN)) {
+      gaps.push({
+        source: rel,
+        expectation:
+          `pass the pull-request title as \`--title "$title"\`, \`title\` set from a quoted heredoc — ` +
+          `\`${normalizeWhitespace(hit[0])}\` writes it inline, where the shell reads its text`,
+      });
     }
   }
   return gaps;
@@ -184,6 +210,37 @@ const scanPluginRootQuoted = (root) =>
 const scanPluginPrefixPath = (root) =>
   scanShippedMarkdownForm(root, PLUGIN_PREFIX_PATH_PATTERN, (hit) =>
     `name a shipped path relative to the plugin root — \`${hit}\` carries the repository's \`plugin/\` prefix, which no install holds`);
+
+// ADR 0284: no shipped prose writes the two forms `COMMIT_FORMAT_OWNER_PATTERN` refuses.
+const scanCommitFormatOwner = (root) =>
+  scanShippedMarkdownForm(root, COMMIT_FORMAT_OWNER_PATTERN, (hit) =>
+    `cite references/commit-messages.md for the message — \`${hit}\` fixes a format the repository's commit convention decides (ADR 0284)`);
+
+// INV-0209: no shipped prose instructs a local merge commit without a message. Whitespace runs, line wraps included, are
+// normalized first, and fences are read too, since a fenced command is one an agent copies. A hit passes when its
+// arguments carry `-m`, `--message`, `-F`, or `--file`, when they conclude or abandon a merge (`--abort`, `--continue`,
+// `--quit`) or only fast-forward (`--ff-only`), or when they name no ref: a bare `git merge` mention invokes nothing.
+const MERGE_MESSAGE_OPTION = /(?:^|\s)(?:-m|--message|-F|--file)(?:[=\s]|$)/;
+const MERGE_NO_COMMIT_OPTION = /(?:^|\s)--(?:abort|continue|quit|ff-only)\b/;
+function scanMergeMessageRequired(root) {
+  const gaps = [];
+  for (const rel of shippedMarkdown(root)) {
+    const text = readDoc(root, rel);
+    if (text === null) continue;
+    for (const hit of normalizeWhitespace(text).matchAll(MERGE_INVOCATION_PATTERN)) {
+      const args = hit[2].trim();
+      if (MERGE_MESSAGE_OPTION.test(args) || MERGE_NO_COMMIT_OPTION.test(args)) continue;
+      if (!args.split(' ').some((arg) => arg !== '' && !arg.startsWith('-'))) continue;
+      gaps.push({
+        source: rel,
+        expectation:
+          `pass the merge commit's message as a file, \`git merge -F <file> <ref>\` per references/commit-messages.md — ` +
+          `\`${hit[0].trim()}\` leaves git's default message, which a commit-msg hook can refuse (INV-0209)`,
+      });
+    }
+  }
+  return gaps;
+}
 
 // ADR 0232: no shipped skill, agent, or reference, and no shipped AGENTS.md at any depth beside them, states the
 // background rule against an unnamed Bash limit. Fences are masked and whitespace runs, line wraps included, are
@@ -413,6 +470,7 @@ module.exports = {
   scanAgentToolAgnostic,
   scanUnmappedPathsForms,
   scanNoForceMerge,
+  scanPrTitleHeredoc,
   scanConflictConclusionNoCommit,
   scanTeaOnly,
   scanGithubWikiGhOnly,
@@ -424,4 +482,6 @@ module.exports = {
   scanDodBoxRule,
   scanPluginRootQuoted,
   scanPluginPrefixPath,
+  scanMergeMessageRequired,
+  scanCommitFormatOwner,
 };

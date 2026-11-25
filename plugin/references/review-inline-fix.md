@@ -41,6 +41,7 @@
 - **Working directory**: `<tree>`, where its commits land on `<branch>`.
 - **Findings**: the complete `<list>`, and `<cycle-base>` = `<tip>`. One implementer takes the whole list.
 - **Hand no `dod.md`, no run root, and no progress log.**
+- **Commit values**: none. An ad-hoc fix has no feature, so its commits' messages follow `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md` as its **A featureless commit** states.
 
 **You apply no fix yourself.** Applies to every outcome of the dispatch, a denied one included.
 
@@ -81,7 +82,7 @@
 - What changed, one line per item of `<list>`.
 - The step 5 result.
 - What the re-review still lists, by severity.
-- How the operator brings the branch in: `git merge <branch>`, or `git cherry-pick <tip>..<branch>`.
+- How the operator brings the branch in: `git merge -m "<message>" <branch>`, the operator writing the message, or `git cherry-pick <tip>..<branch>`.
 - A kept dirty worktree, by path.
 
 ## The early-exit cleanup

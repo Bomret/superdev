@@ -78,6 +78,11 @@ module.exports = ({ assert, path, fixture, found }) => {
     'references/prompt-concept-overlap.md': '# Prompt-concept overlap\n\n## Prompt-concept overlap\n',
     'references/prompt-prose-form.md': '# Prompt-prose form\n\n## Prompt-prose form\n',
     'references/scope-branch.md': '# Scope branch work\n\n## Pushing the scope branch\n',
+    'references/commit-messages.md':
+      '# Commit messages\n\n## Reading the rule\n\n## Composing a message\n\n## The message file\n\n' +
+      '## A refused commit or merge\n',
+    'references/code-management-github.md': '# Code management (GitHub)\n\n## Commit messages\n',
+    'references/code-management-forgejo.md': '# Code management (Forgejo)\n\n## Commit messages\n',
     // the real body carries the output sections inside its fenced template
     'agents/final-reviewer.md':
       '## Scope dispatch\n\n### Judge every criterion\n\n```\n### Criteria\n\n### Ceiling\n\n' +
@@ -113,6 +118,12 @@ module.exports = ({ assert, path, fixture, found }) => {
     ['references/prompt-concept-overlap.md', '## Prompt-concept overlap\n'],
     ['references/prompt-prose-form.md', '## Prompt-prose form\n'],
     ['references/scope-branch.md', '## Pushing the scope branch\n'],
+    ['references/commit-messages.md', '## Reading the rule\n\n'],
+    ['references/commit-messages.md', '## Composing a message\n\n'],
+    ['references/commit-messages.md', '## The message file\n\n'],
+    ['references/commit-messages.md', '## A refused commit or merge\n'],
+    ['references/code-management-github.md', '## Commit messages\n'],
+    ['references/code-management-forgejo.md', '## Commit messages\n'],
     ['agents/final-reviewer.md', '### Judge every criterion\n\n'],
     ['agents/final-reviewer.md', '### Criteria\n\n'],
     ['agents/final-reviewer.md', '### Ceiling\n\n'],

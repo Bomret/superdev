@@ -28,7 +28,9 @@ or Important finding outside the deferred and unclosable ones.
 - the progress-log path and the heading of its self-check entry, `Self-check — fix cycle <n>`;
 - on a `behavior` slice, the verify skill's path, or `none`, as the slice's own dispatch handed it
   (`implement-full.md`'s **The implementer dispatch**);
-- for a **Pass-to-pass** finding, that finding's original base.
+- for a **Pass-to-pass** finding, that finding's original base;
+- the feature's change type and the slice's store reference, as the slice's own dispatch handed them: its fix commits'
+  messages take both, per `commit-messages.md`.
 
 Tell it to fix every finding on the list and to work its sibling surfaces, which `skills/implement/SKILL.md`'s
 **Sibling surfaces** requires every fix dispatch to say. `agents/implementer.md` owns the rest: `### Defect repair`, `### RED-test rule`,

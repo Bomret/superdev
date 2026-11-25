@@ -1,3 +1,12 @@
+# [0.122.0](https://github.com/Bomret/superdev/compare/v0.121.0...v0.122.0) (2026-11-25)
+
+
+### Features
+
+* **commit-convention:** record and follow a repository's commit convention ([1073a87](https://github.com/Bomret/superdev/commit/1073a878de2c5d406f32737245d785914c901295)), closes [#578](https://github.com/Bomret/superdev/issues/578) [#577](https://github.com/Bomret/superdev/issues/577) [#579](https://github.com/Bomret/superdev/issues/579) [#576](https://github.com/Bomret/superdev/issues/576)
+* **drift:** report an unterminated fenced code block in the Markdown drift checks read ([#564](https://github.com/Bomret/superdev/issues/564)) ([b5fcd51](https://github.com/Bomret/superdev/commit/b5fcd51507071106d768992553e0d7454f718465)), closes [#563](https://github.com/Bomret/superdev/issues/563) [#562](https://github.com/Bomret/superdev/issues/562)
+* **plan:** connect an absorbed triage record to its scope anchor ([#519](https://github.com/Bomret/superdev/issues/519)) ([a7ee741](https://github.com/Bomret/superdev/commit/a7ee74137a190d7da039a75465a0dff43a4d1333)), closes [#518](https://github.com/Bomret/superdev/issues/518) [#517](https://github.com/Bomret/superdev/issues/517)
+
 # [0.121.0](https://github.com/Bomret/superdev/compare/v0.120.0...v0.121.0) (2026-11-24)
 
 

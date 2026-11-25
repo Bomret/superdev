@@ -13,14 +13,26 @@ Code lives on GitHub. Use the `gh` CLI for push + pull requests. `gh` infers the
 
 - **Push the scope branch**: `git push -u <remote> <scope-branch>`, `<remote>` the **Remote** value above.
 - **Open the PR** (default draft):
-  `gh pr create --draft --base <base> --head <scope-branch> --title "<title>" --body-file <file>`.
-  Use a body file (heredoc) built per `/superdev:submit-pr`'s body rules.
+  `gh pr create --draft --base <base> --head <scope-branch> --title "$title" --body-file <file>`, `title` set from
+  a quoted heredoc (`title=$(cat <<'SUPERDEV_TEXT_EOF' … SUPERDEV_TEXT_EOF)`) so a backtick or `$(` in it stays
+  literal. Use a body file (heredoc) built per `/superdev:submit-pr`'s body rules.
 - **Ready (non-draft)**: same without `--draft`.
-- **Never interpolate a store-derived value into a shell string.** The title comes from the slice/plan;
-  if the slice store is multi-writer, treat it as untrusted. Pass it as a single quoted `--title "<title>"`
-  argument (so `gh` receives it as one argv, not a shell fragment) and always use `--body-file` for the
-  body — never build a command line by concatenating a title/body that could carry `"`/`` ` ``/`$( )`.
+- **Never interpolate a store-derived value into a shell string.** The title is composed per
+  `references/commit-messages.md` from the scope anchor's title, which a multi-writer slice store makes untrusted.
+  Pass it only through the quoted heredoc above, and always use `--body-file` for the body — never build a command
+  line by concatenating a title/body that could carry `"`/`` ` ``/`$( )`.
 - **Report**: print the PR URL (`gh pr view --json url --jq .url`).
+
+## Commit messages
+
+The repository's commit convention, filled in at setup and owned by the operator. Every commit, merge commit, and
+pull-request title superdev writes here follows it (`references/commit-messages.md`).
+
+- **Rule**: Conventional Commits. A header `type(scope): subject`, the type the kind of change, the scope the feature's
+  slug where there is a feature (optional otherwise), the subject in the imperative; a body where the change needs one.
+- **Commit**: `test(lite-perf): cover the tier switch at four behavior slices`
+- **Merge commit**: `feat(lite-perf): merge slice/lite-perf/02`, its body naming the merged branch or commit.
+- **Pull-request title**: `feat(lite-perf): size the execution tier by behavior slices`
 
 ## Degrade when `gh` is absent
 
@@ -32,17 +44,19 @@ The check-status read below degrades the same way: print the exact `gh api` call
 
 ## Merge
 
-- **Read the pull request**: `gh pr view <number> --json state,mergeable,headRefOid,mergeCommit` (or
+- **Read the pull request**: `gh pr view <number> --json state,mergeable,headRefOid,mergeCommit,title` (or
   `GET /repos/<owner>/<repo>/pulls/<pull_number>` for `state`, `merged`, `merge_commit_sha`, `head.sha`,
-  and `mergeable`). GitHub computes `mergeable` asynchronously: while it does, REST answers `null` and
+  `mergeable`, and `title`). GitHub computes `mergeable` asynchronously: while it does, REST answers `null` and
   `gh pr view --json mergeable` answers `UNKNOWN`. Both read as not yet known: re-read up to 3 times with a short
   pause and, if it is still not known, report it as **unknown** — never as mergeable.
 - **Read the draft state**: `gh pr view <number> --json isDraft --jq .isDraft` prints `true` for a draft.
 - **Mark ready**: `gh pr ready <number>` takes a draft pull request out of draft. GitHub refuses to merge a
   draft, so `/superdev:ship` calls it before the merge under the merge consent.
-- **Merge it, pinned**: `gh pr merge --squash --match-head-commit <tested-tip-sha> <number>` (or
+- **Merge it, pinned**: `gh pr merge --squash --match-head-commit <tested-tip-sha> --subject "$title" <number>` (or
   `PUT /repos/<owner>/<repo>/pulls/<pull_number>/merge` with
-  `{ "merge_method": "squash", "commit_title": "<pr-title>", "sha": "<tested-tip-sha>" }`).
+  `{ "merge_method": "squash", "commit_title": "<pr-title>", "sha": "<tested-tip-sha>" }`), `title` the pull
+  request's title read right before the merge and set from a quoted heredoc as the PR-create line does, so the
+  squash commit on base carries the title `/superdev:submit-pr` composed.
   `--match-head-commit`/`sha` pins the merge to that sha: the host answers 409 when the head moved
   since. Never pass `--admin` (or any other check/review bypass) — this seed never sends it.
 - **A refusal names the reason**: 405 means the pull request cannot be merged (an unmet required

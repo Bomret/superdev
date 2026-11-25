@@ -167,11 +167,14 @@ Applies to every start past §1. Read the stage and the pull request number with
 - **Exit 1** → merge nothing and change nothing on the scope branch. Print each line; it names the colliding ADR number or invariant id and the number it should take. Point at renumbering it on the scope branch, then `/superdev:review <scope>`, then `/superdev:ship <scope>`.
 - **Exit 2** → the check could not run: name its message, merge nothing, and never read it as no collision.
 
-**The base merge.** Applies after the collision check. Merge base into the scope branch, in the scope checkout, by its literal absolute path: `git -C <run-root>/scopetree merge <base>`, with `<run-root>` spelled out as the real path, never a shell variable.
+**The base merge.** Applies after the collision check. Resolve `<base>` to a full sha with `git -C <run-root>/scopetree rev-parse <base>`, and compose the merge commit's message and write its file per `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md`, its body naming that sha. Merge it into the scope branch, in the scope checkout, by its literal absolute path: `git -C <run-root>/scopetree merge --cleanup=scissors -F <file> <base-sha>`, with `<run-root>` spelled out as the real path, never a shell variable. Read the outcome in the order below.
 
 - **Base already an ancestor of the tip** → nothing moved: go to **The push**.
-- **A conflict** (`MERGE_HEAD` still set) → list the conflicting files (`git -C <run-root>/scopetree diff --name-only --diff-filter=U`), run `git -C <run-root>/scopetree merge --abort`, and stop: merge nothing. Point at `/superdev:review <scope>` to resolve them, since a resolution is unreviewed code.
-- **A clean merge** → take **The merged-tip run**.
+- **A failed merge with no `MERGE_HEAD`** → the merge exited non-zero and `git -C <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds none, so it recorded nothing. Relay git's output, check that `git -C <run-root>/scopetree status --porcelain` shows the scopetree unchanged, run `step block`, and stop: merge nothing.
+- **A conflict** (`MERGE_HEAD` still set) → list the conflicting files (`git -C <run-root>/scopetree diff --name-only --diff-filter=U`).
+  - **The listing is empty** → a refusal, never a conflict (`commit-messages.md`'s `## A refused commit or merge`). Run `git -C <run-root>/scopetree merge --abort`, run `step block`, relay git's output, and stop: merge nothing. Point at `/superdev:ship <scope>`, to run again once the hook accepts the message.
+  - **The listing names files** → run `git -C <run-root>/scopetree merge --abort`, and stop: merge nothing. Point at `/superdev:review <scope>` to resolve them, since a resolution is unreviewed code.
+- **A clean merge** → the merge exited 0: take **The merged-tip run**.
 
 **The merged-tip run.** Applies to a clean merge.
 
@@ -234,6 +237,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 **The merge.** Applies once **The CI gate** passes. Print the pull request, its head, the base, and the CI verdict, the suite result, or the carry outcome. Then squash-merge it into the base branch through the host's merge API, pinned to the tip, per `docs/agents/code-management.md`'s `## Merge` section: the one write this plugin makes straight onto base, and the only merge this contract admits.
 
 - The pinned sha is the local tip, never a value read from the host. Never send a force or bypass option.
+- The squash commit's title is the pull request's own title, read right before the merge call through that section's **Read the pull request** call, which `/superdev:submit-pr` composed per `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md`.
 - **A host refusal** (an unmet approval, branch protection, or a head that moved since) → relay its message and merge nothing. Where **The draft gate** marked the pull request ready, add that it is now ready.
 - **A merge call the permission classifier denies** (the tool result names a denial by Claude Code's permission classifier, auto mode's included) → merge nothing further, and try no other route to merge: no switch between `gh` and the host's API, no retry in another form. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`. Name the denial, and name the operator's mitigation: an allow rule for the merge command in the permission settings, or `/superdev:ship <scope>` run in a mode that prompts for it.
 

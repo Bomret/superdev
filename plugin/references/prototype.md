@@ -21,6 +21,8 @@ never serial rebuilds.
 intent, and from there the plan. Commit the prototype itself to a throwaway branch off the base, never onto the base
 branch.
 
+- **Its message** follows `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md` as its **A featureless commit**
+  states. On a refusal, stop the capture and report git's own output to the operator.
 - **A pointer to that branch** → leave it where the decision landed.
 - The base branch keeps only the validated decision.
 
