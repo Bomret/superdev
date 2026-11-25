@@ -1297,8 +1297,8 @@ Every check tests a mechanical fact — a link or section target resolves, a num
 command exists, a property of code or configuration holds — or forbids a form in shipped prose or in the root `AGENTS.md` (ADR 0153).
 No check asserts how a positive clause is worded. A check that reads a named document fails, naming the
 path, when that document is missing. The exception is a check whose own table row says an absent named document
-holds nothing. A check that walks a directory reads whatever the directory holds, except that
-`walkFiles`, `proseDocuments`, and `agent-tool-agnostic` skip every `AGENTS.md` at any depth (ADR 0189). No check reads a
+holds nothing. A check that walks a directory reads whatever the directory holds. The exception is a skip of
+every `AGENTS.md` at any depth, which `walkFiles`, `proseDocuments`, and `agent-tool-agnostic` apply (ADR 0189). No check reads a
 `README.md`, and no walk reads an `AGENTS.md` outside `plugin/`. A check over `plugin/` may read its `AGENTS.md` files,
 and its own table row then says so. An `AGENTS.md` outside `plugin/` is read only by a check that names it as its
 document, and that check's row names it.
@@ -1346,7 +1346,7 @@ document, and that check's row names it.
 | `observation-no-suite-run` | `references/review-scope-mode.md`'s `### 4.3 Observations` section names no suite run as an observation's source: no suite, test, entry, exit, focused, or full run, no `§4.2` citation, and no failing test or failing run, so a failing test in a scope review's suite run joins the fix list; a missing section or document is a gap (INV-0157) | prohibition |
 | `scope-review-no-full-run` | every `references/review-scope-*.md` file, read at scan time, `skills/review/SKILL.md`, and `agents/final-reviewer.md` instruct no full or whole-repo run, by `implement-no-full-run`'s patterns and negation excuse: no `scope.js test full` or `test whole`, no `test focused` with no path, and no run of the full or whole-repo command or suite. The list item that opens `- **The operator asks for the full suite**`, the ad-hoc clause, is excused, and fenced examples are masked (ADR 0255, INV-0193, INV-0173) | prohibition |
 | `root-no-inventory` | the root `AGENTS.md`, read whole and unmasked so its fenced Structure tree counts, names no `plugin/lib/` module and no `tests/*.test.js` suite as a whole path segment, and no `plugin/agents/` agent: a hyphenated agent name as a whole segment, bare prose included, and an unhyphenated one backticked or as `superdev:<agent>`; each name set is read from disk at scan time, so a module, suite, or agent added later is caught with no edit to the check; a missing root is the missing-document finding, and a name directory that cannot be read or holds no name is a finding. Ceiling: an unhyphenated agent name outside backticks and outside `superdev:<agent>`, hook, skill, reference, and suite-topic names, and abbreviated forms, are not matched; hand review holds them | prohibition |
-| `unterminated-fence` | every fenced code block closes in each `.md` file at any depth below `plugin/` but a `README.md`, `plugin/`'s `AGENTS.md` files included, in each `.md` file at any depth below `docs/adr/` but a `README.md`, in `docs/invariants.md`, and in `CONTEXT.md`. Fences are read through `lib.js`'s `fenceLines`, the rule every fence-masking check reads by, so a gap names the file and the 1-based line of the opener from which those checks read nothing to end of file, once per file, sorted by path. The walk enters no `node_modules/` or `.git/` directory and follows no symlink. An absent named document (`docs/invariants.md`, `CONTEXT.md`) or directory holds nothing, and a file or directory the walk cannot read fails the check. Ceiling: a fence in a non-Markdown document a contract row masks, such as `lib/ledger.js`, is outside the read set | structural |
+| `unterminated-fence` | every fenced code block closes. The check reads each `.md` file at any depth below `plugin/` but a `README.md`, `plugin/`'s `AGENTS.md` files included. It reads each `.md` file at any depth below `docs/adr/` but a `README.md`. It also reads `docs/invariants.md` and `CONTEXT.md`. Fences are read through `lib.js`'s `fenceLines`, the rule every fence-masking check reads by. A gap names the file and the 1-based line of the opener, from which those checks read nothing to end of file. The check reports one gap per file, sorted by path. The walk enters no `node_modules/` or `.git/` directory and follows no symlink. An absent named document (`docs/invariants.md`, `CONTEXT.md`) or directory holds nothing, and a file or directory the walk cannot read fails the check. Ceiling: a fence in a non-Markdown document a contract row masks, such as `lib/ledger.js`, is outside the read set | structural |
 
 ## Work Guidance
 
@@ -1373,8 +1373,8 @@ document, and that check's row names it.
   reviewer who finds one more evadable phrasing reads it as the stated ceiling rather than a defect.
 - A new drift check tests a mechanical fact or forbids a form in shipped prose or in the root `AGENTS.md` (ADR 0153). It is one
   entry in the `drift/checks.js` registry, one row in the table above keyed on its own `id`, and its own
-  cases in the `drift/selftest/` suite of its topic: its seeded violation, a clean fixture, and, when it reads a
-  named document whose absence fails it, the missing-document case the registry-wide selftest asserts. No check enforces the row. A review judges the row and the selftest cases.
+  cases in the `drift/selftest/` suite of its topic: its seeded violation and a clean fixture.
+  A check that reads a named document whose absence fails it also adds the missing-document case the registry-wide selftest asserts. No check enforces the row. A review judges the row and the selftest cases.
   A check whose gap prints a message of its own, rather than the shared contract-gap message, also adds that exact line
   to the `checks` suite, which fails until it does.
 
