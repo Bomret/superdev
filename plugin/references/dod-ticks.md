@@ -196,7 +196,8 @@ write lands in `<run-root>/dod.md`, the run's own working copy.
 - **Every other write also lands on the scope anchor**: review's, the doc pass's, and verify-ship's.
 - **The anchor write** goes through the active slice store's own `## Definition of Done ticks` section, which runs
   `scope.js dod-line` (`plan-contract.md` → *Definition of Done ticks*) through that store's gated **Edit an issue's
-  body** rule. It is best-effort.
+  body** rule. It is best-effort. With a Repository component configured it matches the anchor line by criterion
+  text and tag (`## Pairing dod.md with the anchor`).
 
 ## Pairing dod.md with the anchor
 
@@ -204,6 +205,13 @@ write lands in `<run-root>/dod.md`, the run's own working copy.
 authoritative. An anchor line **pairs** with a `dod.md` line by criterion text, the match `scope.js dod-line` uses.
 A line's **verdict** is its note's verdict (`met:`, `not met:`, `ceiling:`, `accepted:`, or no note), never the box
 alone.
+
+**A shared anchor.** Applies to every pairing, anchor sync, and anchor tick when `docs/agents/issue-tracker.md`
+configures a Repository component (`plan-contract.md` → *A shared anchor*). A line pairs by criterion text and tag:
+`dod-line`'s `--tag-file` with the `dod.md` line's tag and `--component` with the run's component. A plain `scope` or
+`docs` tag in `dod.md` pairs with its own `scope (<component>)` or `docs (<component>)` line on the anchor. A
+sibling repository's line is no `dod.md` line's pair, so it is never paired, synced, or reported unpaired, and it
+stays exactly as it was, its note included (INV-0004, INV-0015).
 
 **The anchor sync.** Applies to a paired line whose verdict on the anchor differs from `dod.md`. Rewrite each such
 anchor line from `dod.md` through the store's `## Definition of Done ticks` section (`scope.js dod-line`), one line at

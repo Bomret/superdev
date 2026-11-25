@@ -122,7 +122,13 @@ whatever the finding's severity.
    read-before-write rule. A matching record stands in for a new one. A store document that defines no triage record
    skips this read, and one that defines no listing or comment call falls back as that rule states.
 3. **Create the triage record** otherwise, per the active `docs/agents/issue-tracker.md`'s `## Triage record` section.
-   The write is best-effort: a failure is reported once per run, and the bullet is still written.
+   The write is best-effort: a failure is reported once per run, and the bullet is still written. On a shared anchor
+   (`plan-contract.md` → *A shared anchor*), a finding whose fix belongs in a sibling repository gets its record under
+   that sibling's Repository component, the component its slices on the anchor carry (the store document's **List an
+   anchor's slices in every repository**), passed to the create in place of the configured one. That repository's
+   status and plan then offer it. When the run cannot tell which sibling the fix belongs in, ask the operator.
+   **`--unattended`** → keep the record under this repository's own component, and name the finding and the open
+   question in the run's report (INV-0038).
 4. **Write the bullet.** Pipe it through a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) to `node
    "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add - --root <run-root>`, which creates the `**Deferred:**` line in
    `<run-root>/ledger.md` or appends to it. The bullet names the finding, why no criterion covers it, the triage

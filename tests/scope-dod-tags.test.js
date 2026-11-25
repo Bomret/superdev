@@ -181,3 +181,32 @@ test('A --map-file that cannot be read (a directory where the file belongs) refu
   assert.strictEqual(r.out, '', 'an unreadable --map-file prints no rewritten section');
 });
 
+
+test('--map-file leaves a qualified tag\'s component text as written while rewriting slice ids on other lines.', () => {
+  r = call(['dod-tags', '--map-file', mapFile(['01 #10', '02 #20'])], section('- [ ] a — scope (API-2)', '- [ ] b — docs (01)', '- [ ] c — 01, 02'));
+  assert.ok(r.ok, 'dod-tags rewrites around qualified tags: ' + (r.err || ''));
+  assert.strictEqual(r.out, section('- [ ] a — scope (API-2)', '- [ ] b — docs (01)', '- [ ] c — #10, #20'));
+});
+
+test('--qualify qualifies plain scope and docs tags, judged and unjudged, and leaves every other line byte-identical.', () => {
+  const lines = ['- [ ] a — scope', '- [x] b — docs — met: x — scope', '- [ ] c — #10', '- [ ] d — scope (Web)', '- [ ] e untagged', '  - [ ] f — docs  '];
+  r = call(['dod-tags', '--qualify', 'Billing API'], section(...lines));
+  assert.ok(r.ok, 'dod-tags --qualify passes: ' + (r.err || ''));
+  assert.strictEqual(r.out, section('- [ ] a — scope (Billing API)', '- [x] b — docs (Billing API) — met: x — scope', '- [ ] c — #10', '- [ ] d — scope (Web)', '- [ ] e untagged', '  - [ ] f — docs (Billing API)  '));
+  r = call(['dod-tags', '--qualify', 'Billing API', '--line'], '[ ] a — docs — not met: gap\n');
+  assert.ok(r.ok, 'dod-tags --qualify --line passes: ' + (r.err || ''));
+  assert.strictEqual(r.out, '[ ] a — docs (Billing API) — not met: gap');
+  r = call(['dod-tags', '--qualify', 'Billing API', '--line'], '[ ] untagged line\n');
+  assert.ok(r.ok && r.out === '[ ] untagged line', 'an untagged line passes through: ' + (r.err || r.out));
+});
+
+test('--qualify refuses a body with no Definition of Done, a --map-file beside it, and a component breaking the name rule.', () => {
+  r = call(['dod-tags', '--qualify', 'API'], '# Epic\n\n- [ ] a — scope\n');
+  assert.ok(!r.ok && /no ## Definition of Done/.test(r.err), r.err);
+  r = call(['dod-tags', '--qualify', 'API', '--map-file', mapFile(['01 #10'])], section('- [ ] a — scope'));
+  assert.ok(!r.ok && /--qualify and --map-file/.test(r.err), r.err);
+  for (const bad of ['A, B', 'A (x)', 'A — B', '']) {
+    r = call(['dod-tags', '--qualify', bad], section('- [ ] a — scope'));
+    assert.ok(!r.ok && /--qualify/.test(r.err), `component "${bad}" refuses: ${r.err}`);
+  }
+});

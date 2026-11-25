@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, reviewed, deploy, suite, base, discard, get, state, status,
-// publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-merge, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence, branch (the read-only `branch --root` and the deleting `branch delete`), checkout, lock, route, denial, consent, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-merge, dod-line, dod-tags, dod-check, dod-own, ci, section, tier, dod-open, contained, red-evidence, branch (the read-only `branch --root` and the deleting `branch delete`), checkout, lock, route, denial, consent, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -35,6 +35,7 @@ const libLedgerRecords = () => require('../lib/ledger-records.js');
 const libDodLine = () => require('../lib/dod-line.js');
 const libDodTags = () => require('../lib/dod-tags.js');
 const libDodCheck = () => require('../lib/dod-check.js');
+const libDodOwn = () => require('../lib/dod-own.js');
 const libSuiteBaseGet = () => require('../lib/suite-base-get.js');
 const libRunState = () => require('../lib/run-state.js');
 const libStatus = () => require('../lib/status.js');
@@ -535,6 +536,10 @@ function run(argv, cwd, stdinJson) {
     case 'dod-check':
       libDodCheck().verbDodCheck(stdinJson);
       break;
+    // No --root: dod-own trims an anchor's Definition of Done on stdin to one component's lines, no ledger, no store call (ADR 0285).
+    case 'dod-own':
+      libDodOwn().verbDodOwn(args, stdinJson);
+      break;
     default:
       fail('unknown verb "' + (verb || '') + '"\n' + libUsage().usage());
   }
@@ -583,7 +588,7 @@ function helpTarget(argv) {
 }
 
 // The verbs `run()` hands the whole stdin text to; `main()` reads stdin for these alone, plus a bullet verb given `-`.
-const STDIN_VERBS = ['init', 'adopt', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge', 'ci', 'section', 'route'];
+const STDIN_VERBS = ['init', 'adopt', 'dod-line', 'dod-tags', 'dod-check', 'dod-own', 'dod-merge', 'ci', 'section', 'route'];
 
 function main() {
   const argv = process.argv.slice(2);

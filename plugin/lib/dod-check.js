@@ -1,7 +1,8 @@
 'use strict';
 
 // dod-check.js: the `dod-check` verb, the check of an anchor body's Absorbs line against its `(triage <ref>)`
-// citations, its `Reachable:` criterion, and its `Release risk:` categories (ADR 0233, INV-0189, INV-0137).
+// citations, its `Reachable:` criterion, its `Release risk:` categories, and the form of each qualified `scope` or
+// `docs` tag (ADR 0233, INV-0189, INV-0137, ADR 0285).
 
 const { fail } = require('./refusal.js');
 const { splitLines } = require('./ledger.js');
@@ -14,17 +15,27 @@ const CITATION_RE = /\(triage (#\d+|[A-Z][A-Z0-9_]*-\d+)\)/g;
 const CODE_SPAN_RE = /(`+)[\s\S]*?\1/g;
 const RELEASE_RISK_CATEGORIES = ['rollback', 'deploy-window data compatibility', 'consumer compatibility', 'production visibility'];
 
-// The criterion text of each checklist line, tag and verdict note dropped, inline code spans stripped.
+const QUALIFIED_START_RE = /^(?:scope|docs) \(/;
+
+// The criterion text of each checklist line, tag and verdict note dropped, inline code spans stripped, and each line
+// whose rightmost ` — ` segment before any note starts `scope (` or `docs (` but reads as no tag: a malformed qualified
+// tag (ADR 0285).
 function criterionTexts(masked) {
   const range = dodSectionRange(masked);
   const lo = range ? range.start + 1 : 0;
   const hi = range ? range.end : masked.length;
   const texts = [];
+  const malformed = [];
   for (let i = lo; i < hi; i += 1) {
     const [reading] = parseDodLineReadings(masked[i]);
-    if (reading) texts.push(reading.criterion.replace(CODE_SPAN_RE, '').trim());
+    if (!reading) continue;
+    texts.push(reading.criterion.replace(CODE_SPAN_RE, '').trim());
+    const segment = reading.criterion.slice(reading.criterion.lastIndexOf(' — ') + 3).trim();
+    if (!reading.tag && reading.criterion.includes(' — ') && QUALIFIED_START_RE.test(segment)) {
+      malformed.push(`malformed qualified tag "${segment}": ${masked[i].trim()}`);
+    }
   }
-  return texts;
+  return { texts, malformed };
 }
 
 // The entries of the first unfenced Absorbs line, store references only, each once; null with no such line.
@@ -38,7 +49,7 @@ function absorbsEntries(masked) {
 function verbDodCheck(stdinRaw) {
   if (!stdinRaw || !stdinRaw.trim()) fail('dod-check refused: the input is empty');
   const masked = maskFencedLines(splitLines(stdinRaw), 'dod-check input', 'checked');
-  const texts = criterionTexts(masked);
+  const { texts, malformed } = criterionTexts(masked);
   const absorbs = absorbsEntries(masked);
 
   // Each reference with the number of criteria citing it, in first-citation order.
@@ -47,7 +58,7 @@ function verbDodCheck(stdinRaw) {
     for (const ref of new Set([...text.matchAll(CITATION_RE)].map((m) => m[1]))) citedBy.set(ref, (citedBy.get(ref) || 0) + 1);
   }
 
-  const problems = [];
+  const problems = [...malformed];
   for (const ref of absorbs || []) if (!citedBy.has(ref)) problems.push(`Absorbs entry ${ref} is cited by no criterion`);
   for (const ref of citedBy.keys()) {
     if (absorbs === null) problems.push(`citation (triage ${ref}) with no Absorbs line`);

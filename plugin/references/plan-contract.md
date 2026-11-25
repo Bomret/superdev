@@ -20,6 +20,7 @@ maps the same fields onto its own issue bodies, links, and statuses.
 | `spec` | What this slice delivers end-to-end — the implementer's requirements: the behaviour, and the specific interface its tests exercise (a function signature, an API endpoint, a CLI command), never file paths. It names the **domain shapes** the slice needs by name, in the project glossary's vocabulary, never as field lists; the implementer declares them before its first failing test and owns their fields. A prototype-produced snippet that encodes a decision more precisely than prose can (a state machine, a reducer, a schema) may be inlined, trimmed to the decision-rich parts and marked as prototype-sourced (`prototype.md`). | `implementer` |
 | `acceptance` | Checkable criteria for THIS slice. On a `behavior` slice they name the domain-level failure and boundary cases derivable from the interview, beside the happy path. Implementation-level edges stay with the implementer and the reviewers. `skills/plan/SKILL.md` holds the split with examples. | `slice-reviewer`, `implementer` |
 | `status` | Canonical lifecycle `todo` → `in-progress` → `in-review` → `merged` (= done), plus `blocked`. Backends map these onto their real statuses; the ledger is authoritative during a run. | `/implement`, store |
+| `repository` | Optional, on a multi-repository plan only: the Repository component of the repository that builds the slice (*A shared anchor* below). A single-repository plan leaves it out. | the store's slice create |
 
 **The global Definition of Done.** Applies to every plan. The plan carries one global Definition of Done block, the
 acceptance criteria for the whole feature. `/implement`'s run init and the final review read it.
@@ -53,6 +54,20 @@ after its pass (`references/dod-ticks.md`). `docs` stands alone like `scope`, ne
 
 ```
 - [ ] <criterion> — <ids|scope|docs>
+```
+
+**The qualified tag.** Applies to a `scope` or `docs` criterion on a shared anchor (*A shared anchor* below). It names
+its owner's Repository component, `scope (<component>)` or `docs (<component>)`, the component non-empty and holding no
+`,`, `(`, `)`, or ` — ` (`issue-tracker-jira.md`'s **The name rule**). `scope.js dod-check` refuses a tag that starts
+`scope (` or `docs (` and fails that form. That check reads only a line's rightmost ` — ` segment, so a malformed
+qualified tag whose component holds ` — ` (`scope (A — B, C)`) escapes it, and a ` — ` inside a tag reads to a person
+like the line's other ` — ` separators. Setup refuses such a component name before any tag holds it. `dod.md` holds
+only the run's own lines, so every reader of a `dod.md` line reads `scope (<component>)` as `scope` and
+`docs (<component>)` as `docs`.
+
+```
+- [ ] <criterion> — scope (Billing API)
+- [ ] <criterion> — docs (Web)
 ```
 
 **Store-notation tags.** Applies once every slice issue exists. `/superdev:plan` rewrites each slice id into the
@@ -193,6 +208,20 @@ an absent line reads as no absorbed records, never as an error.
 - An append seeded from another intent record revises the line in place and keeps the records it already names.
 - Append mode's single-slice promotion moves the line to the new epic (`plan-authoring.md`'s `## Append mode`).
 - It blocks nothing, and no command reads it.
+
+**A shared anchor.** Applies to a scope anchor holding slices of more than one repository, each slice under its own
+repository's Repository component (ADR 0285). Only a repository with a Repository component sees one: its store
+document's `## Scope anchor` section lists the anchor's slices in every repository and tells a shared anchor.
+
+- **Ownership by tag.** A line tagged with slices belongs to the repository whose slices it names. A `scope` or `docs`
+  line carries the qualified tag (`### Criterion tags`) naming its owner. A run's `dod.md` holds only its own lines,
+  trimmed by `scope.js dod-own`, and run init stops on a line whose owner it cannot tell.
+- **The anchor closes last.** `/superdev:wrap-up` closes its own repository's slices, and closes the anchor once every
+  slice in every repository is closed and every line on the anchor is settled.
+- **A sibling blocker.** A slice may wait on a slice of another repository under the same anchor. It starts only once
+  that slice is closed.
+- **Run state.** The one store with a Repository component, Jira, is snapshot-less, so no two repositories publish a
+  snapshot to one anchor.
 
 **Distinct notations.** Applies to every anchor line. Each store's own `## Scope anchor` section states the mechanism
 it writes and reads each line with. No anchor line is ever confused with another anchor line or with a slice's

@@ -12,13 +12,36 @@ reads this only when the operator picks extend.
 *Scope anchor*, *List the candidates*) for the user to pick one. Then load that feature's epic, its slices, and its
 Definition of Done.
 
+**Joining a shared anchor.** Applies when `docs/agents/issue-tracker.md` configures a Repository component and this
+repository's own listing finds no anchor for the label the operator names: the feature's slices so far belong to other
+repositories (`plan-contract.md` → *A shared anchor*, ADR 0285). Load the anchor through the store document's **Find an
+anchor in every repository** call, and run the join steps beside §6's writes:
+
+- **The component.** Add this repository's component to the anchor through **Add a repository's component to an
+  anchor**.
+- **The append.** Append this repository's slices under its own component, and its Definition-of-Done lines, every
+  `scope` and `docs` tag qualified with this repository's component, its own `Reachable:` and `Release risk:` lines
+  included. Leave every other repository's line as it is.
+- **The qualify step.** When the join makes the anchor shared (every slice before it carried one component), qualify
+  that first repository's lines: the anchor-body edit runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-tags
+  --qualify <first repository's component>` as its producer, per paragraph with `--line` on Jira, through the store's
+  **Edit an issue's body** rule.
+- **No untagged line.** The join leaves no untagged line on the anchor, because `scope.js dod-own` refuses every
+  untagged line once the anchor is shared, which stops run init in both repositories. `dod-tags --qualify` passes an
+  untagged line through, so tag each one in the same drafted body before the write. A line a single-slice promotion
+  copies from the lone slice's `acceptance` takes that lone slice's store reference. Any other untagged line of the
+  first repository takes `scope (<first repository's component>)`.
+- **The release signal.** Keep it as it stands: a joining append runs no **Remove**.
+- **The active-run signal.** **An active run** below reads this repository's own slices only, so a sibling's live run
+  never blocks the join.
+
 ## Refuse on any signal
 
 **The refusal.** Applies to every extend, once the feature is loaded. Refuse to extend, and write nothing, on any one
 signal in the list. Name the signal that fired and what clears it.
 
-- **An active run.** The store holds a slice `in-progress`, `in-review`, or `blocked`. Clears once that slice leaves
-  the state.
+- **An active run.** The store holds a slice `in-progress`, `in-review`, or `blocked`, on a shared anchor one of this
+  repository's own slices. Clears once that slice leaves the state.
 - **The run root's ledger stage.** The run root is `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <slug>`'s
   printed path. Read its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`.
   - `planned` proceeds: §2 and §6 carry it through as the `planned`-ledger case of their own steps.

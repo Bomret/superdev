@@ -1,3 +1,10 @@
+# [0.123.0](https://github.com/Bomret/superdev/compare/v0.122.0...v0.123.0) (2026-11-25)
+
+
+### Features
+
+* **shared-anchor:** let several repositories run one feature on one scope anchor ([6d29450](https://github.com/Bomret/superdev/commit/6d294506c3f48bbf8b5e75e27d4a5200b7f1f459)), closes [#566](https://github.com/Bomret/superdev/issues/566) [#566](https://github.com/Bomret/superdev/issues/566)
+
 # [0.122.0](https://github.com/Bomret/superdev/compare/v0.121.0...v0.122.0) (2026-11-25)
 
 
