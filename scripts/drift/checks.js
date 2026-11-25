@@ -49,6 +49,7 @@ const {
   scanDeriveNoDod,
   scanInvariantRegisterJoin,
   scanRootNoInventory,
+  scanUnterminatedFences,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -316,5 +317,11 @@ module.exports = [
     ok: 'the root AGENTS.md names no lib module, test suite, or superdev agent: it describes each growing set by its rule',
     run: scanRootNoInventory,
     format: contractGap,
+  },
+  {
+    id: 'unterminated-fence',
+    ok: 'every fenced code block in the Markdown below plugin/, the ADRs, docs/invariants.md, and CONTEXT.md closes, so no fence-masking check reads past a fence that runs to end of file',
+    run: scanUnterminatedFences,
+    format: (g) => `${g.source}:${g.line} opens a fenced code block that never closes — every fence-masking drift check reads nothing below it`,
   },
 ];

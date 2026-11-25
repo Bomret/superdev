@@ -32,6 +32,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'plugin-prefix-path',
     'no-offer-start',
     'no-ci-wait',
+    'unterminated-fence',
   ]);
   const empty = fixture({ '.keep': '' });
   for (const check of CHECKS) {
@@ -99,6 +100,10 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'no-base-branch-commit': [
       { source: 'skills/x/SKILL.md', line: 9 },
       'skills/x/SKILL.md:9 instructs a commit, a push, or a merge to the base branch — no superdev command reaches the base branch that way (INV-0001, docs/invariants.md)',
+    ],
+    'unterminated-fence': [
+      { source: 'plugin/references/x.md', line: 3 },
+      'plugin/references/x.md:3 opens a fenced code block that never closes — every fence-masking drift check reads nothing below it',
     ],
   };
   for (const [id, [gap, line]] of Object.entries(OWN_LINES)) {

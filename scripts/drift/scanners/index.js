@@ -18,4 +18,5 @@ module.exports = {
   ...require('./base-branch-ship'),
   ...require('./register-join'),
   ...require('./root-inventory'),
+  ...require('./unterminated-fence'),
 };

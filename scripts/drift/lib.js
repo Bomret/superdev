@@ -206,6 +206,7 @@ module.exports = {
   readDoc,
   missingDoc,
   maskFences,
+  fenceLines,
   maskedSentences,
   normalizeWhitespace,
   scanContract,
