@@ -10,7 +10,7 @@ joined by hyphens there as a check id, and fails an id that the registry does no
 ### INV-0001
 
 Class: architecture
-Statement: No superdev command commits to the base branch, with two exceptions: `/superdev:ship`'s merge of the pull request through the host's merge API, pinned to the tested head (ADR 0096), and `/superdev:setup`'s push offer, which commits and pushes only the configuration files that run wrote, and only when the operator chooses the current branch (ADR 0282). Every other write a run makes lands on that run's own scope branch, in its own scopetree. No other command merges or pushes to the base branch with local git. The only local-git write to the base branch is implement's ref-only fast-forward of the local base ref to the fetched remote tip, `git fetch . <tip>:refs/heads/<base>`, which git refuses when the base is checked out in any worktree or the update is not a fast-forward (ADR 0120).
+Statement: No superdev command commits to the base branch, with two exceptions: `/superdev:ship`'s merge of the pull request through the host's merge API, pinned to the tested head (ADR 0096), and `/superdev:setup`'s push offer, which commits and pushes only the configuration files that run wrote, and only when the operator chooses the current branch (ADR 0282). Every other write a run makes lands on that run's own scope branch, in its own scopetree, except a prototype detour's commit, which lands on its own `prototype/<slug>` branch (INV-0210). No other command merges or pushes to the base branch with local git. The only local-git write to the base branch is implement's ref-only fast-forward of the local base ref to the fetched remote tip, `git fetch . <tip>:refs/heads/<base>`, which git refuses when the base is checked out in any worktree or the update is not a fast-forward (ADR 0120).
 Concepts: Base branch, Scope branch, Scopetree, Run root
 Breaks: silently
 Check: scripts/drift-check.js `no-base-branch-commit` — no shipped prose instructs a commit to the base branch, other than the two admitted sites
@@ -1666,3 +1666,12 @@ Statement: Every local merge commit superdev instructs in a scopetree, a slice m
 Breaks: silently
 Check: scripts/drift-check.js `merge-message-required` — no shipped prose instructs a local merge commit without a message
 Paths: plugin/references/implement-full.md, plugin/references/implement-full-resume.md, plugin/references/scope-branch.md, plugin/references/merge-conflicts.md, plugin/references/plan-authoring.md, plugin/skills/ship/SKILL.md
+
+### INV-0210
+
+Class: process
+Concepts: Prototype detour, Base branch, Scopetree
+Statement: A prototype detour edits no tracked file in the invoking checkout, nor switches its branch, and commits nothing to the base branch or to a scope branch: it is built and committed in its own worktree under the main working tree's ignored `.superdev/`, on its own `prototype/<slug>` branch cut from the base branch, or from the current commit where the repository records no base branch. Only the validated decision it answers reaches the intent file, the interview, an ADR, or a slice `spec`.
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/references/prototype.md, plugin/references/cross-exam.md, plugin/skills/brainstorm/SKILL.md
