@@ -19,7 +19,7 @@ Applies to every start. You turn a vague idea into an intent sharp enough for `/
 
 ## What you write
 
-Applies to every start. Write only these: the intent file as the interview runs, `.superdev/` in `.gitignore` when absent, §6's intent record with the deletion of the file it replaces, §4's prototype on a throwaway branch, and on §6's inline off-ramp the worktree `${CLAUDE_PLUGIN_ROOT}/references/inline-offramp.md` cuts with the work inside it. Write no slice, no Definition of Done, no glossary entry, and no ADR. Durable capture is `/superdev:plan`'s job.
+Applies to every start. Write only these: the intent file as the interview runs, `.superdev/` in `.gitignore` when absent, §6's intent record with the deletion of the file it replaces, a prototype in the worktree and on the `prototype/<slug>` branch `${CLAUDE_PLUGIN_ROOT}/references/prototype.md` states, and on §6's inline off-ramp the worktree `${CLAUDE_PLUGIN_ROOT}/references/inline-offramp.md` cuts with the work inside it. Write no slice, no Definition of Done, no glossary entry, and no ADR. Durable capture is `/superdev:plan`'s job.
 
 ## The closing message
 
@@ -34,7 +34,7 @@ Applies to the whole conversation. Offer options rather than closed questions, a
 
 ## The moves
 
-Applies to the whole conversation. Run it with these core moves of cross-exam.md: **One question at a time**, **Explore the code instead of asking**, **A recommended answer every time**, **Offer only live options** (vetted, at most two), **Surface, never smuggle**, and **Hunt contradictions**. Let the exploration branch wide before it narrows. Stop at §6's readiness test, not at cross-exam.md's `## Termination`.
+Applies to the whole conversation. Run it with these core moves of cross-exam.md: **One question at a time**, **Explore the code instead of asking**, **A recommended answer every time**, **Offer only live options** (vetted, at most two), **Prototype what must be seen or run**, **Surface, never smuggle**, and **Hunt contradictions**. Let the exploration branch wide before it narrows. Stop at §6's readiness test, not at cross-exam.md's `## Termination`.
 
 - Apply the **active moves** of domain-modeling.md: challenge vague terms and sharpen fuzzy language.
 - Apply `${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md`: verify a claim about how a third-party library, product, or service behaves against its official docs before the intent carries it as fact.
@@ -91,14 +91,6 @@ Applies to the direction the user leans toward. Find the **smallest end-to-end v
 **A failed challenge.** Applies when the challenge dispatch returns no result, or a reply without its paraphrase. Dispatch it once more. A second failure reads `not run` with its reason, and you continue without applying its lenses yourself.
 
 **A challenge again.** Applies when the direction changes after its challenge, and to a resumed draft past §4. Challenge the direction again before §6's readiness test.
-
-**The prototype.** Applies to an unknown the conversation cannot settle, such as "does this state model feel right" or "which of these two shapes survives real data". Offer the detour, and run it by `${CLAUDE_PLUGIN_ROOT}/references/prototype.md`. The intent carries the decision.
-
-- The codebase carries nothing.
-- State the question in the artifact.
-- Keep the logic liftable.
-- Fold the validated decision into the intent.
-- Park the prototype on a throwaway branch.
 
 ## 5. Converge to a "ready to plan" intent
 

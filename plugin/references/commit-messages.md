@@ -7,8 +7,8 @@ stop. The **Commit convention** (`CONTEXT.md`) is the repository's rule for that
 ## Reading the rule
 
 **The read.** Applies before every message you compose. Read the `## Commit messages` section of
-`docs/agents/code-management.md` in the tree the commit lands in: a slicetree, the scopetree, setup's worktree, or the
-checkout. Pass the document's absolute path, `<tree>/docs/agents/code-management.md`, to `node
+`docs/agents/code-management.md` in the tree the commit lands in: a slicetree, the scopetree, setup's worktree, a
+prototype's worktree, or the checkout. Pass the document's absolute path, `<tree>/docs/agents/code-management.md`, to `node
 "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section`, with the heading on stdin through a quoted heredoc, because the
 verb resolves a relative path against the plugin root first.
 
@@ -40,7 +40,7 @@ The repository's hook and CI judge the result, so you validate nothing yourself.
 `setup`, and it names no store reference.
 
 **A featureless commit.** Applies to a commit no feature owns other than setup's, which **Setup's commit** fills: an
-ad-hoc review's inline fix, and a brainstorm prototype's. It takes the commit's own kind of change and no store reference. A value the rule names only
+ad-hoc review's inline fix, and a prototype's. It takes the commit's own kind of change and no store reference. A value the rule names only
 where there is a feature, such as a scope the feature's slug fills, is left out and is no **A missing value**.
 
 **A missing value.** Applies to a rule that requires a value you were not handed and cannot read. Report the rule and
