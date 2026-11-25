@@ -70,7 +70,7 @@ anchor as `<anchor-key>` and the feature label, and names no pull-request URL.
 - **Independent writes.** The comment and the link are two writes. Each failure is reported once, naming the record.
 - **No usable link type** (the bullet absent, a placeholder, or the `depends-on` link type) → post the comment only,
   and report the gap once per plan run, naming `/superdev:setup`.
-- **A link Jira rejects** (an unknown type) → report it with Jira's answer. The comment stands.
+- **A link Jira rejects** (an unknown type) → report it with Jira's answer.
 
 ## Assignee
 
