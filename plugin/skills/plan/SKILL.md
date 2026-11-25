@@ -279,7 +279,7 @@ A triage record already written is amended instead, through the store's own `## 
 
 - **Newly absorbed** → on a new, single-slice, or repair plan, every entry of the line. On an append, only the entries the revised line adds over the line it read, both compared after the Absorbs-line read rule (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *The Absorbs line*): each entry trimmed, a malformed entry ignored, a repeated entry counted once.
 - **An append that makes a single-slice feature an epic** → connect every record the moved Absorbs line names to the new epic. The connection to the former lone slice stays.
-- **A failed or denied call** → report it once, naming the record, and connect the next record. The filed scope stands, as in **A failed settle**.
+- **A failed or denied call** → report each failed write of the call once, naming the record, and connect the next record. A write that fails leaves the call's other writes to run. The filed scope stands, as in **A failed settle**.
 - **An Absorbs-line write that failed** → connect nothing.
 - **A plan document that states no Connect an absorbed record call** → connect nothing, and name `/superdev:setup` once per plan run, whose re-run offers the call.
 - **The record's lifecycle** → the call changes no status, label, parent, or assignee on the record. Only `/superdev:wrap-up` closes it.

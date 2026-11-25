@@ -34,8 +34,7 @@ makes, creating issues and writing anchor lines, live in `docs/agents/issue-trac
   `references/scope-mode.md`. The label doubles as the scope branch name.
 - **`depends-on` link type**: `<Blocks>`, the link type's **name**, never its inward description (`is blocked by`).
 - **Absorbs link type** (optional): `<Relates>`, the link type's **name**, which differs from the **`depends-on`
-  link type**. `/superdev:plan` links an absorbed triage record to its scope anchor with it. Without the bullet, plan
-  connects an absorbed record by a comment only.
+  link type**. `/superdev:plan` links an absorbed triage record to its scope anchor with it.
 - **Ready status/label**: `<ready-for-agent>`, which marks a slice an agent may pick up.
 - **Triage label**: `<triage>`, the only label a **triage record** carries. Default `triage`.
 - **Intent label:** `<intent>`, the only label an **intent record** carries. Default `intent`.
@@ -194,8 +193,8 @@ anchor.
 
 `store-records.md` → *Triage record*. On this store it is an ordinary issue in the configured project
 carrying the **Triage label** and nothing else: no feature label, no ready status or label, no parent, and no
-status transition until **Close it**. It carries exactly one issue link, and only once a scope absorbs it: the
-absorbs link to the anchor that absorbed it (**Absorbs link type**).
+status transition until **Close it**. It carries only absorbs links (**Absorbs link type**), each to an anchor
+that absorbed it, and none until a scope absorbs it.
 
 - **Create it:** `POST <base>/rest/api/3/issue` with
   `{ "fields": { "project": {"key":"<PROJ>"}, "summary": "<the finding, one line>",

@@ -40,6 +40,6 @@ connection to the former lone slice in place.
   own link types.
 
 **Consequences.** A reader of an absorbed record sees the scope working on it from the moment it is planned. The Jira
-triage record carries one issue link while it is absorbed, which its shape allowed none of before. Every store seed
+triage record carries an absorbs link to each anchor that absorbed it, where its shape allowed no issue link before. Every store seed
 gains the connect step, and the Jira seed gains a configuration value that `/superdev:setup` offers to an existing
 store document.

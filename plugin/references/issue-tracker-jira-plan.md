@@ -60,10 +60,14 @@ issue's body**, never an issue link.
 **Comment on it** call, its text from a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`). The text names the scope
 anchor as `<anchor-key>` and the feature label, and names no pull-request URL.
 
-- **The link.** After the comment, when `docs/agents/issue-tracker.md` names an **Absorbs link type** that is no
-  `<…>` placeholder and differs from the **`depends-on` link type**: `POST <base>/rest/api/3/issueLink` with
+- **The link.** After the comment, whether or not the comment succeeded, when `docs/agents/issue-tracker.md` names
+  an **Absorbs link type** that is no `<…>` placeholder and differs from the **`depends-on` link type**:
+  `POST <base>/rest/api/3/issueLink` with
   `{ "type": {"name":"<absorbs link type name>"}, "inwardIssue":{"key":"<record>"}, "outwardIssue":{"key":"<anchor-key>"} }`,
-  sent through the **Transport** rule. Read the link back once after writing it.
+  sent through the **Transport** rule. Read the link back once after writing it: the record's `issuelinks[]` holds a
+  link of that type to `<anchor-key>`. A missing link, or a read-back that fails, is reported as **A link Jira
+  rejects** is.
+- **Independent writes.** The comment and the link are two writes. Each failure is reported once, naming the record.
 - **No usable link type** (the bullet absent, a placeholder, or the `depends-on` link type) → post the comment only,
   and report the gap once per plan run, naming `/superdev:setup`.
 - **A link Jira rejects** (an unknown type) → report it with Jira's answer. The comment stands.

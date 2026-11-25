@@ -149,7 +149,7 @@ Applies to the full interview. Scan these before any decision:
 - Ask which types the operator allows per role, the first being the role's default, each with a one-line "use for" in the operator's words. Finish no role without a type.
 - A failed or denied probe is reported with its HTTP status, and setup asks for the types by name and id.
 
-**Jira absorbs link type.** Applies to Jira. Ask for the optional **Absorbs link type**. List `GET <base>/rest/api/3/issueLinkType`. Offer each link type's name other than the `depends-on` link type, plus `none`. `none`, or an instance with no other type, writes no bullet, and plan then connects an absorbed record by a comment only. A re-run offers a missing bullet as a seed gap (**Seed gaps**).
+**Jira absorbs link type.** Applies to Jira. Ask for the optional **Absorbs link type**. List `GET <base>/rest/api/3/issueLinkType`. Offer each link type's name other than the `depends-on` link type, plus `none`. `none`, or an instance with no other type, writes no bullet. A re-run offers a missing bullet as a seed gap (**Seed gaps**).
 
 - A failed or denied listing is reported with its HTTP status, and setup asks for the type by name or `none`.
 
