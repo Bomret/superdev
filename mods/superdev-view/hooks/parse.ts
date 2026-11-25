@@ -47,7 +47,7 @@ export const closedAt = (trace: string): number | null => {
 // for every `.` so a U+2028 or U+2029 inside a line is text. The mod installs from its own folder and cannot require
 // plugin/lib/, so it carries the reading itself; hooks/dod-fixtures.ts pins it to the lines scope.js writes, and
 // tests/scope-dod-line.test.js asserts DOD_TAG and DOD_LABEL match dod-line.js's tag and verdict patterns.
-const DOD_TAG = '(?:scope|docs|(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+)(?:,\\s*(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+))*)'
+const DOD_TAG = '(?:(?:scope|docs) \\([^,()\\n\\r]+\\)|scope|docs|(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+)(?:,\\s*(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+))*)'
 const DOD_LABEL = '(met|not met|ceiling|accepted)'
 const DOD_NOTE_TAGGED = new RegExp(`^([^\\n\\r]+?) — ${DOD_TAG} — ${DOD_LABEL}: `)
 const DOD_NOTE_UNTAGGED = new RegExp(`^([^\\n\\r]+?) — ${DOD_LABEL}: `)

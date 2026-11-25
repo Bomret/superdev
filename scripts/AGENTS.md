@@ -31,7 +31,7 @@ reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref
 
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
-`suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `dod-check`, `ci`, `fail-to-pass`, `fail-to-pass-check`, `prepare`,
+`suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `dod-check`, `dod-own`, `ci`, `fail-to-pass`, `fail-to-pass-check`, `prepare`,
 `citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, `status`, `section`, `tier`, `dod-open`, `contained`, `red-evidence`, `candidates`, `denial`, `consent`, and `route` each in the module of its name. `branch` is `scope-branch.js`'s `resolveScopeBranch`, and `branch delete` is `branch-delete.js`'s `verbBranchDelete` (ADR 0274, INV-0204). It takes `gitCall`, `lastLine`, `boundEnded`, `pushTimeoutMs`, and `CREDENTIAL_RE` from `push.js`. It takes `judgeContainment` and `refetchMark` from `containment.js`, and `resolveRemote` from `remote.js`. `checkout` is `scope-checkout.js`'s `scopeCheckout`, and `lock` is `run-lock.js`'s `verbLock`; `run-lock.js` also holds the run lock's reader and one-hour bound that `plan-open.js` shares. `run-roots.js` holds the one scan of `.superdev/scopes/*/` that `status` and `candidates` share. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `windowIndexes`, `traceFlags`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share, and `traceFlags` is the flag parser `trace`, `windows`, `untraced`, and `fail-to-pass-check` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `remote.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `literalEnv`, `existsAt`, `fileAt`, `listWorktrees`),
@@ -57,7 +57,7 @@ lazily loaded module is a getter that returns that module's own value. No module
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|reviewed|suite|failed`,
 `state [--json] --root <run-root>` (every field `get` names in one read-only call, from the ledger alone: no git, no trace line, no digest seal; `--json` prints one object with list fields as arrays and `failed` as the failed test files, its `@ <sha>` staying in `get failed` and the text output; `suite-base-get.js`'s `verbState`),
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id|scope>] [--kind <kind>[,<kind>]] [--window <dispatch id>] [--last <n>]` (prints the run trace's lines, filtered, read-only), `windows --slice <id|scope>` (read-only), `untraced <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `fail-to-pass-check <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `section <file>` (read-only, the heading line on stdin), `tier --root <run-root>` (read-only), `dod-open --root <run-root> [--tag docs]` (read-only), `contained <base> <branch> [--remote <remote>]` (read-only), `branch --root <run-root>`, `checkout --root <run-root>`, `lock --root <run-root>`, `denial <pass> [--unattended] --root <run-root>`, and `route --root <run-root> …` (each read-only), `candidates --stage <stage>[,<stage>]` (read-only, no run root), `red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]` (read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count|--line]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `source-set --tests`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `ci --sha <sha> [--root <path>]`, `ci --sha <sha> --wait --read <script> [--timeout <s>] [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
+`staging <scope> [--count|--line]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `source-set --tests`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path> | --qualify <component>] [--line]`, `dod-check`, `dod-own --component <name> --slices-file <path>`, `ci --sha <sha> [--root <path>]`, `ci --sha <sha> --wait --read <script> [--timeout <s>] [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
 `--help` or `-h` prints help and exits 0. A flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request.
 The CLI checks for help before any verb reads stdin or touches a ledger.
 An unknown verb, or no verb, refuses with exit 1 and appends the full usage on stderr. `run-state` without `delete` refuses the same way.
@@ -533,7 +533,8 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   `<open|settled><TAB><label><TAB><tag|-><TAB><repair-citation|-><TAB><criterion>` line per criterion, then `stage-hold: yes|no`. The
   label is `met`, `not-met`, `ceiling`, `accepted`, or `none`; `met` and `accepted` are settled. `repair-citation` marks a `not-met`
   note that ends in verify-ship's `(observed)` citation. `stage-hold` is `yes` where an open line is neither `ceiling` nor tagged
-  `docs`. `--tag docs` prints the open `docs` lines alone and no `stage-hold` line. It takes only the value `docs`. It refuses in
+  `docs`. A qualified `scope (<component>)` or `docs (<component>)` tag prints as its plain `scope` or `docs`, so `--tag docs`
+  and the stage hold read it as one. `--tag docs` prints the open `docs` lines alone and no `stage-hold` line. It takes only the value `docs`. It refuses in
   these cases:
   - a missing `--root`;
   - an unrecognized argument;
@@ -637,7 +638,9 @@ node's own string carries. The tag — slice ids (`01`, `01, 02`), store refs (`
 literal `scope` or `docs`, each standing alone (ADR 0161) — and any verdict note past it are parsed off the line's *right* end, greedily handing
 everything before that to the criterion, which is what keeps a criterion carrying its own " — "
 (`plan-authoring.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope") intact
-instead of splitting at its first dash. An untagged criterion that merely ends in something shaped like a
+instead of splitting at its first dash. On a shared anchor the tag may be the qualified `scope (<component>)` or
+`docs (<component>)` (ADR 0285). The component is non-empty and holds no `,`, `(`, `)`, or ` — `, because `dod-check`'s
+form check reads only a line's rightmost ` — ` segment and cannot see a malformed tag whose component holds one. An untagged criterion that merely ends in something shaped like a
 tag (`- [ ] Retries capped — 3`) offers a second reading alongside the rightmost-tag one — the whole line,
 untagged — and a line matches when either reading's criterion equals the `--match-file` text (triage #679); a genuinely
 tagged line still parses its tag as before. The same offer reaches a line that already carries a note
@@ -649,7 +652,11 @@ shown inside a fenced illustrative example is never a candidate. Body mode furth
 body's own `## Definition of Done` section — the heading whose text starts "Definition of Done," up to
 the next heading of the same or a higher level — when one exists, so an identical checkbox elsewhere in
 the same document is never a candidate; a body with no such heading matches over the whole body, as a
-single-slice feature's own acceptance-only checklist does (triage #679). `met` renders `- [x] <criterion>
+single-slice feature's own acceptance-only checklist does (triage #679). `--tag-file <path>` also holds a match to its
+tag: a line matches only when its criterion text and its tag both equal the given ones, and an empty tag file matches an
+untagged line only. `--component <name>`, beside `--tag-file`, counts `scope` and `scope (<name>)` as one tag, and
+`docs` and `docs (<name>)`, so a run's plain tag pairs with its own qualified line on a shared anchor and never with a
+sibling's. The written line keeps the line's own tag text. `met` renders `- [x] <criterion>
 — <tag> — met: <note>`; `not-met`, `ceiling`, and `accepted` each render `- [ ]` with
 `not met:`/`ceiling:`/`accepted:` — the marker is derived from the verdict alone, so a same-verdict
 re-write always leaves it unchanged, and the new note always replaces whatever note the line carried
@@ -658,15 +665,20 @@ unmet criterion stands accepted as unmet (ADR 0095) — the box stays unticked, 
 honestly unmet. Refuses, printing nothing, on zero matching lines, on two or more (which one to edit
 cannot be resolved — a line offering two readings counts once), on a `--verdict` outside the four named
 values, on a missing `--match-file` or `--note-file`, on an inline `--match` or `--note`, on an unknown
-argument, on a flag with no value or a value that starts with `--`, or on a note holding a U+2028 or U+2029
-separator.
+argument, on a flag with no value or a value that starts with `--`, on `--component` without `--tag-file`, or on a note
+holding a U+2028 or U+2029 separator.
 
 `dod-tags [--map-file <path>] [--line]` is the criterion-tag rewrite (ADR 0209, INV-0182), in
 `plugin/lib/dod-tags.js`. It touches no ledger and makes no store call. It reads an anchor body on stdin and
 prints it with every slice-id tag in the `## Definition of Done` section rewritten into the store reference
 the map file gives it, one `<id> <reference>` pair per line. Several references join with `, ` and carry no
-brackets. A tag already in store notation, `scope`, `docs`, a judged line, a fenced line, and every byte
-outside the section print unchanged, so a second run over its own output changes nothing. It reads lines
+brackets. A tag already in store notation, `scope`, `docs`, a qualified `scope (<component>)` or `docs (<component>)`
+whose component text the map never rewrites, a judged line, a fenced line, and every byte outside the section print
+unchanged, so a second run over its own output changes nothing. `--qualify <component>` rewrites every plain `scope`
+and `docs` tag to `scope (<component>)` or `docs (<component>)` instead, on unjudged and judged lines alike, the note
+byte-identical, and passes every other line, an untagged one included, through unchanged. It refuses beside
+`--map-file`, and for a component that is empty or holds `,`, `(`, `)`, or ` — `. `/superdev:plan`'s extend runs it
+when a join makes an anchor shared (ADR 0285). It reads lines
 through `dod-line.js`'s own line, tag, and section rules. Without `--map-file` it only checks. `--line` takes
 and prints one checklist line, for a Jira ADF text node. It refuses, printing nothing and naming every
 offending line, when an unjudged checklist line carries no tag `dod-line` reads, a tag names a slice id the
@@ -689,11 +701,26 @@ refuses, under a `dod-check refused:` header with one line per problem, when an 
 criterion, when a citation names no Absorbs entry or the body has no Absorbs line, when two or more criteria
 cite one reference, when no criterion begins with `Reachable:`, and for each of rollback, deploy-window data
 compatibility, consumer compatibility, and production visibility that no criterion beginning with `Release
-risk:` names. A problem line quotes only references and category names. It also refuses empty input, and
+risk:` names, and for each line whose rightmost tag segment starts `scope (` or `docs (` but fails the qualified
+form, naming the line. A problem line otherwise quotes only references and category names. It also refuses empty input, and
 input with an unterminated fenced code block, checking nothing.
 `/superdev:plan` runs it on the drafted anchor body before any store write, and the scope review runs it in
 its anchor sync on input built from the store's Definition-of-Done lines and Absorbs line, again before each
 stage write. `tests/scope-dod-check.test.js` holds its cases.
+
+`dod-own --component <name> --slices-file <path>` trims an anchor's Definition of Done to the lines one Repository
+component owns on a shared anchor (ADR 0285), in `plugin/lib/dod-own.js`. It takes no `--root`, touches no ledger and
+no trace, and makes no store call. It reads an anchor body on stdin and the slices file, one `<store-ref> <component>`
+line per slice under the anchor in every repository, the component running to the end of the line. It prints the
+`## Definition of Done` section, its heading and every non-checklist line kept. The anchor is shared when the slices
+file holds a slice of another component: it then prints only the checklist lines this component owns, a line whose tag
+names only its slices and a `scope (<name>)` or `docs (<name>)` line, in order and byte-identical. An anchor that is
+not shared prints the section unchanged. On a shared anchor it refuses, printing nothing and naming each line with a
+one-line fix, for a plain `scope` or `docs` tag, an untagged line, a tag naming slices of two components, a tag naming
+a reference the slices file lacks, an id-form tag, and a qualified tag naming a component no slice carries, and when
+the owned lines hold no `Reachable:` or no `Release risk:` line. It also refuses a reference listed twice, a malformed
+slices-file line, and a body with no `## Definition of Done` section. Run init pipes the rendered anchor through it
+before `dod-merge` (`references/run-init.md`). `tests/scope-dod-own.test.js` holds its cases.
 
 `ci` judges a commit's check status against its **Named check**s (ADR 0255, INV-0191), in `plugin/lib/ci.js`.
 It reads `name<TAB>state` lines on stdin. Each line is one check run or commit status, as the code-host document's

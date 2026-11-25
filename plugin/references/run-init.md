@@ -100,6 +100,27 @@ checkable, to `<run-root>/dod.md` through a quoted heredoc (`<<'SUPERDEV_TEXT_EO
   `adopt` of an `implementing`-or-later snapshot) refuses until `<run-root>/dod.md` is a regular file holding a
   criterion line, so write it first.
 
+**A shared anchor.** Applies to every `dod.md` write, a first run's, a resume's, an adopt's, and a re-init's alike,
+when `docs/agents/issue-tracker.md` configures a Repository component. A shared anchor holds slices of several
+repositories, and a run owns only its own repository's lines (`plan-contract.md` → *A shared anchor*, ADR 0285).
+
+- **No every-repository call.** The store document's `## Scope anchor` section carries no **List an anchor's slices
+  in every repository** call → write `dod.md` as above, and name `/superdev:setup` once in the run's report, whose
+  re-run offers the call.
+- **The listing.** Otherwise list the anchor's slices in every repository through that call, and write one `<store-ref>
+  <component>` line per slice to a `mktemp` slices file. A failed listing stops run init, naming the failure. A slice
+  carrying no component or several stops run init, naming the slice and the fix the call states.
+- **The rendering.** Render the anchor's Definition of Done as `dod-own` reads it: a `## Definition of Done` heading,
+  then one `- [ ] …` or `- [x] …` line per anchor checklist line, its text as the store reads it. On Jira that text is
+  the paragraph's joined text, the same text the store's tick producer matches.
+- **The trim.** Pipe the rendering through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-own --component
+  <component> --slices-file <file>`, and pipe its stdout to `dod-merge` as above. On an anchor that is not shared
+  `dod-own` prints the section unchanged.
+- **A refusal.** `dod-own` refuses, printing nothing, naming each line whose owner it cannot tell and its fix on the
+  anchor, or the missing `Reachable:` or `Release risk:` line. Stop run init, print its lines and fixes, and write
+  nothing to `dod.md`. On a resume with the implement step standing, end with `scope.js step block`. **`--unattended`
+  → block**, per `scope-mode.md`'s `## Unattended`, naming the lines.
+
 ### 7. Create the ledger
 
 **Read the claim again.** Applies to a claim step 3 carried to step 8, an unassigned anchor or a yes, with or without

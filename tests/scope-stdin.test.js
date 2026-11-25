@@ -79,6 +79,7 @@ const cases = {
   'dod-line': [],
   'dod-tags': [],
   'dod-check': [],
+  'dod-own': [],
 };
 const matchFile = path.join(tmp, 'match.txt');
 const noteFile = path.join(tmp, 'note.txt');
@@ -103,6 +104,14 @@ cases['dod-check'].push([
   ['dod-check'],
   '## Definition of Done\n\n- [ ] a piped criterion (triage #3)\n- [ ] Reachable: piped\n- [ ] Release risk: rollback, deploy-window data compatibility, consumer compatibility, production visibility\n\n**Absorbs:** #3\n',
   () => assert.strictEqual(pipedOut, '', 'dod-check passed the piped body silently'),
+]);
+
+const slicesFile = path.join(tmp, 'slices.txt');
+fs.writeFileSync(slicesFile, '#7 API\n');
+cases['dod-own'].push([
+  ['dod-own', '--component', 'API', '--slices-file', slicesFile],
+  '## Definition of Done\n\n- [ ] a piped criterion — #7\n',
+  () => assert.match(pipedOut, /a piped criterion — #7/, 'dod-own printed the piped section'),
 ]);
 
 test('ci reads a commit of a repository of its own, named by --root, and judges the piped check status green.', () => {

@@ -35,6 +35,12 @@ const fileArgs = (argv) =>
     return p;
   }).map((a) => (a === '--match' || a === '--note' ? a + '-file' : a));
 const call = (argv, stdin) => rawCall(fileArgs(argv), stdin);
+// A `--tag-file` holding `text`, written as given.
+const writeTag = (text) => {
+  const p = path.join(fileDir, `tag-${fileCount++}.txt`);
+  fs.writeFileSync(p, text, 'utf8');
+  return p;
+};
 
 let r;
 
@@ -652,4 +658,37 @@ test('Reading order (F59): a note quoting another line\'s tag-and-verdict text k
   assert.deepStrictEqual([amb.criterion, amb.tag, amb.verdict], ['A', '', 'met']);
   const sep = parseDodLineReadings('- [ ] Cr\u2028it — 01 — not met: n\u2029ote')[0];
   assert.deepStrictEqual([sep.criterion, sep.tag, sep.verdict, sep.note], ['Cr\u2028it', '01', 'not met', 'n\u2029ote']);
+});
+
+test('dod-line: ticks a line tagged `docs (Billing API)`, unjudged and judged, keeping the tag text.', () => {
+  const body = ['## Definition of Done', '', '- [ ] the guide reads — docs (Billing API)', ''].join('\n');
+  r = call(['dod-line', '--match', 'the guide reads', '--verdict', 'not-met', '--note', 'one gap'], body);
+  assert.ok(r.ok, 'dod-line ticks an unjudged qualified line: ' + (r.err || ''));
+  assert.ok(r.out.includes('- [ ] the guide reads — docs (Billing API) — not met: one gap'), r.out);
+  r = call(['dod-line', '--match', 'the guide reads', '--verdict', 'met', '--note', 'closed'], r.out);
+  assert.ok(r.ok, 'dod-line re-judges a judged qualified line: ' + (r.err || ''));
+  assert.ok(r.out.includes('- [x] the guide reads — docs (Billing API) — met: closed'), r.out);
+});
+
+test('dod-line --tag-file: edits the one line whose text and tag match; an empty tag file matches only an untagged line.', () => {
+  const body = ['## Definition of Done', '', '- [ ] it holds — scope (Web)', '- [ ] it holds — scope (Billing API)', '- [ ] it holds', ''].join('\n');
+  r = call(['dod-line', '--match', 'it holds', '--tag-file', writeTag('scope (Billing API)'), '--verdict', 'met', '--note', 'ok'], body);
+  assert.ok(r.ok, 'the text-and-tag match edits one line: ' + (r.err || ''));
+  assert.deepStrictEqual(r.out.split('\n').slice(2, 5), ['- [ ] it holds — scope (Web)', '- [x] it holds — scope (Billing API) — met: ok', '- [ ] it holds']);
+  r = call(['dod-line', '--match', 'it holds', '--tag-file', writeTag(''), '--verdict', 'met', '--note', 'ok'], body);
+  assert.ok(r.ok, 'an empty tag file matches the untagged line: ' + (r.err || ''));
+  assert.deepStrictEqual(r.out.split('\n').slice(2, 5), ['- [ ] it holds — scope (Web)', '- [ ] it holds — scope (Billing API)', '- [x] it holds — met: ok']);
+  r = call(['dod-line', '--match', 'it holds', '--verdict', 'met', '--note', 'ok'], body);
+  assert.ok(!r.ok && /3 checklist lines match/.test(r.err), 'without --tag-file two text matches still refuse: ' + r.err);
+});
+
+test('dod-line --component: a plain tag file matches its own qualified line, never a sibling\'s.', () => {
+  const body = ['## Definition of Done', '', '- [ ] it holds — scope (Web)', '- [ ] it holds — scope (Billing API)', ''].join('\n');
+  r = call(['dod-line', '--match', 'it holds', '--tag-file', writeTag('scope'), '--component', 'Billing API', '--verdict', 'met', '--note', 'ok'], body);
+  assert.ok(r.ok, 'the plain tag pairs with the own qualified line: ' + (r.err || ''));
+  assert.deepStrictEqual(r.out.split('\n').slice(2, 4), ['- [ ] it holds — scope (Web)', '- [x] it holds — scope (Billing API) — met: ok']);
+  r = call(['dod-line', '--match', 'it holds', '--tag-file', writeTag('scope'), '--component', 'Mobile', '--verdict', 'met', '--note', 'ok'], body);
+  assert.ok(!r.ok && /no checklist line matches/.test(r.err), 'another component matches neither line: ' + r.err);
+  r = call(['dod-line', '--match', 'it holds', '--component', 'Billing API', '--verdict', 'met', '--note', 'ok'], body);
+  assert.ok(!r.ok && /--component needs --tag-file/.test(r.err), '--component without --tag-file refuses: ' + r.err);
 });

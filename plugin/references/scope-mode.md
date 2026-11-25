@@ -131,6 +131,10 @@ git, writes nothing, and prints one line:
 **The scopetree.** Applies to every git command that writes to the scope branch, at both tiers. Run it in the scope
 checkout, `<run-root>/scopetree`, as `git -C <run-root>/scopetree ...`. The invoking checkout stays wherever it was.
 
+**A sibling checkout.** Applies to a path naming another repository's checkout, such as a sibling of a shared anchor
+(`plan-contract.md` → *A shared anchor*). A relative path resolves against the scopetree, `<run-root>/scopetree`,
+and so reaches no sibling checkout beside the invoking one. Name a sibling checkout by its absolute path.
+
 **The call.** Applies to every command that needs the scope checkout. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"
 checkout --root <run-root>`. It resolves the scope branch itself (`## The scope branch`), reads `git worktree list`
 and the ledger's `**Stage:**`, writes nothing, and prints one verdict. A `guess` or `guess-remote` branch is the branch

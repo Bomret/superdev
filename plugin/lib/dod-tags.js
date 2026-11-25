@@ -1,13 +1,14 @@
 'use strict';
 
 // dod-tags.js: the `dod-tags` verb, the rewrite of a Definition of Done's slice-id tags into store notation
-// and the check that every unjudged line carries a tag `dod-line` reads (ADR 0209, INV-0182).
+// and the check that every unjudged line carries a tag `dod-line` reads (ADR 0209, INV-0182), and, with `--qualify`,
+// the rewrite of plain `scope` and `docs` tags into one Repository component's qualified form (ADR 0285).
 
 const { fail } = require('./refusal.js');
 const { splitLines } = require('./ledger.js');
 const { maskFencedLines } = require('./md-sections.js');
 const {
-  dodLineHasNote, dodSectionRange, readOptionFile, DOD_LINE_RE, DOD_NO_NOTE_TAG_RE,
+  dodLineHasNote, dodSectionRange, readOptionFile, parseDodLineReadings, DOD_LINE_RE, DOD_NO_NOTE_TAG_RE,
 } = require('./dod-line.js');
 const { takeOption } = require('./options.js');
 
@@ -52,21 +53,38 @@ function tagLine(line, map) {
   return { line: line.slice(0, at) + rewritten + line.slice(at + tag.length) };
 }
 
+// One checklist line with a plain `scope` or `docs` tag qualified for `component`, judged or unjudged, its note kept
+// byte-identical. Every other line, an untagged one included, comes back unchanged.
+function qualifyLine(line, component) {
+  const m = line.match(DOD_LINE_RE);
+  if (!m) return line;
+  const [reading] = parseDodLineReadings(line);
+  if (reading.tag !== 'scope' && reading.tag !== 'docs') return line;
+  const at = line.length - m[2].length + reading.criterion.length + 3;
+  return line.slice(0, at) + `${reading.tag} (${component})` + line.slice(at + reading.tag.length);
+}
+
 function refuse(problems) {
   fail('dod-tags refused:\n' + problems.map((p) => `${p.where}: ${p.problem}: ${p.text}`).join('\n'));
 }
 
 function verbDodTags(args, stdinRaw) {
   const mapFile = takeOption(args, '--map-file');
+  const qualify = takeOption(args, '--qualify');
   const lineMode = args.includes('--line');
   if (lineMode) args.splice(args.indexOf('--line'), 1);
   if (args.length) fail(`dod-tags takes no argument "${args[0]}"`);
+  if (qualify !== undefined && mapFile !== undefined) fail('dod-tags takes --qualify and --map-file one at a time');
+  if (qualify !== undefined && (!qualify.trim() || /[,()]/.test(qualify) || qualify.includes(' — '))) {
+    fail(`dod-tags --qualify needs a component name holding no ",", "(", ")", or " — ": got "${qualify}"`);
+  }
   const map = mapFile === undefined ? null : readTagMap(mapFile);
   if (!stdinRaw || !stdinRaw.trim()) fail('dod-tags refused: the input is empty');
+  const rewrite = (line) => (qualify !== undefined ? { line: qualifyLine(line, qualify) } : tagLine(line, map));
 
   if (lineMode) {
     const line = stdinRaw.replace(/\r?\n$/, '');
-    const r = tagLine(line, map);
+    const r = rewrite(line);
     if (r.problem) refuse([{ where: 'line', problem: r.problem, text: line }]);
     console.log(r.line);
     return;
@@ -79,7 +97,7 @@ function verbDodTags(args, stdinRaw) {
   const problems = [];
   for (let i = range.start + 1; i < range.end; i += 1) {
     if (!masked[i]) continue;
-    const r = tagLine(masked[i], map);
+    const r = rewrite(masked[i]);
     if (r.problem) problems.push({ where: `line ${i + 1}`, problem: r.problem, text: lines[i] });
     else out[i] = r.line;
   }

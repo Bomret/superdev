@@ -107,6 +107,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 - **No slices** → call the Skill tool with `superdev:plan` and stop once plan ends. Under `--unattended`, block.
 - **One slice, no epic** → the DoD is that slice's `acceptance` (`plan-contract.md`).
+- **A sibling blocker** → on a shared anchor, also load each slice's sibling blockers, the store document's **A sibling blocker** (`plan-contract.md` → *A shared anchor*): another repository's slice under the same anchor, kept with its store key and its repository. It is no ledger row. The playbook's runnable set waits on it.
 
 **An outward criterion.** Applies to an `acceptance` criterion that needs a deploy, a migration, or any other outward-facing change to verify. Give it no increment, and report it as needing verification after merge, naming that change. Verifying a criterion changes no system outside the repository. An app instance a verify skill starts for one checkout, with the state it alone owns, counts as inside (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Verification ceiling`).
 

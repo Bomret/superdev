@@ -248,3 +248,9 @@ test('A note quoting another line\'s tag-and-verdict text keeps the line\'s own 
   assert.ok(dodOpen(dod('- [ ] A\u2028b — 01 — not met: n')).out.endsWith('stage-hold: yes'));
 });
 
+
+test('An open `docs (Billing API)` line shows `docs` in the tag column and lists under --tag docs.', () => {
+  const body = ['## Definition of Done', '', '- [ ] the guide reads — docs (Billing API)', '- [ ] it holds — scope (Billing API)', ''].join('\n');
+  assert.deepStrictEqual(listing(body), [`open${T}none${T}docs${T}-${T}the guide reads`, `open${T}none${T}scope${T}-${T}it holds`]);
+  assert.deepStrictEqual(listing(body, '--tag', 'docs'), [`open${T}none${T}docs${T}-${T}the guide reads`]);
+});
