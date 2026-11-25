@@ -201,6 +201,10 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
 - `/superdev:plan`'s own cut never reads this step.
 - `<remote>` and `<base>` come from `docs/agents/code-management.md`. `<branch>` is the scope branch the playbook's
   branch step left you on.
+- Every commit this step makes, a renumber, a citation fix, or a merge, takes its message per `commit-messages.md`, with
+  the change type and the scope anchor's store reference. A renumber or citation commit git refuses is reported with
+  git's own output and stops the step, dispatching no slice. **`--unattended` → block**, per `scope-mode.md`'s
+  `## Unattended`.
 
 1. **Check the scopetree first.** `git -C <run-root>/scopetree status --porcelain` returns nothing, and `git -C
    <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds no unfinished merge.

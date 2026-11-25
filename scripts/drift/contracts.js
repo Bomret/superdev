@@ -465,6 +465,13 @@ const DOD_BOX_RULE_PATTERNS = [
 // that adjacency; a call that puts another word between `node` and the path walks past.
 const PLUGIN_ROOT_UNQUOTED_PATTERN = /\bnode[\s`]+\$\{?CLAUDE_PLUGIN_ROOT\b/g;
 
+// ADR 0284: shipped writer prose names no fixed format for a commit or title superdev writes, since the repository's
+// commit convention (`references/commit-messages.md`) decides it. The forms refused are the parenthetical
+// `(Conventional Commits)` and `Conventional Commits` directly before `header`, `title`, `message`, or `format`, a line
+// break allowed between the words. `Conventional Commits type` (the change type's definition) and a seed's
+// `**Rule**: Conventional Commits.` pass. simplicity: the ceiling is that adjacency.
+const COMMIT_FORMAT_OWNER_PATTERN = /\(\s*Conventional\s+Commits\s*\)|\bConventional\s+Commits\s+(?:header|title|message|format)s?\b/g;
+
 // INV-0209: a local merge commit superdev instructs carries a message. The form matched is a `git` invocation, its
 // `-C <path>` and `-c <key=value>` options allowed, whose `merge` verb (never `merge-base` or `merge-tree`) heads an
 // argument list that runs to the next backtick, `;`, `|`, `&`, or `,`. `scanMergeMessageRequired` judges the list.
@@ -640,6 +647,7 @@ module.exports = {
   PLUGIN_ROOT_UNQUOTED_PATTERN,
   PLUGIN_PREFIX_PATH_PATTERN,
   MERGE_INVOCATION_PATTERN,
+  COMMIT_FORMAT_OWNER_PATTERN,
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,
   TEA_ONLY_DOCS,

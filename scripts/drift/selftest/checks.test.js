@@ -32,6 +32,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'plugin-root-quoted',
     'plugin-prefix-path',
     'merge-message-required',
+    'commit-format-owner',
     'no-offer-start',
     'no-ci-wait',
     'unterminated-fence',

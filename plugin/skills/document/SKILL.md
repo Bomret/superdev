@@ -66,9 +66,10 @@ Applies to every start. Read `docs/agents/documentation.md` (the in-repo documen
 - the staging path
 - on a live run, every open `docs` line, verbatim, as targets the pass must make true
 - on a live run, the scope checkout as its working directory
+- on a live run, the change type, the prefix of the ledger's `**Branch:**` line, and the scope anchor's store reference, for its commit messages (`${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md`)
 - where the KB config carries `- **Hierarchy:** links`, that it stages each page's parent link as `references/doc-pass.md`'s knowledge-base pass states
 
-The writer commits its doc changes on the current branch. A denied writer's inline reconcile takes the same targets.
+The writer commits its doc changes on the current branch, each message per `commit-messages.md`. A refused commit is reported with git's own output in §5's report, never bypassed. A denied writer's inline reconcile takes the same targets and commits the same way.
 
 **The knowledge-base pass.** Applies to a remote KB backend. The writer stages every page, and nothing in this command writes to the backend. `/superdev:publish-kb` sends the staged pages later.
 

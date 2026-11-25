@@ -55,7 +55,7 @@ judge nothing.
 ## Merge
 
 - **Read the pull request:** `gh pr view <number> --repo Bomret/superdev --json
-  state,mergeable,headRefOid,mergeCommit`. `state` is `OPEN`, `CLOSED`, or `MERGED`, and `mergeCommit.oid`
+  state,mergeable,headRefOid,mergeCommit,title`. `state` is `OPEN`, `CLOSED`, or `MERGED`, and `mergeCommit.oid`
   carries the merge commit once merged. GitHub computes `mergeable` asynchronously and answers `UNKNOWN`
   while it does. Re-read up to 3 times with a short pause, and when it is still `UNKNOWN`, report it as
   **unknown**, never as mergeable.
@@ -64,7 +64,8 @@ judge nothing.
 - **Mark ready:** `gh pr ready <number> --repo Bomret/superdev` takes a draft pull request out of draft.
   `/superdev:ship` calls it before the merge under the merge consent.
 - **Merge it, pinned:** `gh pr merge <number> --repo Bomret/superdev --squash --match-head-commit
-  <tested-tip-sha> --subject "$title"`, `title` set from a quoted heredoc as the PR-create line does.
+  <tested-tip-sha> --subject "$title"`, `title` the pull request's title read right before the merge and set from a
+  quoted heredoc as the PR-create line does.
   `--match-head-commit` pins the merge to that sha: GitHub refuses the merge when the head moved since.
   Pass no check or review bypass option. This repo's own branch protection on `main` is what a merge must
   never bypass.

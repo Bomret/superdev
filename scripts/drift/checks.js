@@ -32,6 +32,7 @@ const {
   scanDodBoxRule,
   scanPluginRootQuoted,
   scanMergeMessageRequired,
+  scanCommitFormatOwner,
   scanPluginPrefixPath,
   scanTeaOnly,
   scanGithubWikiGhOnly,
@@ -233,6 +234,12 @@ module.exports = [
     id: 'merge-message-required',
     ok: 'no shipped prose instructs a local merge commit without a message (INV-0209)',
     run: scanMergeMessageRequired,
+    format: contractGap,
+  },
+  {
+    id: 'commit-format-owner',
+    ok: 'no shipped writer prose fixes Conventional Commits as the format of a commit or title superdev writes (ADR 0284)',
+    run: scanCommitFormatOwner,
     format: contractGap,
   },
   {

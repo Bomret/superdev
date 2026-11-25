@@ -110,7 +110,8 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    only its own values, never the whole plan:
    - the slice `spec`, `acceptance`, and `test-applicability`;
    - the feature's change type, the prefix of the ledger's `**Branch:**` line (`scope.js get branch --root
-     <run-root>`), never a reconstructed one;
+     <run-root>`), never a reconstructed one, and the slice's store reference, its `issue` column in `scope.js get
+     slices`: its commit messages take both, per `commit-messages.md`, and a refused commit ends it `BLOCKED`;
    - its slicetree path (`<run-root>/slicetrees/<id>`), branch (`slice/<scope>/<id>`), and `<base>`, the commit the
      slice branch was cut from, as a full commit;
    - its progress-log path, seeded first, and the heading of its self-check entry, `Self-check — build`;
@@ -140,7 +141,8 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    `### Running tests`, `### Fail-to-pass run`, `## Documentation`, and `## A failing test your slice did not cause`.
    `<run-root>/slicetrees/<id>` is the tree of every edit, run, and commit (`git -C`).
    - Seed its progress log, write no `dispatch:` line, and append your own outcome line once it is committed.
-   - Commit on `slice/<scope>/<id>` (Conventional Commits). It invents no test.
+   - Commit on `slice/<scope>/<id>`, the message per `commit-messages.md`. It invents no test. A commit git refuses
+     follows step 3's BLOCKED handling, with git's own output.
    - A failing test the slice did not cause is named in your report, never fixed.
    - A tiny slice you cannot finish follows step 3's BLOCKED handling.
    - Step 3's observation concept, its skipped per-slice review, and step 4's merge, cleanup, ledger, interface, and

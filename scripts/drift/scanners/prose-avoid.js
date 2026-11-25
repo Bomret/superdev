@@ -32,6 +32,7 @@ const {
   PLUGIN_ROOT_UNQUOTED_PATTERN,
   PLUGIN_PREFIX_PATH_PATTERN,
   MERGE_INVOCATION_PATTERN,
+  COMMIT_FORMAT_OWNER_PATTERN,
 } = require('../contracts');
 const { proseDocuments, scanDocsAvoid, walkFiles, NEVER_NEGATION_WINDOW } = require('./walkers');
 
@@ -185,6 +186,11 @@ const scanPluginRootQuoted = (root) =>
 const scanPluginPrefixPath = (root) =>
   scanShippedMarkdownForm(root, PLUGIN_PREFIX_PATH_PATTERN, (hit) =>
     `name a shipped path relative to the plugin root — \`${hit}\` carries the repository's \`plugin/\` prefix, which no install holds`);
+
+// ADR 0284: no shipped writer prose names Conventional Commits as the format of a commit or title superdev writes.
+const scanCommitFormatOwner = (root) =>
+  scanShippedMarkdownForm(root, COMMIT_FORMAT_OWNER_PATTERN, (hit) =>
+    `cite references/commit-messages.md for the message — \`${hit}\` fixes a format the repository's commit convention decides (ADR 0284)`);
 
 // INV-0209: no shipped prose instructs a local merge commit without a message. Whitespace runs, line wraps included, are
 // normalized first, and fences are read too, since a fenced command is one an agent copies. A hit passes when its
@@ -452,4 +458,5 @@ module.exports = {
   scanPluginRootQuoted,
   scanPluginPrefixPath,
   scanMergeMessageRequired,
+  scanCommitFormatOwner,
 };

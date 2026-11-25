@@ -21,6 +21,7 @@ const {
   scanPluginRootQuoted,
   scanPluginPrefixPath,
   scanMergeMessageRequired,
+  scanCommitFormatOwner,
 } = require('../scanners');
 
 module.exports = ({ assert, path, fixture, found }) => {
@@ -715,6 +716,28 @@ module.exports = ({ assert, path, fixture, found }) => {
     }).map((gap) => gap.source).sort(),
     ['agents/implementer.md', 'references/AGENTS.md', 'skills/ship/SKILL.md'],
     'merge-message-required: references/AGENTS.md, an agent, and a skill are each read',
+  );
+
+  // --- commit-format-owner: no shipped writer prose fixes the commit format (ADR 0284) ---
+
+  const formatGaps = (files) => found(scanCommitFormatOwner(fixture(files)));
+  for (const [text, label] of [
+    ['Commit on your branch (Conventional Commits).\n', 'the parenthetical'],
+    ['Commit on your branch (Conventional\nCommits).\n', 'a parenthetical wrapped across a line break'],
+    ['The title must be a Conventional Commits header.\n', 'a Conventional Commits header instruction'],
+    ['Write a Conventional Commits title for the pull request.\n', 'a Conventional Commits title instruction'],
+    ['Each commit takes a Conventional Commits message.\n', 'a Conventional Commits message instruction'],
+  ]) {
+    assert.equal(formatGaps({ 'agents/implementer.md': text }).length, 1, `commit-format-owner: flags ${label}`);
+  }
+  assert.equal(
+    formatGaps({
+      'references/scope-mode.md': '`<type>` is the **change type**: the Conventional Commits type of the work.\n',
+      'references/commit-messages.md': 'No section → the rule is Conventional Commits, as the seeds state it.\n',
+      'references/code-management-github.md': '## Commit messages\n\n- **Rule**: Conventional Commits. A header `type(scope): subject`.\n',
+    }).length,
+    0,
+    "commit-format-owner: a change-type definition, commit-messages.md's fallback, and a seed's rule pass",
   );
 
   // --- plugin-prefix-path: shipped prose names a shipped path without the repository's plugin/ prefix ---
