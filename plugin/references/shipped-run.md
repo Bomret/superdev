@@ -45,7 +45,8 @@ backend call and writes nothing. Hand it what you read from the store, as data:
    `dod-merge` takes. The verb pairs its lines with `dod.md`'s per `dod-ticks.md`'s `## Pairing dod.md with the
    anchor`. On a shared anchor, the checklist reaches the verb through `scope.js dod-own` first, rendered and
    trimmed as `run-init.md`'s **A shared anchor** states, so the route pairs and counts only this repository's
-   lines. An anchor that cannot be read hands an empty stdin, and the route is `verify-ship` only when `dod.md` holds no
+   lines. A `dod-own` refusal is reported, naming the line it refuses, and the route runs as for an anchor that
+   cannot be read. An anchor that cannot be read hands an empty stdin, and the route is `verify-ship` only when `dod.md` holds no
    observed `not met:` line carrying a repair citation; such lines route to a repair first.
 2. **The deploy facts.** `--merge <sha>` names the merge commit, read per `## Reading the posture at the merge commit`
    steps 1 and 2. A ledger with no `**PR:**` header hands no `--merge`, and the verb reads posture `none`. Add one

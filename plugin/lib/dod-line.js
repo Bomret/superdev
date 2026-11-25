@@ -41,8 +41,9 @@ const { maskFencedLines } = require('./md-sections.js');
 // what got verified — with its own `accepted:` label on the note.
 //
 // On a shared anchor (ADR 0285) a `scope` or `docs` tag names its owner's Repository component, `scope (<component>)`
-// or `docs (<component>)`, the component non-empty and holding no `,`, `(`, or `)`. `plainTag` reads either form as
-// its plain `scope` or `docs`.
+// or `docs (<component>)`, the component non-empty and holding no `,`, `(`, `)`, or ` — `. The pattern below
+// excludes the first three only: the tag is the segment past the rightmost ` — `, so a ` — ` inside a component
+// splits the tag and no tag pattern can detect it. `plainTag` reads either form as its plain `scope` or `docs`.
 const DOD_TAG_TOKEN = '(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+)';
 const DOD_QUALIFIED_TAG = '(?:scope|docs) \\([^,()\\n\\r]+\\)';
 const DOD_TAG_PATTERN = `(?:${DOD_QUALIFIED_TAG}|scope|docs|${DOD_TAG_TOKEN}(?:,\\s*${DOD_TAG_TOKEN})*)`;

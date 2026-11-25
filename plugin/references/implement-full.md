@@ -103,9 +103,9 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
 
 1. **Compute the runnable set**: the slices whose `depends-on` are all `merged` and which are still `todo`. Roots have
    empty `depends-on`. A slice carrying a sibling blocker (`skills/implement/SKILL.md`'s **The slices**) is runnable
-   only once that blocker reads closed through the store document's **Read a slice**, read on each pass; a failed read
-   counts as open. When every remaining slice waits on an open sibling blocker, stop: run `scope.js step block --root
-   <run-root>`, and name each open blocker with its repository. A later `/superdev:implement` reads them again.
+   only once that blocker reads closed through the store document's **Read a slice**, read afresh each time the loop
+   weighs the slice; a failed read counts as open. When every remaining slice waits on an open sibling blocker, stop:
+   run `scope.js step block --root <run-root>`, and name each open blocker with its repository. A later `/superdev:implement` reads them again.
    **`--unattended` → block** the same way, per `scope-mode.md`'s `## Unattended` (INV-0038).
 2. **Dispatch implementers in parallel, capped.**
 

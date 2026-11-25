@@ -30,8 +30,9 @@ repository's own listing, read through the store's call that lists an anchor's s
   names, reading each sibling's own store document for its component, and creates each slice under its repository's
   component. A repository not on this machine joins later through plan's extend, run in that repository. It finds the
   anchor through a lookup unfiltered by component, adds its component to the anchor, appends its slices and lines, and
-  qualifies the first repository's `scope` and `docs` lines with that repository's component. Its active-run check
-  still reads only its own slices, so a sibling's live run never blocks the join.
+  qualifies the first repository's `scope` and `docs` lines with that repository's component. It tags each untagged
+  line of the first repository, so the shared anchor holds no line whose owner run init cannot tell. Its active-run
+  check still reads only its own slices, so a sibling's live run never blocks the join.
 - **A deferred finding goes to the repository that fixes it.** Its triage record is created under that sibling's
   component.
 
@@ -53,3 +54,8 @@ repository's own listing, read through the store's call that lists an anchor's s
 treats the anchor as its own, and wrap-up leaves the anchor open and names `/superdev:setup`, whose re-run offers the
 call. A scopetree resolves no relative path to a sibling checkout, so work names a sibling by its absolute path. The
 claim stays on the anchor, so a second operator on a shared anchor meets the existing takeover ask.
+
+Two repositories that write the anchor body at once can revert a sibling's note, because Jira's issue update has no
+compare-and-swap. Each edit re-reads the body just before it writes, which narrows the window and does not close it.
+This is an accepted risk. A lost tick leaves its line unsettled, so the anchor stays open, which is the safe failure.
+The owning repository ticks the line again to recover.

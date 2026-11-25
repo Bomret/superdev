@@ -26,6 +26,11 @@ anchor in every repository** call, and run the join steps beside §6's writes:
   that first repository's lines: the anchor-body edit runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-tags
   --qualify <first repository's component>` as its producer, per paragraph with `--line` on Jira, through the store's
   **Edit an issue's body** rule.
+- **No untagged line.** The join leaves no untagged line on the anchor, because `scope.js dod-own` refuses every
+  untagged line once the anchor is shared, which stops run init in both repositories. `dod-tags --qualify` passes an
+  untagged line through, so tag each one in the same drafted body before the write. A line a single-slice promotion
+  copies from the lone slice's `acceptance` takes that lone slice's store reference. Any other untagged line of the
+  first repository takes `scope (<first repository's component>)`.
 - **The release signal.** Keep it as it stands: a joining append runs no **Remove**.
 - **The active-run signal.** **An active run** below reads this repository's own slices only, so a sibling's live run
   never blocks the join.

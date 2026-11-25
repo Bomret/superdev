@@ -27,36 +27,26 @@ function readSlices(file) {
   return slices;
 }
 
-// An owned line: the component that owns a checklist line, or the problem that keeps its owner unknown.
-function ownerOf(line, slices, components) {
-  const [reading] = parseDodLineReadings(line);
-  const tag = reading.tag;
-  if (!tag) {
-    return { problem: 'untagged line', fix: 'tag it with its slices, or with scope (<component>) or docs (<component>)', criterion: reading.criterion };
-  }
-  if (tag === 'scope' || tag === 'docs') {
-    return { problem: `plain ${tag} tag`, fix: `name its repository: ${tag} (<component>)`, criterion: reading.criterion };
-  }
+// An owned line: the component that owns a checklist line's tag, or the problem that keeps its owner unknown.
+function ownerOf(tag, slices, components) {
+  if (!tag) return { problem: 'untagged line', fix: 'tag it with its slices, or with scope (<component>) or docs (<component>)' };
+  if (tag === 'scope' || tag === 'docs') return { problem: `plain ${tag} tag`, fix: `name its repository: ${tag} (<component>)` };
   const q = QUALIFIED_TAG_RE.exec(tag);
   if (q) {
-    if (!components.has(q[2])) {
-      return { problem: `${tag} names a component no slice carries`, fix: 'name a component the anchor\'s slices carry', criterion: reading.criterion };
-    }
-    return { owner: q[2], criterion: reading.criterion };
+    if (!components.has(q[2])) return { problem: `${tag} names a component no slice carries`, fix: 'name a component the anchor\'s slices carry' };
+    return { owner: q[2] };
   }
   const refs = tag.split(/,\s*/);
   if (refs.some((ref) => /^\d+$/.test(ref))) {
-    return { problem: `id-form tag ${tag}`, fix: 'rewrite its slice ids into store references (scope.js dod-tags)', criterion: reading.criterion };
+    return { problem: `id-form tag ${tag}`, fix: 'rewrite its slice ids into store references (scope.js dod-tags)' };
   }
   const unknown = refs.filter((ref) => !slices.has(ref));
   if (unknown.length) {
-    return { problem: `tag names ${unknown.join(', ')}, which no slice under the anchor is`, fix: 'tag it with slices the anchor holds', criterion: reading.criterion };
+    return { problem: `tag names ${unknown.join(', ')}, which no slice under the anchor is`, fix: 'tag it with slices the anchor holds' };
   }
   const owners = [...new Set(refs.map((ref) => slices.get(ref)))];
-  if (owners.length > 1) {
-    return { problem: `tag names slices of ${owners.join(' and ')}`, fix: 'split it into one line per repository', criterion: reading.criterion };
-  }
-  return { owner: owners[0], criterion: reading.criterion };
+  if (owners.length > 1) return { problem: `tag names slices of ${owners.join(' and ')}`, fix: 'split it into one line per repository' };
+  return { owner: owners[0] };
 }
 
 function verbDodOwn(args, stdinRaw) {
@@ -86,19 +76,19 @@ function verbDodOwn(args, stdinRaw) {
       out.push(lines[i]);
       continue;
     }
-    const o = ownerOf(masked[i], slices, components);
+    const [reading] = parseDodLineReadings(masked[i]);
+    const o = ownerOf(reading.tag, slices, components);
     if (o.problem) problems.push(`${o.problem}: ${lines[i].trim()} — fix: ${o.fix}`);
     else if (o.owner === component) {
       out.push(lines[i]);
-      ownCriteria.push(o.criterion.trim());
+      ownCriteria.push(reading.criterion.trim());
     }
   }
   if (!problems.length) {
-    if (!ownCriteria.some((c) => c.startsWith('Reachable:'))) {
-      problems.push(`${component} owns no Reachable: line — fix: add one tagged with its slices or scope (${component})`);
-    }
-    if (!ownCriteria.some((c) => c.startsWith('Release risk:'))) {
-      problems.push(`${component} owns no Release risk: line — fix: add one tagged with its slices or scope (${component})`);
+    for (const prefix of ['Reachable:', 'Release risk:']) {
+      if (!ownCriteria.some((c) => c.startsWith(prefix))) {
+        problems.push(`${component} owns no ${prefix} line — fix: add one tagged with its slices or scope (${component})`);
+      }
     }
   }
   if (problems.length) fail('dod-own refused:\n' + problems.join('\n'));

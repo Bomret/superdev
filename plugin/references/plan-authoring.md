@@ -266,9 +266,11 @@ leave the lone slice byte-identical.
 
 **A join edits no sibling's line.** Applies to an append that joins a shared anchor (`plan-contract.md` → *A shared
 anchor*). It appends this repository's own slices and lines, and leaves every other repository's line and the
-anchor's release signal as they stand. The one edit to another repository's lines is the qualify step, which names
-the first repository's component in its plain `scope` and `docs` tags when the join makes the anchor shared
-(`plan-extend.md`'s **Joining a shared anchor**). The active-run signal reads this repository's own slices only.
+anchor's release signal as they stand. The one edit to another repository's lines happens when the join makes the
+anchor shared: the qualify step names the first repository's component in its plain `scope` and `docs` tags, and each
+of its untagged lines takes a tag, the lone slice's store reference on a line a single-slice promotion copies and
+`scope (<first repository's component>)` on any other (`plan-extend.md`'s **Joining a shared anchor**). The active-run
+signal reads this repository's own slices only.
 
 **A shipped or closed feature takes no append.** Applies to every append. `/superdev:plan`'s extend path refuses on
 any one shipped signal alone, and names the remedy. A failed read of the anchor body refuses too.
