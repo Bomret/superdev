@@ -40,6 +40,9 @@ title, `test-applicability` type, dependencies, `plan-contract.md` status, and c
 - **`**Unresolved:**`** — the run's unresolved-defect record, per `scope-findings.md`'s `## Unresolved defects`.
 - **`**Deferred:**`** — the run's deferred-finding record, per `scope-findings.md`'s `## Deferred findings`.
 - **`**Minors:**`** — the run's Minor queue. Its rules are in **The Minor queue**.
+- **`**Prototypes:**`** — the prototype branches this run pushed, one bullet `- prototype/<scope>/<slug> <commit>` per
+  branch, keyed by branch. `prototype push` writes it, `init` over a `planned` ledger keeps it, and `prototype push
+  --delete` reads it (`prototype.md`'s `## The push and its teardown`).
 - **`**Docs:**`** — that the run performed its documentation pass, and in whose context. Read with `get docs`,
   written with `docs set <value>`, and removed with `docs clear`. The value is a single whitespace-free token, which
   `docs set` enforces.
