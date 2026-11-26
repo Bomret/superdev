@@ -1,3 +1,10 @@
+# [0.124.0](https://github.com/Bomret/superdev/compare/v0.123.0...v0.124.0) (2026-11-26)
+
+
+### Features
+
+* **plan-prototype-detour:** recommend a prototype detour in every interview, built in its own worktree ([97377f4](https://github.com/Bomret/superdev/commit/97377f43be7d4de6b1179f311215afb7b2b8f21c)), closes [#582](https://github.com/Bomret/superdev/issues/582) [#582](https://github.com/Bomret/superdev/issues/582)
+
 # [0.123.0](https://github.com/Bomret/superdev/compare/v0.122.0...v0.123.0) (2026-11-25)
 
 
