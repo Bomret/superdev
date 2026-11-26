@@ -122,7 +122,9 @@ function walkFiles(dir) {
 }
 
 // One hash over a worktree's `status --porcelain -z` text and the content of every changed path that is not a deletion, in
-// porcelain order, so a further edit to a file already listed as changed moves it. A symlink hashes its target text.
+// porcelain order, so a further edit to a file already listed as changed moves it. A symlink hashes its target text. A
+// directory entry (a nested repository or a submodule) hashes its own HEAD and its own status hash, recursively, and throws
+// where either read fails, so the caller marks the tree unknown.
 function statusHash(porcelain, dir) {
   const h = crypto.createHash('sha256').update(porcelain).update('\0');
   const entries = porcelain.split('\0');
@@ -137,9 +139,18 @@ function statusHash(porcelain, dir) {
     h.update(`${e.slice(3)}\0`);
     if (stat.isSymbolicLink()) h.update(fs.readlinkSync(file));
     else if (stat.isFile()) h.update(fs.readFileSync(file));
+    else if (stat.isDirectory()) h.update(nestedHash(file));
     h.update('\0');
   }
   return h.digest('hex').slice(0, 16);
+}
+
+// The state of a nested repository: its HEAD (`unborn` before its first commit) and the hash of its own status.
+function nestedHash(dir) {
+  const head = localCall(['rev-parse', 'HEAD'], dir);
+  const status = localCall(['status', '--porcelain', '-z', '--untracked-files=all'], dir);
+  if (status.status !== 0) throw new Error(`nested repository status not read: ${whyNot(status)}`);
+  return `${head.status === 0 ? head.stdout.trim() : 'unborn'}\0${statusHash(status.stdout, dir)}`;
 }
 
 // The item of one registered worktree that exists: its HEAD, and `dirty` with a `status=` hash where it holds changes.
@@ -347,9 +358,9 @@ function computeInventory(cwd, { root: rootArg, base, remote: given, intentFile,
     if (read.why) items.push(makeItem('run-state-ref', subject, null, [unknown(read.why)], { remote: stateRemote, ref: stateRef }));
     else if (read.tip) items.push(makeItem('run-state-ref', subject, read.tip, [], { remote: stateRemote, ref: stateRef }));
     const seen = seenRef(stateRemote, scope);
-    const seenTip = localCall(['rev-parse', '--verify', '--quiet', '--end-of-options', seen], mwt);
-    if (seenTip.status === 0) items.push(makeItem('run-state-seen', seen, seenTip.stdout.trim()));
-    else if (seenTip.signal != null || seenTip.error) items.push(makeItem('run-state-seen', seen, null, [unknown(`not read: ${whyNot(seenTip)}`)]));
+    const seenTip = readTip(mwt, seen);
+    if (seenTip.tip) items.push(makeItem('run-state-seen', seen, seenTip.tip));
+    else if (seenTip.why) items.push(makeItem('run-state-seen', seen, null, [unknown(seenTip.why)]));
   }
 
   // Drafts, captures, staged pages, the lock, and the run root last.

@@ -689,3 +689,48 @@ test('--root with --prototype removes the named prototype after the run\'s own i
   assert.ok(kinds2.lastIndexOf('local') < kinds2.indexOf('prototype-worktree') && kinds2.indexOf('prototype-branch') < kinds2.indexOf('run-root'), a.out);
   assert.ok(!refExists(f.repo, 'refs/heads/prototype/y') && !fs.existsSync(f.root));
 });
+
+// A `git` shim first on PATH whose `body` runs before the real git, for a fixture around unchanged code.
+function shimEnv(f, body) {
+  const shim = path.join(f.copy, 'shim-env');
+  fs.mkdirSync(shim, { recursive: true });
+  const real = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\n${body}\nexec '${real}' "$@"\n`, { mode: 0o755 });
+  return { ...process.env, PATH: `${shim}${path.delimiter}${process.env.PATH}` };
+}
+
+test('a local seen ref whose read fails with a non-1 exit is listed unknown, not dropped', () => {
+  const f = fixture();
+  const tip = git(['rev-parse', `refs/heads/${BRANCH}`], f.repo);
+  const seen = `refs/superdev-seen/${crypto.createHash('sha1').update('origin').digest('hex').slice(0, 12)}/${SCOPE}`;
+  git(['update-ref', seen, tip], f.repo);
+  const env = shimEnv(f, `case "$*" in *superdev-seen*) echo corrupt >&2; exit 128;; esac`);
+  const r = abandonCall(f, 'inventory', ['--root', f.root, '--base', 'main', '--remote', 'origin'], { env });
+  const item = find(r, 'run-state-seen');
+  assert.ok(item, r.out);
+  assert.ok(item.slice(3).some((m) => m.startsWith('unknown')), r.out);
+});
+
+test('work committed or edited inside a nested repository moves the token', () => {
+  const f = fixture();
+  const nested = path.join(f.scopetree, 'nested');
+  fs.mkdirSync(nested);
+  const ng = (args) => git(['-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args], nested);
+  ng(['init', '-q']);
+  fs.writeFileSync(path.join(nested, 'a.txt'), '1\n');
+  ng(['add', '.']);
+  ng(['commit', '-q', '-m', 'one']);
+  const t0 = inv(f).token;
+  assert.strictEqual(inv(f).token, t0);
+  fs.writeFileSync(path.join(nested, 'a.txt'), '2\n');
+  const t1 = inv(f).token;
+  assert.notStrictEqual(t1, t0, 'an edit to a tracked file inside the nested repository');
+  ng(['commit', '-q', '-am', 'two']);
+  const t2 = inv(f).token;
+  assert.notStrictEqual(t2, t1, 'a commit inside the nested repository');
+  assert.notStrictEqual(t2, t0);
+  fs.writeFileSync(path.join(nested, 'b.txt'), 'x\n');
+  const t3 = inv(f).token;
+  fs.writeFileSync(path.join(nested, 'b.txt'), 'y\n');
+  assert.notStrictEqual(inv(f).token, t3, 'an edit to an untracked file inside the nested repository');
+});
