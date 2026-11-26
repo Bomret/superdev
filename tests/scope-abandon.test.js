@@ -544,8 +544,7 @@ test('items removed between the inventory and the deletes read gone and the exit
   fs.writeFileSync(draft, 'draft\n');
   const token = inv(f).token;
   const pending = path.join(f.repo, '.superdev', 'kb-pending', SCOPE);
-  const tree = path.join(f.root, 'slicetrees', '01');
-  const hook = `git -C '${f.repo}' update-ref -d refs/heads/slice/${SCOPE}/02 && rm '${draft}' && rm -r '${pending}' && rm -rf '${tree}'`;
+  const hook = `git -C '${f.repo}' update-ref -d refs/heads/slice/${SCOPE}/02 && rm '${draft}' && rm -r '${pending}'`;
   const r = apply(f, token, { hook });
   assert.strictEqual(r.status, 0, r.out + r.err);
   assert.ok(lineFor(r, `slice-branch gone slice/${SCOPE}/02`), r.out);
@@ -733,4 +732,50 @@ test('work committed or edited inside a nested repository moves the token', () =
   const t3 = inv(f).token;
   fs.writeFileSync(path.join(nested, 'b.txt'), 'y\n');
   assert.notStrictEqual(inv(f).token, t3, 'an edit to an untracked file inside the nested repository');
+});
+
+const RUN_ARGS = (f) => ['--root', f.root, '--base', 'main', '--remote', 'origin'];
+
+test('a slicetree directory deleted before the inventory is listed stale and reads gone on apply', () => {
+  const f = fixture();
+  const tree = path.join(f.root, 'slicetrees', '01');
+  fs.rmSync(tree, { recursive: true, force: true });
+  const r = abandonCall(f, 'inventory', RUN_ARGS(f));
+  assert.ok(r.items.some((i) => i[0] === 'worktree' && i[1].endsWith(path.join('slicetrees', '01')) && i.includes('stale')), r.out);
+  const a = abandonCall(f, 'apply', [...RUN_ARGS(f), '--token', r.token]);
+  assert.strictEqual(a.status, 0, a.out + a.err);
+  assert.ok(a.lines.some((l) => l.startsWith('worktree gone ') && l.endsWith(path.join('slicetrees', '01'))), a.out);
+  assert.ok(!fs.existsSync(f.root));
+});
+
+test('a locked slicetree is removed by apply', () => {
+  const f = fixture();
+  const tree = path.join(f.root, 'slicetrees', '02');
+  git(['worktree', 'lock', tree], f.repo);
+  const r = abandonCall(f, 'inventory', RUN_ARGS(f));
+  const a = abandonCall(f, 'apply', [...RUN_ARGS(f), '--token', r.token]);
+  assert.strictEqual(a.status, 0, a.out + a.err);
+  assert.ok(a.lines.some((l) => l.startsWith('worktree deleted ') && l.includes(path.join('slicetrees', '02'))), a.out);
+  assert.ok(!fs.existsSync(f.root));
+});
+
+test('a worktree listing that fails at inventory time reads failed with the listing reason and keeps the run root', () => {
+  const f = fixture();
+  const env = shimEnv(f, 'if [ "$1" = worktree ] && [ "$2" = list ]; then echo boom >&2; exit 1; fi');
+  const r = abandonCall(f, 'inventory', RUN_ARGS(f), { env });
+  const a = abandonCall(f, 'apply', [...RUN_ARGS(f), '--token', r.token], { env });
+  assert.strictEqual(a.status, 4, a.out + a.err);
+  assert.ok(a.lines.some((l) => l.startsWith('worktree failed ') && l.includes('could not list worktrees')), a.out);
+  assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
+});
+
+test('a worktree whose HEAD could not be read reads failed with its own reason, not the listing reason', () => {
+  const f = fixture();
+  const env = shimEnv(f, 'case "$(pwd)" in */slicetrees/01) if [ "$1" = rev-parse ] && [ "$2" = HEAD ]; then echo boom >&2; exit 128; fi;; esac');
+  const r = abandonCall(f, 'inventory', RUN_ARGS(f), { env });
+  const a = abandonCall(f, 'apply', [...RUN_ARGS(f), '--token', r.token], { env });
+  assert.strictEqual(a.status, 4, a.out + a.err);
+  const line = a.lines.find((l) => l.startsWith('worktree failed ') && l.includes(path.join('slicetrees', '01')));
+  assert.ok(line && line.includes('could not read its HEAD') && !line.includes('could not list'), a.out);
+  assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
 });

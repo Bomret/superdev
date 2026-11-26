@@ -31,7 +31,8 @@ const q = (p) => `'${String(p).replace(/'/g, `'\\''`)}'`;
 function removeWorktree(ctx, item) {
   const p = item.subject;
   const byHand = `git worktree remove --force --force ${q(p)}`;
-  if (item.tip === '-' && item.marks.some((m) => m.startsWith('unknown'))) return `worktree failed ${p}: the inventory could not list worktrees; run by hand: git worktree list, then ${byHand} for each tree of the run`;
+  if (item.marks.some((m) => m.startsWith('unknown worktree list'))) return `worktree failed ${p}: the inventory could not list worktrees; run by hand: git worktree list, then ${byHand} for each tree of the run`;
+  if (item.tip === '-' && item.marks.some((m) => m.startsWith('unknown HEAD not read'))) return `worktree failed ${p}: the inventory could not read its HEAD; run by hand: ${byHand}`;
   if (!fs.existsSync(p)) return `worktree gone ${p}`;
   if (realish(p) !== p || !p.startsWith(ctx.root + path.sep)) return `worktree failed ${p}: it does not resolve inside the run root ${ctx.root}; run by hand: ${byHand}`;
   const r = gitCall(['worktree', 'remove', '--force', '--force', p], ctx.mainTree);
