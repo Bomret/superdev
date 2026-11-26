@@ -225,3 +225,22 @@ test('#read-only: the verb changes no ref, index, or working tree, and creates n
   assert.strictEqual(fs.existsSync(path.join(repo, '.superdev')), false, 'no run state was created');
 });
 
+
+// The no-verdict reads (ADR 0290, INV-0009, INV-0003): a fake git ends one local read with SIGKILL and runs every other call.
+const { fakeGit: killGit } = require('./fake-git.js');
+
+test('#unread-merge-tree: a killed local merge-tree answers not-contained for a branch base holds, and prints the `local merge-tree no verdict` mark.', () => {
+  const repo = fixture();
+  const r = contained(repo, ['main', 'fix/squashed'], { PATH: killGit({ match: '^merge-tree --write-tree --end-of-options main ' }).env.PATH });
+  assert.strictEqual(r.lines[0], 'not-contained', `a killed read never answers contained: ${r.out}`);
+  assert.strictEqual(r.lines[r.lines.length - 1], 'local merge-tree no verdict', `the mark names the read: ${r.out}`);
+  assert.strictEqual(r.status, 3, 'exits 3');
+});
+
+test('#unread-ref: a killed rev-parse of the branch answers not-contained, never could-not-resolve, and names the read.', () => {
+  const repo = fixture();
+  const r = contained(repo, ['main', 'fix/squashed'], { PATH: killGit({ match: '^rev-parse --verify --quiet --end-of-options fix/squashed' }).env.PATH });
+  assert.strictEqual(r.lines[0], 'not-contained', `a killed ref read is no absent branch: ${r.out}`);
+  assert.strictEqual(r.lines[r.lines.length - 1], 'local rev-parse no verdict', `the mark names the read: ${r.out}`);
+  assert.strictEqual(r.status, 3, 'exits 3');
+});

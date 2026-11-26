@@ -4,7 +4,7 @@
 
 const { fail } = require('./refusal.js');
 const { resolveCommit } = require('./git-spawn.js');
-const { judgeContainment, refetchMark } = require('./containment.js');
+const { judgeContainment, refetchMark, unreadMark } = require('./containment.js');
 const { resolveRemote } = require('./remote.js');
 const { pushTimeoutMs } = require('./push.js');
 
@@ -49,6 +49,8 @@ function verbContained(cwd, args) {
   if (judged.fallback) lines.push('fallback ancestor');
   const mark = refetchMark(judged);
   if (mark) lines.push(mark);
+  const unread = unreadMark(judged);
+  if (unread) lines.push(unread);
   console.log(lines.join('\n'));
   process.exitCode = EXIT[judged.verdict];
 }

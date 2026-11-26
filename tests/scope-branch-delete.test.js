@@ -368,3 +368,25 @@ test('#usage: a missing, duplicate, or unknown flag, and a --root that is no dir
   assert.notStrictEqual(localTip(f), null, 'nothing is deleted');
 });
 
+
+// The no-verdict reads (ADR 0290, INV-0009): a fake git ends one read with SIGKILL and runs every other call.
+const { fakeGit: killGit } = require('./fake-git.js');
+
+test('#no-verdict-ref: a killed rev-parse of the branch prints one no-verdict line on stderr, exits nonzero, and is never nothing-to-judge.', () => {
+  const f = fixture();
+  const before = allRefs(f);
+  const r = del(f, ['--remote', 'origin'], { PATH: killGit({ match: `^rev-parse .*refs/heads/${BRANCH}` }).env.PATH });
+  assert.notEqual(r.status, 0, 'the verb exits nonzero');
+  assert.deepEqual(r.err.trim().split('\n'), ['git rev-parse was ended by signal SIGKILL — no verdict'], 'stderr holds the one no-verdict line');
+  assert.doesNotMatch(r.out, /nothing-to-judge/, 'a killed read never reads as an absent branch');
+  assert.deepEqual(allRefs(f), before, 'nothing is deleted');
+});
+
+test('#no-verdict-remote: a killed `git remote` read refuses as no verdict, never as an unnamed remote.', () => {
+  const f = fixture();
+  const before = allRefs(f);
+  const r = del(f, ['--remote', 'origin'], { PATH: killGit({ match: '^remote$' }).env.PATH });
+  assert.notEqual(r.status, 0, 'the verb exits nonzero');
+  assert.deepEqual(r.err.trim().split('\n'), ['git remote was ended by signal SIGKILL — no verdict'], 'stderr holds the one no-verdict line');
+  assert.deepEqual(allRefs(f), before, 'nothing is deleted');
+});

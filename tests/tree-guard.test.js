@@ -510,3 +510,16 @@ test('A `.superdev` that is a symlink to a directory outside the main checkout s
   assert.equal(decide(implementerWrite(path.join(lx.slicetree, 'a.txt'), lx.slicetree)).block, false, 'a write into a slicetree under a symlinked `.superdev` passes');
   assert.equal(decideM(implementerWrite(path.join(lx.main, 'a.txt'), lx.main)).block, true, 'control: a write into that main checkout is denied');
 });
+
+test('A killed mainWorkTree read is no verdict (ADR 0290): the hook passes the write, exits 0, and writes nothing to stderr.', () => {
+  // POSIX-only: the fake is a `#!/bin/sh` script named `git`, which Node's spawnSync('git') never runs on Windows.
+  if (process.platform === 'win32') return;
+  const { fakeGit } = require('./fake-git.js');
+  const killed = fakeGit({ match: '^rev-parse --git-common-dir' });
+  const write = JSON.stringify(implementerWrite(path.join(fx.main, 'a.txt'), fx.main));
+  const r = cp.spawnSync(process.execPath, [path.join(pluginRoot, 'hooks', 'tree-guard.js')], { input: write, encoding: 'utf8', timeout: 30000, env: killed.env });
+  assertSpawnDecided(r, 'tree-guard');
+  assert.equal(r.status, 0, 'the write passes');
+  assert.equal(r.stderr, '', 'nothing reaches stderr');
+  assert.equal(r.stdout, '', 'no decision is printed');
+});

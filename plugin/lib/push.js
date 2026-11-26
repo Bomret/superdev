@@ -6,7 +6,7 @@ const { gitSpawn, resolveCommit } = require('./git-spawn.js');
 const { fail } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
 const { readLines, getHeader } = require('./ledger.js');
-const { judgeContainment } = require('./containment.js');
+const { judgeContainment, unreadMark } = require('./containment.js');
 const { operatorBoundMs } = require('./operator-config.js');
 
 // A pushed outcome exits 0. Every outcome that pushed nothing exits with this status, apart from the 1 a usage
@@ -99,9 +99,12 @@ function verbPush(cwd, args) {
   // stale local one.
   const ahead = gitCall(['log', '--oneline', '--no-decorate', '--end-of-options', `${judged.judgedBase}..${tip}`], cwd);
   const commits = ahead.status === 0 ? ahead.stdout.split('\n').filter(Boolean) : [`(could not list ${base}..${tip})`];
+  // A local read a signal ended leaves the not-contained answer no verdict: its mark sits beside the answer.
+  const unread = unreadMark(judged);
   return report('refused', [
     `the remote ${shown} ${branch} at ${tip} carries commits base ${base} does not hold:`,
     ...commits.map((c) => `  ${c}`),
+    ...(unread ? [unread] : []),
     byHand,
   ]);
 }

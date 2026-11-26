@@ -5,9 +5,11 @@
 
 const fs = require('fs');
 
-function fail(msg) {
+// `fields`, where given, are copied onto the error: a no-verdict refusal (`git-spawn.js`'s `refuseKilled`) carries `noVerdict`.
+function fail(msg, fields) {
   const err = new Error(msg);
   err.isRefusal = true;
+  Object.assign(err, fields);
   throw err;
 }
 

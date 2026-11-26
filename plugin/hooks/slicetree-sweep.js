@@ -157,8 +157,14 @@ function main(sessionCwd) {
   if (!readLedgerHeader || !git || !parseBranchList || !listWorktrees || typeof mainWorkTree !== 'function') return; // shared reader, git module, or resolver unavailable → sweep nothing, say nothing
   // Every git call below runs in the main working tree, so a session standing in a scopetree reads the main tree's
   // `HEAD`, not the scope branch.
-  const cwd = mainWorkTree(sessionCwd, { timeout: RESOLVE_BOUND_MS });
-  if (!cwd) return; // not inside a git repository, or no verdict → sweep nothing
+  let cwd;
+  try {
+    cwd = mainWorkTree(sessionCwd, { timeout: RESOLVE_BOUND_MS });
+  } catch (e) {
+    if (e.noVerdict) return; // a read with no verdict (ADR 0290) → sweep nothing, say nothing
+    throw e;
+  }
+  if (!cwd) return; // not inside a git repository → sweep nothing
   const superdevRoot = path.join(cwd, '.superdev');
   if (!fs.existsSync(superdevRoot)) return; // not a superdev run in this repo
   const def = defaultBranch(cwd);

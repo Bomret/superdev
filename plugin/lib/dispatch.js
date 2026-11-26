@@ -36,11 +36,22 @@ function recordDispatch(input) {
   return [[...roots][0], { slice: ids.size === 1 ? [...ids][0] : 'scope', agent: 'main', kind: 'dispatch', fields: [ti.subagent_type, input.tool_use_id, ti.description, typeof input.session_id === 'string' ? input.session_id : undefined] }];
 }
 
+// The main working tree of `cwd`, or `cwd` itself where there is none or its read was ended without a verdict.
+function mainTreeOr(cwd) {
+  try {
+    return mainWorkTree(cwd, { timeout: GIT_BOUND_MS }) || cwd;
+  } catch (e) {
+    if (e.noVerdict) return cwd;
+    throw e;
+  }
+}
+
 // The runs under the scopes dir of cwd's repository, as { runRoot, events }: each run with a readable ledger and trace.
 function runsOf(cwd) {
   const m = /^(.*?\/\.superdev)\/scopes\//.exec(cwd.replace(/\\/g, '/'));
-  // The main working tree holds the scopes dir, whatever checkout or subdirectory the controller stands in.
-  const main = m ? null : mainWorkTree(cwd, { timeout: GIT_BOUND_MS }) || cwd;
+  // The main working tree holds the scopes dir, whatever checkout or subdirectory the controller stands in. A read with no
+  // verdict (ADR 0290) falls back to `cwd`, as no repository does.
+  const main = m ? null : mainTreeOr(cwd);
   const scopes = path.join(m ? m[1] : path.join(main, '.superdev'), 'scopes');
   const runs = [];
   for (const name of fs.readdirSync(scopes)) {

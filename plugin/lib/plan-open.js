@@ -11,7 +11,7 @@ const { fail } = require('./refusal.js');
 const { takeOption } = require('./options.js');
 const { readLines, getHeader, ledgerPath } = require('./ledger.js');
 const { gitSpawn, refResolves, listWorktrees } = require('./git-spawn.js');
-const { judgeContainment, refetchMark } = require('./containment.js');
+const { judgeContainment, refetchMark, unreadMark } = require('./containment.js');
 const { resolveRemote } = require('./remote.js');
 const { pushTimeoutMs } = require('./push.js');
 const { mainWorkTree } = require('./main-work-tree.js');
@@ -97,11 +97,13 @@ function cut(cwd, branch, base, remote, scopetree) {
     const date = new Date().toISOString().slice(0, 10);
     // A refetch that ended without a base leaves the answer no verdict: its mark is the stop's last line.
     const mark = refetchMark(judged);
+    const unread = unreadMark(judged);
     return stop('not-contained', [
       `the branch ${branch} carries commits base ${base} does not hold:`,
       ...commits.map((c) => `  ${c}`),
       `remedy: git branch -m ${branch} ${branch}-${date}`,
       ...(mark ? [mark] : []),
+      ...(unread ? [unread] : []),
     ]);
   }
   const held = attach(cwd, branch, scopetree);

@@ -5,11 +5,11 @@
 // remote-tracking ref is deleted only once the remote branch reads deleted or gone.
 
 const fs = require('fs');
-const { gitSpawn, resolveCommit } = require('./git-spawn.js');
+const { localRead, refuseKilled, resolveCommit } = require('./git-spawn.js');
 const { fail } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
 const { readLines, getHeader } = require('./ledger.js');
-const { judgeContainment, refetchMark } = require('./containment.js');
+const { judgeContainment, refetchMark, unreadMark } = require('./containment.js');
 const { resolveRemote } = require('./remote.js');
 const { gitCall, lastLine, shownRemote, boundEnded, pushTimeoutMs, CREDENTIAL_RE } = require('./push.js');
 
@@ -45,8 +45,11 @@ function namesBase(branch, base, remote) {
   return Boolean(remote) && (s === `${remote}/${b}` || b === `${remote}/${s}`);
 }
 
+// Whether `remote` names a configured remote. The read carries the local-read bound, and a read a signal ended refuses as
+// no verdict, never as an unnamed remote (ADR 0290).
 function isNamedRemote(cwd, remote) {
-  const r = gitSpawn(['remote'], cwd);
+  const r = localRead(['remote'], cwd);
+  refuseKilled('remote', r);
   return r.status === 0 && r.stdout.split('\n').map((l) => l.trim()).includes(remote);
 }
 
@@ -79,7 +82,8 @@ function verbBranchDelete(cwd, args) {
   if (judged.fallback) head.push('fallback ancestor');
   if (judged.verdict !== 'contained') {
     const mark = refetchMark(judged);
-    console.log([...head, ...(mark ? [mark] : []), 'nothing deleted'].join('\n'));
+    const unread = unreadMark(judged);
+    console.log([...head, ...(mark ? [mark] : []), ...(unread ? [unread] : []), 'nothing deleted'].join('\n'));
     process.exitCode = GATE_EXIT;
     return;
   }

@@ -16,7 +16,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { gitSpawn, listWorktrees } = require('./git-spawn.js');
+const { gitSpawn, listWorktrees, LOCAL_READ_TIMEOUT_MS } = require('./git-spawn.js');
 const { fail, readPresent } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
 const { CHANGE_TYPES, STAGES, SLUG_RE, readLedgerHeader } = require('./ledger.js');
@@ -30,8 +30,8 @@ const { namesBase, isNamedRemote } = require('./branch-delete.js');
 const { gitCall, lastLine, shownRemote, boundEnded } =require('./push.js');
 const { configuredRemote, refName, seenRef } = require('./run-state-ref.js');
 
-// Every read made through `localCall` carries a bound and a kill signal (INV-0009): a read that is ended carries no verdict.
-const LOCAL_TIMEOUT_MS = 60000;
+// Every read made through `localCall` carries the local-read bound and a kill signal (INV-0009, ADR 0290): a read that is
+// ended carries no verdict.
 const sha = (data) => crypto.createHash('sha256').update(data).digest('hex');
 // A subject or mark on an item line holds no tab or line break.
 const clean = (s) => String(s).replace(/[\u0000-\u001f\u007f]/g, '?');
@@ -40,7 +40,7 @@ function localCall(args, cwd) {
   return gitSpawn(args, cwd, {
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' },
     stdio: ['ignore', 'pipe', 'pipe'],
-    timeout: LOCAL_TIMEOUT_MS,
+    timeout: LOCAL_READ_TIMEOUT_MS,
     killSignal: 'SIGKILL',
   });
 }
