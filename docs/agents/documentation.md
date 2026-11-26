@@ -9,8 +9,9 @@ concern, see `docs/agents/knowledge-base.md`.
   verification.
 - **Read before editing.** Walk the `AGENTS.md` tree from root to the area you touch, and follow local
   rules.
-- **Update after meaningful changes.** When structure, ownership, workflow, contracts, or operating
-  rules change, update the nearest owning `AGENTS.md`, plus every parent whose child-index changed.
+- **Update after meaningful changes.** When structure, ownership, workflow, or a child index changes,
+  update the parent `AGENTS.md`. When a change alters local contracts or operating rules, update the
+  nearest owning child `AGENTS.md`.
 - **Keep it operational.** Concise, current, stable contracts, not diary entries. Broad rules in parent
   docs, concrete details in child docs. **Delete stale or contradictory text immediately.** Write present-tense, state-of-the-world prose, with no history.
 - **Single-source.** A derivable or shared fact (a name-list, a described behavior) lives in exactly one

@@ -44,6 +44,10 @@ every command makes. The calls only `/superdev:plan` makes live in `docs/agents/
 
 - **Login.** Every `gh issue` and `gh label` call passes `--repo Bomret/superdev`, and every `gh api` path
   names `repos/Bomret/superdev`, so no call depends on the remote `gh` infers.
+- **Read every list to the end.** `gh issue list` and `gh label list` page internally only up to their
+  `--limit`, and drop the rest without a word. A list call whose result holds exactly as many entries as
+  its `--limit` may be cut short: run it again with the limit doubled, until a result holds fewer entries
+  than the limit. Every `--limit 1000` call in this document follows this rule.
 - **Labels are addressed by name.** `--label`, `--add-label`, and `--remove-label` each take a
   comma-separated list of names.
 - **Create a missing label:** read `gh label list --repo Bomret/superdev --limit 1000 --json name`, and
