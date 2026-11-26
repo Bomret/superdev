@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amends:** ADR 0286
+**Amends:** [ADR 0286](0286-a-prototype-detour-is-a-cross-exam-move-built-in-its-own-worktree.md).
 
 **Context.** ADR 0286 commits a prototype on a local `prototype/<slug>` branch and names it in a slice `spec`, an
 ADR, or brainstorm's intent record. Nothing pushes that branch, so the pointer resolves only in the planner's clone.
