@@ -28,6 +28,10 @@ party against its official docs (`references/doc-verification.md` owns what make
 check it). **Offer at most two options.**
 
 - **A check fails** → drop the option, and name it with the reason it failed.
+- **A past reject** (an `.out-of-scope/` entry, an ADR's considered option, a non-goal) → no failed check, so it never alone drops
+  the option. The option stays live while it clears the repository and third-party checks and names its saving. Its description cites the
+  reject, its **Horizon**, and the goal it lost under, a reject with no horizon reading as `Deferred`. A `Rejected`
+  one is the option the recommendation argues against, and the operator decides.
 - **A claim you cannot check** → keep its option, labeled as an assumption.
 - **The saving** → every option beside the recommended one states, in its description, what choosing it saves: time,
   scope size, risk, reversibility, a human check. An option that can name no saving is dropped. In a toss-up, each
