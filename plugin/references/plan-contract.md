@@ -320,7 +320,7 @@ commands and vocabulary live in the active `docs/agents/issue-tracker.md`, and t
 - global DoD ↔ a parent/epic issue, or the first section of the feature epic. A single-slice feature skips the epic
   issue — the lone slice's `acceptance` checklist is the DoD.
 - **Parked questions** (optional) ↔ a `## Parked questions` section in the epic issue body. Epic-only.
-- **Non-goals** (optional) ↔ a `## Non-goals` section in the epic issue body. Epic-only and advisory: `/implement`
-  never reads it.
+- **Non-goals** (optional) ↔ a `## Non-goals` section in the epic issue body, each line led by its horizon word,
+  `**Deferred:**` or `**Rejected:**`. Epic-only and advisory: `/implement` never reads it.
 - **Epic visuals** (optional) ↔ `## Slice graph` and `## Touch map` sections in the epic issue body. Epic-only,
   advisory, and written only when `plan-authoring.md`'s `### When to write them` says so.
