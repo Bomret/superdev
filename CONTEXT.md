@@ -145,7 +145,7 @@ _Avoid: "express path", "quick mode", "skip superdev", "inline tier" (the lite t
 
 **Fix worktree**: the worktree an **Inline fix** works in, `.superdev/review-fixes/<short SHA>/` under the main working tree, inside the area under `.superdev/` that `tree-guard.js` lets an implementer write to while the repository holds a run. Review removes it at its end when it is clean, keeps and names it when it is dirty, and keeps the branch either way. It is no run root: no ledger, no run lock, and no run trace (ADR 0228).
 
-**Intent**: a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the MLP, the open questions, the rejected directions, and the load-bearing commitments. Output of `/brainstorm`, input to `/plan`. A brainstorm intent is a draft (`status: draft`) while its interview runs and ready (`status: ready`) after the handoff; `/plan` never seeds from a draft (ADR 0112). A ready intent lives in the slice store as an **Intent record**, and stays a local file only when the store write fails (ADR 0199).
+**Intent**: a rough idea sharpened into something plan-ready: the problem, the **Run goal**, a few candidate directions, the smallest version that reaches the goal, the open questions, the dropped directions, and the load-bearing commitments. Output of `/brainstorm`, input to `/plan`. A brainstorm intent is a draft (`status: draft`) while its interview runs and ready (`status: ready`) after the handoff; `/plan` never seeds from a draft (ADR 0112). A ready intent lives in the slice store as an **Intent record**, and stays a local file only when the store write fails (ADR 0199).
 _Avoid: "idea", "requirements", "specification"_
 
 **Intent record**: the slice-store record a ready **Intent** becomes at the handoff of `/brainstorm`,
@@ -166,8 +166,8 @@ _Avoid: "sweep #28", a finding's list position_
 seeded the feature from, so a reader reaches the intent from the anchor (ADR 0200).
 _Avoid: "source line", "origin link"_
 
-**Minimal Lovable Product (MLP)**: the smallest end-to-end version of the chosen direction that delivers real value. A complete, if narrow, path through the system a user could use, not a fragment of the final thing. Found in `/brainstorm` step 3, carried into `Intent`'s rough scope.
-_Avoid: "skateboard" (Kniberg's MVP-evolution analogy, unclear without the backstory), "MVP" (implies bare-minimum and incomplete, not "usable and complete but narrow")_
+**Run goal**: the milestone one brainstorm and the plan it seeds aim at, one line in the `Intent`. The run builds the smallest end-to-end version that reaches it, a complete if narrow path a user could use. A run goal is not the product's final shape: what the run leaves out, it leaves out for this goal, and a later run with another goal may build it. Every cut a run makes carries a **Horizon** relative to its goal.
+_Avoid: "MLP", "MVP", "Minimal Lovable Product" (each reads as the product's final shape, and the abbreviations are opaque to an operator), "skateboard"_
 
 **Load-bearing decision**: a decision the plan cannot ship without. Leaving it unresolved means the plan is not decided, not just thin on detail. It triggers `Parked questions` when the interview cannot resolve it, on a multi-slice plan only. On a single-slice plan, an unresolved one signals the plan is not single-slice-simple yet, rather than something to park.
 _Avoid: "blocker", "important question" (any open question can be unimportant, and load-bearing means the plan cannot ship without it resolved)_
@@ -211,8 +211,11 @@ _Avoid: "repair run" (a repair is a whole feature, not a second run under the or
 **Amendment** (of an ADR): the treatment for a recorded decision that stands with a narrow qualification, where supersession is the treatment for one that was overturned. The amending ADR carries the qualification and names what it amends; the amended one keeps its `**Status:**` at `Accepted`, keeps its text, and gains an `**Amended by:**` pointer on its own line. Nothing is edited into an ADR's body, so the dated record stays intact and every document citing it stays current (ADR 0043).
 _Avoid: "supersede" (that replaces a decision rather than qualifying it), "revise" (that is the glossary's treatment, where one entry is rewritten in place)_
 
-**Rejected direction**: a direction a brainstorm explored and dropped, carried in the `Intent` with the reason it lost. `/plan` routes each one to a durable home, so it cannot be re-proposed cold later: a dropped approach goes to an ADR's `Considered options`, and dropped scope goes to the epic's non-goals.
-_Avoid: "non-goal" (that is the destination for a rejected scope, not the record of why), "alternative"_
+**Dropped direction**: a direction a brainstorm explored and dropped, carried in the `Intent` with its **Horizon** and the reason it lost. `/plan` routes it by kind and horizon: a rejected approach the operator confirmed goes to an ADR's `Considered options`, and a rejected scope or any deferral goes to the epic's non-goals, led by its horizon. A deferral never reaches an ADR (ADR 0289).
+_Avoid: "rejected direction" (it names one horizon for every drop), "non-goal" (that is the epic's destination for a cut, not the record of why), "alternative"_
+
+**Horizon**: how far a cut reaches, written as the bold lead word of its line, `- **Deferred:** <what> — <why outside this goal>` or `- **Rejected:** <what> — <durable reason>`. **Deferred**: outside this **Run goal**, open to any later run. **Rejected**: wrong whatever the goal, for a durable reason the operator confirmed. The agent proposes each horizon, and a cut that carries none or whose horizon is uncertain reads as deferred. An ADR holds no deferred cut. A past reject a session meets is no failed check: the option stays live and is put to the operator with its horizon (ADR 0289).
+_Avoid: "permanent non-goal", "later scope"_
 
 **Domain shape**: a named structure a slice's code gives a domain concept, in whatever the repository's language provides: a TypeScript interface or type, a class, a DTO, a Python dataclass or `TypedDict`, a zod schema. A slice `spec` names the shapes the slice needs, by name and in this glossary's vocabulary, and the implementer declares them before its first RED test. Names only. The fields are the implementer's, because a `spec` is a contract of outcomes (ADR 0030).
 _Avoid: "type" (too narrow, because a shape is not a static-typing claim, and an untyped language still has shapes), "model", "DTO" (one rendering of a shape, not the concept), "entity"_
