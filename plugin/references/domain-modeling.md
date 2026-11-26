@@ -52,6 +52,10 @@ alternatives. Any one missing → no ADR.
 **The ADR's form.** Applies to every ADR written. It is a short title plus 1–3 sentences: context, decision, why. Add
 Status, Considered Options, or Consequences only when they earn their place.
 
+**Only confirmed rejections.** Applies to every rejected alternative an ADR records, in `Considered options` and in
+any `## Non-goals` section. An ADR holds only a rejection the operator confirmed. An alternative the interview drops
+for this goal only is a deferral, and it goes to the epic's non-goals (`### Dropped directions → …`).
+
 **The numbering rule.** Applies to every new ADR file and every new invariant id. Take the highest existing number in
 the target, `docs/adr/` or `docs/invariants.md`, plus 1.
 
@@ -131,15 +135,19 @@ human's job.
 interview and a commitment a seeded intent carried in its `## Load-bearing commitments` section
 (`skills/brainstorm/SKILL.md` §5) both take this conversion.
 
-### Rejected directions → an ADR's `Considered options`, or the epic's non-goals
+### Dropped directions → an ADR's `Considered options`, or the epic's non-goals
 
-**Route each reject.** Applies to every **Rejected directions** entry a seeded brainstorm intent carries
-(`skills/brainstorm/SKILL.md` §5). Route it, and neither re-explore it nor drop it silently.
+**Route each cut.** Applies to every **Dropped directions** entry a seeded brainstorm intent carries
+(`skills/brainstorm/SKILL.md` §5), and to every alternative the interview itself drops. Route it by kind with its
+**Horizon** as the gate, and neither re-explore it nor drop it silently. An entry with no horizon, or an uncertain
+one, reads as `Deferred`.
 
-- **A rejected approach** (a design trade-off, an alternative mechanism) → the relevant ADR's `Considered options`,
-  one line each: the option and why it lost.
-- **A rejected scope** (a thing deliberately not being built) → a non-goal in the epic body. A single-slice plan
-  writes no epic: name it in the lone slice's `spec` as deliberately excluded.
+- **A rejected approach the operator confirmed** (a design trade-off, an alternative mechanism) → the relevant ADR's
+  `Considered options`, one line each: the option and why it lost.
+- **A rejected scope** (a thing deliberately not being built), **and any deferral of either kind** → a non-goal in
+  the epic body, led by its horizon word: `- **Deferred:** <what> — <why outside this goal>` or `- **Rejected:**
+  <what> — <durable reason>`. A single-slice plan writes no epic: name it in the lone slice's `spec` as deliberately
+  excluded, led the same way.
 
 **The filter.** Applies to every reject before you route it. Forward only what passes the ADR's own **surprising
 without context** test, what a reader would plausibly re-propose. Filter the rest, and say so out loud.
@@ -169,3 +177,5 @@ line where that decision lives, and never leave the store holding two contradict
   it amends. Leave the amended one's `**Status:**` at `Accepted`. Add an `**Amended by:**` pointer with the bolded key
   opening its own line, off the status line. The amended ADR's own text stands unchanged; the live example,
   `docs/adr/0004-plan-append-semantics.md`, wraps its pointer across three lines.
+- **A deferred non-goal a later plan of the same feature builds is revised in place.** Rewrite or remove its line in
+  the epic's non-goals, so the epic never holds a non-goal contradicting its own criteria.

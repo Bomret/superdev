@@ -1,3 +1,17 @@
+# [0.125.0](https://github.com/Bomret/superdev/compare/v0.124.0...v0.125.0) (2026-11-26)
+
+
+### Bug Fixes
+
+* **prototype-push:** record a push its bound ended once ls-remote confirms it landed ([5d1a3a2](https://github.com/Bomret/superdev/commit/5d1a3a2d5384374b35f05bf5df41cca3cbdc2411))
+
+
+### Features
+
+* **abandon:** abandon a superdev run with one confirmed, leased teardown ([c9cdf6b](https://github.com/Bomret/superdev/commit/c9cdf6ba3352c7505ea5a5379f2910e510a45467)), closes [#591](https://github.com/Bomret/superdev/issues/591) [#594](https://github.com/Bomret/superdev/issues/594) [#594](https://github.com/Bomret/superdev/issues/594) [#595](https://github.com/Bomret/superdev/issues/595) [#598](https://github.com/Bomret/superdev/issues/598) [#593](https://github.com/Bomret/superdev/issues/593) [#597](https://github.com/Bomret/superdev/issues/597) [#596](https://github.com/Bomret/superdev/issues/596) [#592](https://github.com/Bomret/superdev/issues/592)
+* **prototype-push:** push a prototype branch on the operator's yes and delete it with its run ([79c9f40](https://github.com/Bomret/superdev/commit/79c9f40befd423619b1789bd47e955bb005a9364)), closes [#587](https://github.com/Bomret/superdev/issues/587) [#588](https://github.com/Bomret/superdev/issues/588) [#589](https://github.com/Bomret/superdev/issues/589) [#590](https://github.com/Bomret/superdev/issues/590)
+* **run-goal-horizons:** name the run goal and lead every cut with its horizon ([aba82bc](https://github.com/Bomret/superdev/commit/aba82bcd641a5e8f8447b20d6775d2fec4c2d207)), closes [#605](https://github.com/Bomret/superdev/issues/605) [#605](https://github.com/Bomret/superdev/issues/605) [#609](https://github.com/Bomret/superdev/issues/609) [#606](https://github.com/Bomret/superdev/issues/606) [#607](https://github.com/Bomret/superdev/issues/607) [#608](https://github.com/Bomret/superdev/issues/608) [#605](https://github.com/Bomret/superdev/issues/605) [#605](https://github.com/Bomret/superdev/issues/605) [#605](https://github.com/Bomret/superdev/issues/605)
+
 # [0.124.0](https://github.com/Bomret/superdev/compare/v0.123.0...v0.124.0) (2026-11-26)
 
 

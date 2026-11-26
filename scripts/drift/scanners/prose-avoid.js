@@ -464,7 +464,29 @@ function scanScopeReviewNoFullRun(root) {
   return gaps;
 }
 
+// scanRetiredScopeTerms(): the `retired-scope-terms` check, whose contract `scripts/AGENTS.md` owns (ADR 0289).
+// simplicity: the ceiling is those three spellings: a paraphrase ("lovable minimum", "a direction we rejected") and an
+// abbreviation in another case ("mlp", "MLPs") walk past.
+const RETIRED_SCOPE_TERMS = [/\bMLP\b/g, /\bMinimal\s+Lovable\s+Product\b/gi, /\brejected\s+directions?\b/gi];
+function scanRetiredScopeTerms(root) {
+  const tree = path.join(root, 'plugin');
+  const gaps = [];
+  if (!fs.existsSync(tree)) return gaps; // no shipped tree → nothing to scan
+  const files = fs
+    .readdirSync(tree, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+    .map((entry) => path.relative(tree, path.join(entry.parentPath ?? entry.path, entry.name)).split(path.sep).join('/'))
+    .sort();
+  for (const rel of files) {
+    const text = fs.readFileSync(path.join(tree, rel), 'utf8');
+    const starts = RETIRED_SCOPE_TERMS.flatMap((form) => [...text.matchAll(form)].map((hit) => hit.index)).sort((a, b) => a - b);
+    for (const index of starts) gaps.push({ source: rel, line: text.slice(0, index).split('\n').length });
+  }
+  return gaps;
+}
+
 module.exports = {
+  scanRetiredScopeTerms,
   scanScopeReviewNoFullRun,
   scanKbNoBackendCall,
   scanAgentToolAgnostic,

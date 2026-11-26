@@ -25,7 +25,11 @@ The calls `/superdev:plan` makes on `Bomret/superdev` and no other command makes
   issue's `<n>` from the URL `gh` prints, which ends in `/issues/<n>`, as the slice's `id`. Then read its
   labels back. A create keeps its heredoc stdin, because nothing upstream of it can fail.
 - **Record a dependency (`depends-on`):** append a `**Depends on:** #<blocker>` line to the issue body
-  through **Edit an issue's body**. Never the native `dependencies/blocked_by` endpoint.
+  through **Edit an issue's body**. Never the native `dependencies/blocked_by` endpoint. **Not
+  best-effort:** `/implement` reads blockers from these lines and cannot detect a lost edge. On any failed
+  edit, name every failed edge as a slice-id pair and end `/plan` reporting failure. Nothing is deleted or
+  rolled back: the plan is repaired by writing the missing lines. A `gh` login lacking Issues write fails
+  every edge at once; report that as the single cause.
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then all slice
   creates in parallel, then the `depends-on` body edits in parallel once every `<n>` is known.
 
