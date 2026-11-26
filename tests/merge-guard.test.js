@@ -93,6 +93,10 @@ test('`abandon` is a verb word only as the first word after `scope.js` (INV-0141
     'node scope.js abandon inventory',
     "cd x && node '/p/scope.js' abandon apply",
     'node /p/Scope.JS abandon apply',
+    'node scope.js "abandon" apply',
+    "node scope.js 'abandon' inventory",
+    'node scope.js ab""andon apply',
+    "node scope.js ab''andon apply",
   ];
   for (const c of denied) {
     assert.equal(decide(sub(c)).block, true, 'a subagent call is denied: ' + JSON.stringify(c));
