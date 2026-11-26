@@ -9,10 +9,10 @@
 // The check is one raw-text rule (ADR 0227) and reads no shell words, so the hook requires no module. After a
 // backslash-newline is joined, a line is denied when it holds a lead word (`git`, `gh`, `tea`, or `scope.js`, in any
 // letter case) and, later on that line, a verb word: `push`, `merge`, `rebase`, `pull`, or, after `tea`, its `m` merge
-// alias, and `abandon` as the first word after `scope.js` (after its closing quote, if any) and nowhere later, so
-// `--root …/scopes/abandon` and `feat/abandon` pass. A lead word starts at the line's start, after whitespace, `/`, a backslash (`\git` skips an alias), a quote,
-// or a shell operator character; a verb
-// word is bounded on both sides by the line's ends, whitespace, `/`, a quote, a backtick, `;`, `&`, `|`, `)`, `<`, or `>`. So `-merge`
+// alias, and the lower-case `abandon` as the first word after `scope.js` (after its closing quote, if any) and nowhere
+// later, so `--root …/scopes/abandon` and `feat/abandon` pass. A lead word starts at the line's start, after whitespace,
+// `/`, a backslash (`\git` skips an alias), a quote, or a shell operator character; a verb word is bounded on both sides
+// by the line's ends, whitespace, `/`, a quote, a backtick, `;`, `&`, `|`, `)`, `<`, or `>`. So `-merge`
 // (`dod-merge`), `push.ts`, and `merge-guard.js` hold no verb. `gh api -X PUT repos/o/r/pulls/1/merge` is denied
 // through its trailing `/merge`.
 //
@@ -25,7 +25,7 @@
 const LEAD = /(?<![^\s/\\"'`;&|(])(git|gh|tea|scope\.js)(?![\w-])/i;
 const TEA = /(?<![^\s/\\"'`;&|(])tea(?![\w-])/i;
 const VERB = /(?<![^\s/"'`;&|)<>])(?:push|merge|rebase|pull)(?![^\s/"'`;&|)<>])/;
-const ABANDON = /(?<![^\s/\\"'`;&|(])scope\.js["']?\s+abandon(?![^\s/"'`;&|)<>])/i;
+const ABANDON = /(?<![^\s/\\"'`;&|(])[Ss][Cc][Oo][Pp][Ee]\.[Jj][Ss]["']?\s+abandon(?![^\s/"'`;&|)<>])/;
 const TEA_ALIAS = /(?<![^\s/"'`;&|)<>])m(?![^\s/"'`;&|)<>])/;
 
 const INTEGRATE =

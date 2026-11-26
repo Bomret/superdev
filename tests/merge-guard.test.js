@@ -92,6 +92,7 @@ test('`abandon` is a verb word only as the first word after `scope.js` (INV-0141
     'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" abandon inventory --root r',
     'node scope.js abandon inventory',
     "cd x && node '/p/scope.js' abandon apply",
+    'node /p/Scope.JS abandon apply',
   ];
   for (const c of denied) {
     assert.equal(decide(sub(c)).block, true, 'a subagent call is denied: ' + JSON.stringify(c));
@@ -102,6 +103,7 @@ test('`abandon` is a verb word only as the first word after `scope.js` (INV-0141
     "git branch --list 'slice/abandon/*'",
     'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root /r/.superdev/scopes/abandon',
     'node scope.js base resolve --branch feat/abandon --base main',
+    'node scope.js ABANDON inventory',
   ];
   for (const c of allowed) {
     assert.equal(decide(sub(c)).block, false, 'a subagent call passes: ' + JSON.stringify(c));
