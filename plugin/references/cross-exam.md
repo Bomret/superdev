@@ -1,7 +1,7 @@
 # Interview discipline (cross-examination)
 
 `/superdev:plan` runs its interview by this whole discipline. `/superdev:brainstorm` runs the core moves its opening
-names and stops at its own readiness test.
+names, **Prototype what must be seen or run** among them, and stops at its own readiness test.
 
 **The main event.** Applies to `/superdev:plan`'s interview. The interview is the main event, never a warm-up before
 slicing or brief-writing. Keep going until the design tree is exhausted and you and the user share the same picture.
@@ -65,6 +65,20 @@ exploration wait for its report.
 
 - **The rest of the frontier** → ask it now.
 - **Downstream** → a question any of whose options rests on a claim the exploration would check.
+
+**Prototype what must be seen or run.** Applies to a frontier question whose answer turns on seeing or running
+something (how a screen looks or a flow feels, which of several variants reads better, whether a state model or data
+shape survives real data), in a repository that can build an artifact the operator can open or run. Recommend a
+prototype detour as that question's answer ("I'd prototype this first because … — agree?"), under **Offer only live
+options** and its two-option cap. On a yes, build the prototype yourself by
+`${CLAUDE_PLUGIN_ROOT}/references/prototype.md`, and take the operator's judgment of the running prototype as the
+answer.
+
+- **While the operator judges it** → only its question and the questions downstream of it wait. The skill's own end
+  waits for it too: `## Termination` below, or the readiness test of a skill that stops there instead.
+- **A declined, inconclusive, or abandoned detour** → return the question to the frontier, or record it where the
+  skill keeps its open questions (plan's **Park explicitly, write it down**, brainstorm's **Still-open decisions**),
+  naming the prototype branch where the detour cut one.
 
 **Surface, never smuggle.** Applies to every assumption and every answer. State assumptions out loud.
 

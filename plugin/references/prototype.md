@@ -6,8 +6,18 @@
 # Prototype discipline
 
 A throwaway artifact that answers **one design question** conversation cannot settle, such as "does this state model
-feel right" or "which of these two shapes survives real data". `/superdev:brainstorm` detours here when it hits such a
-question. The answer feeds the intent, never the codebase.
+feel right" or "which of these two shapes survives real data". An interview detours here through
+`cross-exam.md`'s **Prototype what must be seen or run**. The answer feeds the interview, never the codebase. A
+prototype answers one open question during the interview; the design sketch (`design-sketch.md`) draws the whole held
+design after it.
+
+**The values.** Applies to every step.
+
+- `<slug>`: a short kebab-case form of the question.
+- `<main>`: the main working tree, resolved as `review-inline-fix.md`'s **The values** resolves it.
+- `<tree>`: `<main>/.superdev/prototypes/<slug>`, absolute.
+- `<branch>`: `prototype/<slug>`.
+- `<start>`: the base branch `docs/agents/code-management.md` records, or `HEAD` where no such document records one.
 
 **State the question first.** Applies to every prototype. Write the one question it answers in the artifact itself.
 
@@ -17,14 +27,31 @@ or harness as a thin shell around it. The logic references neither the DOM nor t
 **UI prototypes ship variants.** Applies to a "which of these" question. Build switchable variants in one artifact,
 never serial rebuilds.
 
-**Capture, then throw away.** Applies once the prototype answers its question. Fold the validated decision into the
-intent, and from there the plan. Commit the prototype itself to a throwaway branch off the base, never onto the base
-branch.
+**Cut the prototype's worktree.** Applies before the first prototype file is written. Run `review-inline-fix.md`'s
+`## 1. The ignore check` first, with its outcomes, then cut with `git -C <main> worktree add -b <branch> <tree>
+<start>`, never `-B`. Build every prototype file inside `<tree>`.
 
-- **Its message** follows `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md` as its **A featureless commit**
-  states. On a refusal, stop the capture and report git's own output to the operator.
-- **A pointer to that branch** → leave it where the decision landed.
-- The base branch keeps only the validated decision.
+- **The cut fails** (the branch or the directory exists, a ref conflicts, or `<start>` does not exist) → build
+  nothing, report git's own output, and return the question as `cross-exam.md`'s **Prototype what must be seen or
+  run** returns a declined or inconclusive detour, naming no branch of this detour, because the cut made none. Where
+  the cut failed on an existing `<branch>`, name that branch as an earlier prototype of the same question.
+
+**Commit, then remove the worktree.** Applies once the detour ends, its prototype conclusive or not, or abandoned.
+Commit a built prototype inside `<tree>`, never onto the base branch, its message per
+`${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md`'s **A featureless commit**. After a successful commit, run
+`git -C <main> worktree remove <tree>` without `--force`, and keep `<branch>`.
+
+- **An abandoned detour** → commit nothing, keep the worktree and the branch, and tell the operator both.
+- **A refused commit** → report git's own output, keep the worktree and the branch, and tell the operator both.
+- **A removal git refuses because files are left in the worktree** → keep the worktree and the branch, and tell the
+  operator both. Nothing is removed by force.
+
+**Route the decision.** Applies once the operator's judgment of the running prototype answers its question. Route the
+validated decision to where the detour was opened, naming `<branch>` wherever it lands.
+
+- **`/superdev:brainstorm`** → the intent file.
+- **`/superdev:plan`** → the answer to the question, a `Prototype: <branch>` line in the `spec` of the slice the
+  decision shapes (`plan-contract.md` → *Fields*), and the ADR when the decision earns one.
 
 **A decision-rich snippet may enter the plan.** Applies to a prototype-produced snippet that encodes a decision more
 precisely than prose can: a state machine, a reducer, a schema, a type shape. It may be inlined in a slice `spec`,
