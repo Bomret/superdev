@@ -123,7 +123,7 @@ function deleteRemote(cwd, remote, branch, tested) {
   const failed = (call, result, tip) => {
     if (result.signal != null) return `remote timed-out ${remote} ${branch}: the ${call} was ${boundEnded(cwd, result.signal)}; ${byHand(tip)}`;
     const word = CREDENTIAL_RE.test(result.stderr || '') ? 'credential-rejected' : 'failed';
-    return `remote ${word} ${remote} ${branch}: ${lastLine(result)}; ${byHand(tip)}`;
+    return `remote ${word} ${remote} ${branch}: ${lastLine(result, remote)}; ${byHand(tip)}`;
   };
   const read = gitCall(['ls-remote', '--end-of-options', remote, ref], cwd, true);
   if (read.signal != null || read.status !== 0) return failed('ls-remote', read, tested);
@@ -136,7 +136,7 @@ function deleteRemote(cwd, remote, branch, tested) {
   // Only git's own lease rejection reads moved: a `[rejected]` line with `stale info` or `fetch first`. A `[remote
   // rejected]` line, such as a declining pre-receive hook or a protected branch, reads failed.
   if (pushed.signal == null && /^\s*! \[rejected\].*\((stale info|fetch first)\)/m.test(pushed.stderr || '')) {
-    return `remote kept-moved ${remote} ${branch} moved past the tested tip ${tested} before the push: ${lastLine(pushed)}; ${byHand('<its tip>')}`;
+    return `remote kept-moved ${remote} ${branch} moved past the tested tip ${tested} before the push: ${lastLine(pushed, remote)}; ${byHand('<its tip>')}`;
   }
   return failed('push', pushed, tested);
 }

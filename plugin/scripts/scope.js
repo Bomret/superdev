@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, reviewed, deploy, suite, base, discard, get, state, status,
-// publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-merge, dod-line, dod-tags, dod-check, dod-own, ci, section, tier, dod-open, contained, red-evidence, branch (the read-only `branch --root` and the deleting `branch delete`), checkout, lock, route, denial, consent, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, prototype (`prototype push`), root, staging, dod-merge, dod-line, dod-tags, dod-check, dod-own, ci, section, tier, dod-open, contained, red-evidence, branch (the read-only `branch --root` and the deleting `branch delete`), checkout, lock, route, denial, consent, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -49,6 +49,7 @@ const libSourceSet = () => require('../lib/source-set.js');
 const libUntraced = () => require('../lib/untraced.js');
 const libTraceWindow = () => require('../lib/trace-window.js');
 const libPush = () => require('../lib/push.js');
+const libPrototypeBranch = () => require('../lib/prototype-branch.js');
 const libRunStateRef = () => require('../lib/run-state-ref.js');
 const libDodMerge = () => require('../lib/dod-merge.js');
 const libPlanOpen = () => require('../lib/plan-open.js');
@@ -170,7 +171,8 @@ function writtenRoot(verb, args) {
   const writes = ['stage', 'step', 'slice', 'degraded', 'unresolved', 'deferred', 'minors', 'docs', 'pr', 'adopt', 'dod-merge'].includes(verb)
     || ((verb === 'deploy' || verb === 'base') && rest[0] === 'set')
     || (verb === 'reviewed' && (rest[0] === 'set' || rest[0] === 'clear'))
-    || verb === 'suite';
+    || verb === 'suite'
+    || (verb === 'prototype' && rest[0] === 'push' && !rest.includes('--delete'));
   return writes ? libOptions().takeRootOption(args.slice()) : null;
 }
 
@@ -431,6 +433,13 @@ function run(argv, cwd, stdinJson) {
     case 'push':
       libPush().verbPush(cwd, args);
       break;
+    // `prototype push` pushes a run's prototype branches and records each pushed one in the ledger (ADR 0287, INV-0210).
+    case 'prototype': {
+      if (args[0] !== 'push') fail('prototype: expected "push"\n' + libUsage().usage());
+      const pushed = libPrototypeBranch().verbPrototypePush(cwd, args.slice(1));
+      if (pushed.length) ledgerEvent = { root: libOptions().takeRootOption(args.slice()), fields: ['prototype', 'push', ...pushed.map((p) => p.branch)] };
+      break;
+    }
     // Deletes the run-state ref of a run root from the remote (ADR 0202); best-effort, always exits 0.
     case 'run-state':
       if (args[0] !== 'delete') fail('run-state: expected "delete"\n' + libUsage().usage());

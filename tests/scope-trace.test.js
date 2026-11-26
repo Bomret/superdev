@@ -60,6 +60,9 @@ test('run trace (ADR 0117): ledger events, the single writer, and the reader.', 
   const git = (...a) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { cwd: dir, encoding: 'utf8' });
   git('init', '-q');
   git('commit', '-q', '--allow-empty', '-m', 'x');
+  git('branch', 'prototype/x');
+  const protoRemote = path.join(dir, 'proto-remote.git');
+  git('init', '-q', '--bare', protoRemote);
   const writers1 = [
     [['base', 'set', 'HEAD'], / ledger base set HEAD$/],
     [['suite', 'set', 'green', 'HEAD'], / ledger suite set green HEAD$/],
@@ -115,6 +118,7 @@ test('run trace (ADR 0117): ledger events, the single writer, and the reader.', 
       suite: ['suite', 'set', 'green', 'HEAD'],
       base: ['base', 'set', 'HEAD'],
       adopt: ['adopt'],
+      prototype: ['prototype', 'push', '--remote', protoRemote, 'prototype/x'],
     };
     const traceOf = (r) => (fs.existsSync(path.join(r, 'trace.log')) ? fs.readFileSync(path.join(r, 'trace.log'), 'utf8').split('\n').filter(Boolean) : []);
     for (const v of usageVerbs) {

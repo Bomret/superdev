@@ -73,7 +73,7 @@ function verbPush(cwd, args) {
   if (fetched.status !== 0) {
     const stderr = fetched.stderr || '';
     if (/couldn't find remote ref/.test(stderr)) return push(cwd, remote, ref, [], 'pushed', byHand);
-    return report(failedFetchWord(fetched), [lastLine(fetched), byHand]);
+    return report(failedFetchWord(fetched), [lastLine(fetched, remote), byHand]);
   }
   // The remote tip as a full commit id, read off FETCH_HEAD at once: the bare branch name resolves to the local
   // branch first, and a later fetch overwrites FETCH_HEAD.
@@ -93,7 +93,7 @@ function verbPush(cwd, args) {
   // refusal this verb made (INV-0009).
   const refetch = judged.refetch;
   if (refetch && refetch.signal != null) return report('timed-out', [`the fetch of ${remote} ${base} was ${boundEnded(cwd, refetch.signal)}`, byHand]);
-  if (refetch && refetch.status !== 0) return report(failedFetchWord(refetch), [lastLine(refetch), byHand]);
+  if (refetch && refetch.status !== 0) return report(failedFetchWord(refetch), [lastLine(refetch, remote), byHand]);
   // The commits listed are those the base containment judged against does not hold: the refetched base, never a
   // stale local one.
   const ahead = gitCall(['log', '--oneline', '--no-decorate', '--end-of-options', `${judged.judgedBase}..${tip}`], cwd);
@@ -109,7 +109,7 @@ function push(cwd, remote, ref, flags, word, byHand) {
   const pushed = gitCall(['push', '-u', ...flags, '--end-of-options', remote, `${ref}:${ref}`], cwd, true);
   if (pushed.signal != null) return report('timed-out', [`the push was ${boundEnded(cwd, pushed.signal)}`, byHand]);
   if (pushed.status === 0) return report(word, [`${remote} ${ref.slice('refs/heads/'.length)}`]);
-  return report('push-failed', [lastLine(pushed), byHand]);
+  return report('push-failed', [lastLine(pushed, remote), byHand]);
 }
 
 // The outcome of a fetch that failed with a status of its own, the branch fetch or the refetch of base: a rejected
@@ -118,10 +118,14 @@ function failedFetchWord(result) {
   return CREDENTIAL_RE.test(result.stderr || '') ? 'credential-rejected' : 'unreachable';
 }
 
-// Git's last stderr line names why a call failed.
-function lastLine(result) {
+// Git's last stderr line names why a call failed, with every URL in it replaced by the remote's name, so no output
+// shows a remote URL or a credential: git prints the URL it could not reach, and a URL may carry a token.
+const URL_RE = /[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s'"]+|[^\s'"@/]+@[^\s'":/]+:[^\s'"]+/g;
+function lastLine(result, remote) {
   const lines = (result.stderr || '').split('\n').map((l) => l.trim()).filter(Boolean);
-  return lines.length ? lines[lines.length - 1] : `git exited ${result.status}`;
+  if (!lines.length) return `git exited ${result.status}`;
+  const name = remote && !/:\/\/|@/.test(remote) ? remote : '<remote>';
+  return lines[lines.length - 1].replace(URL_RE, name);
 }
 
 module.exports = { verbPush, gitCall, lastLine, boundEnded, pushTimeoutMs, CREDENTIAL_RE };
