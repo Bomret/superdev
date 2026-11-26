@@ -4,6 +4,9 @@
 
 **Amends:** [ADR 0099](0099-plan-derives-criteria-from-the-intent-before-slicing.md).
 
+**Amended by:** [ADR 0289](0289-a-cut-carries-its-horizon-and-a-past-reject-is-no-veto.md), under which a past reject
+is no failed check.
+
 **Context.** `references/cross-exam.md`'s "Offer only live options" rule (feature #711) requires every
 option beside the recommended one to state what choosing it saves. It does not require the option to be
 viable. In `/superdev:brainstorm` and `/superdev:plan` interviews the agent sometimes offered an option
