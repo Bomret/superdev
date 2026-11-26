@@ -1682,6 +1682,6 @@ Class: architecture
 Concepts: Abandon, Run root, Scope branch, Run lock
 Statement: `scope.js abandon apply` removes only what the inventory the operator confirmed listed. It recomputes the inventory and deletes nothing when the inventory's hash differs from its `--token`, deletes each branch under a lease on the tip that inventory read, so a branch that moved since keeps its commits, refuses while the run lock is younger than its one-hour bound, and removes the run root last, so an interrupted teardown leaves the run findable and a second run finishes it (ADR 0288).
 Breaks: silently
-Check: tests/scope-abandon.test.js — a token from a changed inventory deletes nothing, a remote moved past the inventoried tip is kept, a fresh lock refuses, and a second apply after an interrupted one finishes the teardown
-Symbols: verbAbandon
-Paths: plugin/lib/abandon.js
+Check: tests/scope-abandon.test.js — a token from a changed inventory deletes nothing, a remote moved past the inventoried tip is kept, a local branch that moved is kept, a fresh lock refuses, and a second apply after an interrupted one finishes the teardown
+Symbols: verbAbandon, verbApply
+Paths: plugin/lib/abandon.js, plugin/lib/abandon-apply.js

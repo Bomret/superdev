@@ -1,7 +1,7 @@
 'use strict';
 
-// Suite for `scope.js abandon inventory` (ADR 0288, INV-0211, INV-0009): the items a run owns, the marks that show lost
-// work, the refusals, the run lock, and the token that hashes the item lines. Real git repositories, worktrees, and a real
+// Suite for `scope.js abandon inventory` and `abandon apply` (ADR 0288, INV-0211, INV-0009): the items a run owns, the marks
+// that show lost work, the refusals, the run lock, the token that hashes the item lines, and the teardown that token binds. Real git repositories, worktrees, and a real
 // bare remote. The repository and its remote are built once into a template and copied for each case.
 
 const { test, after } = require('node:test');
@@ -349,11 +349,160 @@ test('a stale worktree registration is listed as stale', () => {
   assert.ok(find(r, 'worktree', 'slicetrees/02').includes('stale'));
 });
 
-test('abandon apply is not implemented, and an unknown subverb refuses', () => {
+test('abandon apply without its options and an unknown subverb refuse', () => {
   const f = fixture();
   for (const sub of ['apply', 'bogus']) {
     const r = spawnSync(process.execPath, [scopePath, 'abandon', sub], { cwd: f.repo, encoding: 'utf8' });
     assert.strictEqual(r.status, 1);
     assert.strictEqual(r.stdout, '');
   }
+});
+
+// `hook` is a shell command run once, just before `git worktree prune`: the first git call after the inventory is
+// recomputed and the token matched. A `git` shim first on PATH runs it, so a ref moves in the window between the inventory and
+// the deletes, which no command line can open. The shim is a fixture around unchanged code.
+function apply(f, token, { extra = ['--remote', 'origin'], cwd, hook } = {}) {
+  const env = { ...process.env };
+  if (hook) {
+    const shim = path.join(f.copy, 'shim');
+    fs.mkdirSync(shim, { recursive: true });
+    const real = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+    fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\nif [ "$1" = worktree ] && [ "$2" = prune ] && [ ! -e "${shim}/done" ]; then\n  : > "${shim}/done"\n  ${hook.replaceAll('git ', `'${real}' `)} >/dev/null 2>&1\nfi\nexec '${real}' "$@"\n`, { mode: 0o755 });
+    env.PATH = `${shim}${path.delimiter}${process.env.PATH}`;
+  }
+  const result = spawnSync(process.execPath, [scopePath, 'abandon', 'apply', '--root', f.root, '--base', 'main', ...extra, '--token', token], {
+    cwd: cwd || f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL', env,
+  });
+  assertSpawnDecided(result, 'scope.js abandon apply');
+  return { status: result.status, err: result.stderr, out: result.stdout, lines: result.stdout.split('\n').filter(Boolean) };
+}
+
+const refExists = (repo, ref) => spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { cwd: repo }).status === 0;
+const remoteHas = (f, ref) => git(['ls-remote', f.origin, ref], f.repo) !== '';
+const lineFor = (r, prefix) => r.lines.find((l) => l.startsWith(prefix));
+
+test('apply with the inventory token removes every item, names each deleted branch with its tip, and the run is no candidate', () => {
+  const f = fixture();
+  const tips = ['01', '02'].map((id) => git(['rev-parse', `refs/heads/slice/${SCOPE}/${id}`], f.repo));
+  const scopeTip = git(['rev-parse', `refs/heads/${BRANCH}`], f.repo);
+  fs.writeFileSync(path.join(f.repo, '.superdev', `dod-draft-${SCOPE}.md`), 'draft\n');
+  const r = apply(f, inv(f).token);
+  assert.strictEqual(r.status, 0, r.out + r.err);
+  assert.ok(r.lines.includes(`slice-branch deleted slice/${SCOPE}/01 was ${tips[0]}`), r.out);
+  assert.ok(r.lines.includes(`slice-branch deleted slice/${SCOPE}/02 was ${tips[1]}`));
+  assert.ok(r.lines.includes(`local deleted ${BRANCH} was ${scopeTip}`));
+  assert.ok(r.lines.includes(`remote deleted origin ${BRANCH} was ${scopeTip}`));
+  assert.ok(lineFor(r, `tracking deleted refs/remotes/origin/${BRANCH}`) || lineFor(r, `tracking gone refs/remotes/origin/${BRANCH}`), r.out); // the remote delete may clear the tracking ref first
+  assert.ok(lineFor(r, 'run-state deleted origin'));
+  assert.ok(!r.out.includes(f.origin), 'no line prints the remote URL');
+  assert.ok(!fs.existsSync(f.root));
+  assert.ok(!fs.existsSync(path.join(f.repo, '.superdev', 'kb-pending', SCOPE)));
+  assert.ok(!fs.existsSync(path.join(f.repo, '.superdev', `dod-draft-${SCOPE}.md`)));
+  assert.strictEqual(git(['worktree', 'list'], f.repo).split('\n').length, 1);
+  for (const ref of [`refs/heads/${BRANCH}`, `refs/remotes/origin/${BRANCH}`, `refs/heads/slice/${SCOPE}/01`, `refs/heads/slice/${SCOPE}/02`]) assert.ok(!refExists(f.repo, ref), ref);
+  assert.ok(!remoteHas(f, `refs/heads/${BRANCH}`));
+  assert.ok(!remoteHas(f, `refs/superdev/${SCOPE}`));
+  const cand = spawnSync(process.execPath, [scopePath, 'candidates'], { cwd: f.repo, encoding: 'utf8' });
+  assert.ok(!cand.stdout.includes(SCOPE), cand.stdout);
+});
+
+test('a token taken before a new commit lands deletes nothing and prints the new inventory', () => {
+  const f = fixture();
+  const old = inv(f).token;
+  commit(f.scopetree, 'more.md', 'more\n', 'feat: more');
+  const r = apply(f, old);
+  assert.strictEqual(r.status, 3);
+  assert.strictEqual(r.lines[0], 'token-mismatch');
+  assert.ok(r.lines.some((l) => l.startsWith('token ')) && r.lines.some((l) => l.startsWith('run-root\t')));
+  assert.ok(fs.existsSync(f.root));
+  assert.ok(refExists(f.repo, `refs/heads/slice/${SCOPE}/01`));
+  assert.ok(remoteHas(f, `refs/heads/${BRANCH}`));
+});
+
+test('a remote scope branch advanced after the inventory reads kept-moved, keeps its tracking ref and the run root, and exits 4', () => {
+  const f = fixture();
+  const token = inv(f).token;
+  const other = path.join(f.copy, 'other');
+  git(['clone', '-q', f.origin, other], f.copy);
+  git(['config', 'user.email', 't@example.com'], other);
+  git(['config', 'user.name', 't'], other);
+  git(['checkout', '-q', BRANCH], other);
+  const moved = commit(other, 'late.md', 'late\n', 'feat: late');
+  const r = apply(f, token, { hook: `git -C '${other}' push -q origin ${BRANCH}` });
+  assert.strictEqual(r.status, 4, r.out);
+  const line = lineFor(r, 'remote kept-moved');
+  assert.ok(line && line.includes(moved) && line.includes('run by hand'), r.out);
+  assert.ok(lineFor(r, 'tracking not-reached'));
+  assert.ok(refExists(f.repo, `refs/remotes/origin/${BRANCH}`));
+  assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
+  assert.ok(remoteHas(f, `refs/heads/${BRANCH}`));
+});
+
+test('an apply cut short by an unreachable remote is finished by a second inventory and apply', () => {
+  const f = fixture();
+  git(['remote', 'set-url', 'origin', path.join(f.copy, 'nowhere')], f.repo);
+  const first = apply(f, inv(f).token);
+  assert.strictEqual(first.status, 4, first.out);
+  assert.ok(lineFor(first, 'remote failed'));
+  assert.ok(!fs.existsSync(f.scopetree), 'the worktrees went before the remote step');
+  assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
+  assert.ok(!first.out.includes('nowhere'), 'no line prints the remote URL');
+  git(['remote', 'set-url', 'origin', f.origin], f.repo);
+  const second = apply(f, inv(f).token);
+  assert.strictEqual(second.status, 0, second.out);
+  assert.ok(!second.lines.some((l) => l.startsWith('worktree')), 'removed worktrees are no longer listed');
+  assert.ok(!fs.existsSync(f.root));
+  assert.ok(!remoteHas(f, `refs/heads/${BRANCH}`));
+});
+
+test('a scope branch checked out in the main working tree reads kept-checked-out and the main tree keeps its branch', () => {
+  const f = fixture();
+  git(['worktree', 'remove', '--force', f.scopetree], f.repo);
+  git(['checkout', '-q', BRANCH], f.repo);
+  const r = apply(f, inv(f).token);
+  assert.strictEqual(r.status, 4, r.out);
+  assert.ok(lineFor(r, `local kept-checked-out ${BRANCH}`), r.out);
+  assert.strictEqual(git(['rev-parse', '--abbrev-ref', 'HEAD'], f.repo), BRANCH);
+  assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
+});
+
+test('a symlink planted at kb-pending/<scope> is not followed', () => {
+  const f = fixture();
+  const outside = path.join(f.copy, 'outside');
+  fs.mkdirSync(outside);
+  fs.writeFileSync(path.join(outside, 'keep.md'), 'keep\n');
+  const link = path.join(f.repo, '.superdev', 'kb-pending', SCOPE);
+  fs.rmSync(link, { recursive: true });
+  fs.symlinkSync(outside, link, 'dir');
+  const r = apply(f, inv(f).token);
+  assert.strictEqual(r.status, 4, r.out);
+  assert.ok(lineFor(r, 'kb-pending failed'), r.out);
+  assert.strictEqual(fs.readFileSync(path.join(outside, 'keep.md'), 'utf8'), 'keep\n');
+  assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
+});
+
+test('with no remote configured every local item and the run root go, the remote items read not-reached, and the exit is 0', () => {
+  const f = fixture();
+  git(['remote', 'remove', 'origin'], f.repo);
+  fs.rmSync(path.join(f.repo, 'docs', 'agents', 'code-management.md'));
+  const r = apply(f, inv(f, { extra: [] }).token, { extra: [] });
+  assert.strictEqual(r.status, 0, r.out + r.err);
+  assert.ok(lineFor(r, 'remote not-reached'));
+  assert.ok(lineFor(r, 'run-state not-reached'));
+  assert.ok(!fs.existsSync(f.root));
+  assert.ok(!refExists(f.repo, `refs/heads/${BRANCH}`));
+});
+
+test('a local slice branch that gained a commit after the inventory reads kept-moved and the run root stays', () => {
+  const f = fixture();
+  const token = inv(f).token;
+  const ref = `refs/heads/slice/${SCOPE}/02`;
+  const tip = git(['rev-parse', ref], f.repo);
+  const moved = git(['commit-tree', `${tip}^{tree}`, '-p', tip, '-m', 'extra'], f.repo);
+  const r = apply(f, token, { hook: `git -C '${f.repo}' update-ref ${ref} ${moved}` });
+  assert.strictEqual(r.status, 4, r.out);
+  const line = lineFor(r, `slice-branch kept-moved slice/${SCOPE}/02`);
+  assert.ok(line && line.includes(moved), r.out);
+  assert.strictEqual(git(['rev-parse', `refs/heads/slice/${SCOPE}/02`], f.repo), moved);
+  assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
 });
