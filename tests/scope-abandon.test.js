@@ -831,3 +831,27 @@ test('a stale prototype worktree registration reads gone, is pruned, and its bra
   assert.ok(!refExists(f.repo, 'refs/heads/prototype/y'));
   assert.ok(!git(['worktree', 'list'], f.repo).includes('prototypes'));
 });
+
+test('a nested repository whose HEAD read fails marks the tree unknown, and an unborn HEAD that gains a commit moves the token', () => {
+  const f = fixture();
+  const nested = path.join(f.scopetree, 'nested');
+  fs.mkdirSync(nested);
+  const ng = (args) => git(['-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args], nested);
+  ng(['init', '-q']);
+  fs.writeFileSync(path.join(nested, 'a.txt'), '1\n');
+  const unborn = inv(f).token;
+  ng(['add', '.']);
+  ng(['commit', '-q', '-m', 'first']);
+  assert.notStrictEqual(inv(f).token, unborn, 'the first commit of an unborn nested repository');
+  const env = shimEnv(f, 'case "$(pwd)" in */nested) if [ "$1" = rev-parse ]; then echo boom >&2; exit 128; fi;; esac');
+  const r = abandonCall(f, 'inventory', ['--root', f.root, '--base', 'main', '--remote', 'origin'], { env });
+  const item = r.items.find((i) => i[0] === 'worktree' && i[1].endsWith('scopetree'));
+  assert.ok(item.some((m) => m.startsWith('unknown')), r.out);
+});
+
+test('--prototype naming the base through a remote-qualified --base refuses', () => {
+  const f = fixture();
+  const r = abandonCall(f, 'inventory', ['--base', 'origin/prototype/y', '--prototype', 'prototype/y', '--remote', 'origin']);
+  assert.strictEqual(r.status, 1, r.out);
+  assert.match(r.err, /names the base branch/);
+});

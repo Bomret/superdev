@@ -147,9 +147,11 @@ function statusHash(porcelain, dir) {
   return h.digest('hex').slice(0, 16);
 }
 
-// The state of a nested repository: its HEAD (`unborn` before its first commit) and the hash of its own status.
+// The state of a nested repository: its HEAD (`unborn` where git reports none, exit 1) and the hash of its own status. A HEAD
+// or status read that ended by signal, error, or any other exit throws.
 function nestedHash(dir) {
-  const head = localCall(['rev-parse', 'HEAD'], dir);
+  const head = localCall(['rev-parse', '--verify', '--quiet', 'HEAD'], dir);
+  if (head.status !== 0 && (head.signal != null || head.error || head.status !== 1)) throw new Error(`nested repository HEAD not read: ${whyNot(head)}`);
   const status = localCall(['status', '--porcelain', '-z', '--untracked-files=all'], dir);
   if (status.status !== 0) throw new Error(`nested repository status not read: ${whyNot(status)}`);
   return `${head.status === 0 ? head.stdout.trim() : 'unborn'}\0${statusHash(status.stdout, dir)}`;
