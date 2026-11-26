@@ -426,8 +426,10 @@ Each `<branch>` is a local `prototype/<slug>` or its pushed spelling `prototype/
 charset is refused with exit 1 before any git process starts. Each branch is resolved to its commit, then pushed as
 `refs/heads/prototype/<slug>:refs/heads/prototype/<scope>/<slug>` with no force and no lease. It prints one line per
 branch: `pushed`, `missing`, `refused` (a remote branch of that name at another commit), `credential-rejected`,
-`unreachable`, `timed-out`, or `push-failed`. Every line that pushed nothing names the command to run by hand, and a
-`timed-out` push records nothing and says its outcome is unknown. Each pushed branch gets one bullet under
+`unreachable`, `timed-out`, or `push-failed`. Every line that pushed nothing names the command to run by hand. A push
+its bound ended is followed by one `ls-remote` of the target ref under the same bound. Where that reads the remote
+branch at the pushed commit, the line reads `pushed`, names the bound and the confirmation, and the branch is recorded.
+Otherwise it reads `timed-out`, records nothing, and says its outcome is unknown. Each pushed branch gets one bullet under
 `**Prototypes:**`, `- prototype/<scope>/<slug> <commit>`. A re-push replaces its own bullet. The write runs under the
 run's lock and is traced as a `ledger prototype push` event. It exits 0 when every branch pushed, 5 when some did, and 3 when
 none did.

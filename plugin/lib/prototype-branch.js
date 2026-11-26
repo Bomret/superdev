@@ -2,7 +2,8 @@
 
 // prototype-branch.js: the `prototype push` verb, which pushes a run's local `prototype/<slug>` branches to the remote
 // as `prototype/<scope>/<slug>`, never by force, and records each pushed branch with its commit in the ledger's
-// `**Prototypes:**` header, and its `--delete` flag, which deletes every recorded branch under a lease on its recorded
+// `**Prototypes:**` header, a push its bound ended included once an ls-remote reads the remote branch at that commit,
+// and its `--delete` flag, which deletes every recorded branch under a lease on its recorded
 // commit (ADR 0287, INV-0210).
 
 const { resolveCommit } = require('./git-spawn.js');
@@ -87,9 +88,22 @@ function pushOne(cwd, remote, scope, slug) {
   const commit = resolveCommit(local, cwd);
   if (!commit) return { line: `missing prototype/${slug} is no local branch; nothing pushed for ${name}; ${byHand}` };
   const r = gitCall(['push', '--end-of-options', remote, `${local}:${target}`], cwd, true);
-  if (r.signal != null) return { line: `timed-out ${name}: the push was ${boundEnded(cwd, r.signal)}; its outcome is unknown and nothing is recorded; ${byHand}` };
+  if (r.signal != null) {
+    const ended = `the push was ${boundEnded(cwd, r.signal)}`;
+    if (remoteTipOf(cwd, remote, target) === commit) return { line: `pushed ${name} ${commit}: ${ended}, and a bounded ls-remote confirmed the remote branch at that commit`, commit };
+    return { line: `timed-out ${name}: ${ended}; its outcome is unknown and nothing is recorded; ${byHand}` };
+  }
   if (r.status === 0) return { line: `pushed ${name} ${commit}`, commit };
   return { line: `${failedWord(r)} ${name}: ${lastLine(r, remote)}; ${byHand}` };
+}
+
+// The remote's tip of `ref` through one ls-remote under the push's own bound, or null where the call ended without an
+// answer or the remote holds no such ref.
+function remoteTipOf(cwd, remote, ref) {
+  const read = gitCall(['ls-remote', '--end-of-options', remote, ref], cwd, true);
+  if (read.signal != null || read.status !== 0) return null;
+  const hit = read.stdout.split('\n').map((l) => l.split('\t')).find((p) => p[1] === ref);
+  return hit ? hit[0].trim() : null;
 }
 
 // A plain push the remote rejects as no fast-forward means a remote branch of that name at another commit.

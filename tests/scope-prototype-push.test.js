@@ -175,7 +175,7 @@ test('#both-spellings: prototype/a and prototype/<scope>/a name one prototype, p
   assert.deepStrictEqual(bullets(f), [`prototype/${SCOPE}/a ${a}`]);
 });
 
-test('#push-bound: a push its bound ended prints timed-out, says the outcome is unknown, and records nothing.', () => {
+test('#push-bound: a push its bound ended before the remote applied it prints timed-out, says the outcome is unknown, and records nothing.', () => {
   const f = fixture();
   const { fetchBound, writeOperatorConfig } = require('./scope-setup');
   const bound = fetchBound();
@@ -189,7 +189,25 @@ test('#push-bound: a push its bound ended prints timed-out, says the outcome is 
   assert.strictEqual(bullets(f), null, 'records nothing');
 });
 
-test('#redacted-url: a remote URL carrying a token appears in the output of neither prototype push nor scope.js push, on failure or success.', () => {
+test('#push-bound-landed: a push its bound ended after the remote applied it is confirmed by ls-remote, prints pushed, and is recorded.', () => {
+  const f = fixture();
+  const { fetchBound, writeOperatorConfig } = require('./scope-setup');
+  const bound = fetchBound();
+  const a = git(['rev-parse', 'prototype/a'], f.repo);
+  // A git on PATH whose push runs the real push to the end and then outlives the bound.
+  const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+  const bin = tmp('scope-proto-bin-');
+  fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh\nif [ "$1" = push ]; then '${realGit}' "$@"; exec sleep ${Math.ceil(bound / 1000) + 4}; fi\nexec '${realGit}' "$@"\n`);
+  fs.chmodSync(path.join(bin, 'git'), 0o755);
+  writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: bound } });
+  const r = protoPush(f, ['prototype/a'], { env: { PATH: `${bin}${path.delimiter}${process.env.PATH}` } });
+  assert.strictEqual(remoteTip(f, `prototype/${SCOPE}/a`), a, 'the fixture landed the push on the remote');
+  assert.strictEqual(r.status, 0, `exits 0: ${r.out} ${r.err}`);
+  assert.match(r.out, new RegExp(`^pushed prototype/${SCOPE}/a ${a}: .*confirmed`, 'm'), `prints pushed, confirmed after the bound: ${r.out}`);
+  assert.deepStrictEqual(bullets(f), [`prototype/${SCOPE}/a ${a}`], `records the branch: ${ledgerOf(f)}`);
+});
+
+test('#redacted-url:a remote URL carrying a token appears in the output of neither prototype push nor scope.js push, on failure or success.', () => {
   const f = fixture();
   git(['remote', 'set-url', 'origin', 'https://tok:SECRET-TOKEN@127.0.0.1:1/hidden-repo.git'], f.repo);
   const r = protoPush(f, ['prototype/a']);
