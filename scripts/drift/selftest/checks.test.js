@@ -34,6 +34,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'merge-message-required',
     'commit-format-owner',
     'no-offer-start',
+    'retired-scope-terms',
     'no-ci-wait',
     'unterminated-fence',
   ]);
@@ -95,6 +96,10 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'no-offer-start': [
       { source: 'skills/x/SKILL.md', line: 3 },
       'skills/x/SKILL.md:3 names `start_session` or the offer marker line — superdev starts no session and makes no offer (ADR 0253)',
+    ],
+    'retired-scope-terms': [
+      { source: 'skills/x/SKILL.md', line: 5 },
+      'plugin/skills/x/SKILL.md:5 names `MLP`, "Minimal Lovable Product", or "rejected direction" — write the run goal, and lead each cut with its horizon (ADR 0289)',
     ],
     'no-ci-wait': [
       { source: 'skills/x/SKILL.md', line: 7 },

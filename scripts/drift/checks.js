@@ -48,6 +48,7 @@ const {
   scanShipNoOpensPr,
   scanPastPrSkills,
   scanNoOfferStart,
+  scanRetiredScopeTerms,
   scanNoCiWait,
   scanDeriveNoDod,
   scanInvariantRegisterJoin,
@@ -194,6 +195,12 @@ module.exports = [
     ok: 'no shipped file names `start_session` or the offer marker line (ADR 0253)',
     run: scanNoOfferStart,
     format: (g) => `${g.source}:${g.line} names \`start_session\` or the offer marker line — superdev starts no session and makes no offer (ADR 0253)`,
+  },
+  {
+    id: 'retired-scope-terms',
+    ok: 'no shipped Markdown names `MLP`, "Minimal Lovable Product", or "rejected direction" (ADR 0289)',
+    run: scanRetiredScopeTerms,
+    format: (g) => `plugin/${g.source}:${g.line} names \`MLP\`, "Minimal Lovable Product", or "rejected direction" — write the run goal, and lead each cut with its horizon (ADR 0289)`,
   },
   {
     id: 'no-ci-wait',

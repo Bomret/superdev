@@ -23,6 +23,7 @@ const {
   scanPluginPrefixPath,
   scanMergeMessageRequired,
   scanCommitFormatOwner,
+  scanRetiredScopeTerms,
 } = require('../scanners');
 
 module.exports = ({ assert, path, fixture, found }) => {
@@ -782,5 +783,28 @@ module.exports = ({ assert, path, fixture, found }) => {
     prefixed({ 'references/AGENTS.md': 'Each lens lives in `plugin/references/x.md`.\n' }).length,
     1,
     'plugin-prefix-path: references/AGENTS.md is read',
+  );
+
+  // --- retired-scope-terms (ADR 0289): no shipped Markdown names MLP, "Minimal Lovable Product", or "rejected direction" ---
+
+  const retired = (files) => found(scanRetiredScopeTerms(fixture(files)));
+  assert.deepEqual(
+    retired({
+      'plugin/skills/brainstorm/SKILL.md': '# Brainstorm\n\nFind the MLP first.\n',
+      'plugin/references/x.md': 'Step one.\nFind the Minimal Lovable\nProduct of the idea.\n',
+      'plugin/references/AGENTS.md': 'Route the Rejected directions here.\n',
+      'plugin/skills/plan/SKILL.md': 'Before.\n\n```md\n## MLP\n```\n',
+    }).map((g) => `${g.source}:${g.line}`),
+    ['references/AGENTS.md:1', 'references/x.md:2', 'skills/brainstorm/SKILL.md:3', 'skills/plan/SKILL.md:4'],
+    'retired-scope-terms: MLP in a skill, a wrapped phrase, Rejected directions in an AGENTS.md, and MLP in a fence are each caught, by file and line',
+  );
+  assert.equal(
+    retired({
+      'plugin/skills/brainstorm/SKILL.md': 'The mlp and the MLPs pass, and so does a `rejected` direction.\n',
+      'plugin/references/y.md': 'Find the smallest version that reaches the run goal. Drop a direction with its horizon.\n',
+      'plugin/lib/z.js': '// MLP\n',
+    }).length,
+    0,
+    'retired-scope-terms: lowercase mlp, the plural MLPs, a backticked rejected, clean prose, and shipped code pass',
   );
 };
