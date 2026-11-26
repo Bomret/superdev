@@ -11,6 +11,7 @@ const { validateLabel, STEPS } = require('./ledger-lifecycle.js');
 const { checkDocsValue, checkPrValue, checkDeployValue } = require('./ledger-records.js');
 const { checkDodWritten } = require('./dod-gate.js');
 const { withRunLock } = require('./run-digest.js');
+const { checkPrototypeRecord } = require('./prototype-branch.js');
 
 // scope.js performs no store I/O here — slice-store I/O stays in-agent (ADR 0022). `publish`
 // renders the ledger as a single `## Run state` section; `adopt` reverses that, reconstructing a
@@ -131,6 +132,7 @@ function adoptLines(root, body, shipped = false) {
     try { checkSliceId(b); } catch (e) { fail(`run-state payload's **Minors:** bullet: ${e.message}`); }
     if (!sliceIds.includes(b)) fail(`run-state payload's **Minors:** bullet "${b}" is no id in its slice table`);
   }
+  checkPrototypeRecord(payload, slug, 'run-state payload');
   return [`# Ledger — ${slug}`, ...payload];
 }
 
