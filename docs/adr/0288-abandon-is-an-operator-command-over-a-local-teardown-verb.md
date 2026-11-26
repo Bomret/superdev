@@ -4,7 +4,7 @@
 
 **Amends:** [ADR 0208](0208-deleting-run-state-is-a-write.md), whose `discard` stays the planned-only removal, and
 [ADR 0274](0274-wrap-up-offers-to-delete-the-scope-branch.md), whose containment gate stays wrap-up's. It also amends
-ADR 0287's consequence that a run that never reaches wrap-up keeps its prototype branches on the remote.
+[ADR 0287](0287-a-prototype-branch-is-pushed-on-a-yes-and-torn-down-with-its-run.md)'s consequence that a run that never reaches wrap-up keeps its prototype branches on the remote.
 
 **Context.** An operator who drops an idea mid-way has no way out of the run. Wrap-up needs a merged pull request and
 a settled Definition of Done, and `discard` refuses past `planned`. So the run's branches, worktrees, records, and run

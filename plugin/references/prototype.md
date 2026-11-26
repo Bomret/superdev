@@ -77,4 +77,4 @@ records the branch with its pushed commit in the run's ledger (`**Prototypes:**`
 after its branch prints `pushed`. `/superdev:brainstorm` pushes nothing.
 
 **The teardown.** Applies to every recorded prototype branch. `/superdev:wrap-up`'s cleanup deletes it as
-`skills/wrap-up/SKILL.md` §6, **The prototype teardown**, states. A branch nobody pushed stays the operator's.
+`skills/wrap-up/SKILL.md` §6, **The prototype teardown**, states. `/superdev:abandon` deletes the recorded branches of a run it abandons, and the unshared local branches a run, an intent record, or an intent file names, as `skills/abandon/SKILL.md` §6 states. A branch another open record or live run also names is kept and listed. A branch nobody pushed stays the operator's except where abandon names it.
