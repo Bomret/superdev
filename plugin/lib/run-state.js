@@ -132,7 +132,7 @@ function adoptLines(root, body, shipped = false) {
     try { checkSliceId(b); } catch (e) { fail(`run-state payload's **Minors:** bullet: ${e.message}`); }
     if (!sliceIds.includes(b)) fail(`run-state payload's **Minors:** bullet "${b}" is no id in its slice table`);
   }
-  checkPrototypeRecord(payload, slug);
+  checkPrototypeRecord(payload, slug, 'run-state payload');
   return [`# Ledger — ${slug}`, ...payload];
 }
 

@@ -365,6 +365,43 @@ test('#delete-nothing-recorded: a ledger with no **Prototypes:** header exits 0 
   assert.ok(refAt(f.repo, 'refs/heads/prototype/a'), 'the local branch stays');
 });
 
+test('#delete-bad-record: --delete refuses a recorded bullet of another scope, with a short commit, or named twice, with no git process started.', () => {
+  const cases = [
+    [`- prototype/other/a ${C1}`, `prototype/other/a ${C1}`],
+    [`- prototype/${SCOPE}/a abc123`, `prototype/${SCOPE}/a abc123`],
+    [`- prototype/${SCOPE}/a ${C1}\n- prototype/${SCOPE}/a ${C2}`, `prototype/${SCOPE}/a`],
+  ];
+  for (const [bulletText, named] of cases) {
+    const f = fixture({ ledger: LEDGER.replace('**Anchor:**', `**Prototypes:**\n${bulletText}\n**Anchor:**`) });
+    const marker = path.join(tmp('scope-proto-mark-'), 'calls');
+    const r = protoDelete(f, { env: markingGit(marker) });
+    assert.strictEqual(r.status, 1, `refuses ${bulletText}: ${r.out} ${r.err}`);
+    assert.ok(r.err.includes(named), `names ${named}: ${r.err}`);
+    assert.strictEqual(fs.existsSync(marker), false, `${bulletText} starts no git process`);
+  }
+});
+
+test('#url-remote: a URL given as the remote appears in the output of neither prototype push, prototype push --delete, branch delete, nor scope.js push.', () => {
+  const url = 'https://tok:SECRET-TOKEN@127.0.0.1:1/hidden-repo.git';
+  const f = fixture({ ledger: LEDGER.replace('**Anchor:**', `**Prototypes:**\n- prototype/${SCOPE}/a ${C1}\n**Anchor:**`) });
+  git(['branch', BRANCH, 'main'], f.repo);
+  const run = (args) => {
+    const r = spawnSync(process.execPath, [scopePath, ...args], { cwd: f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL' });
+    assertSpawnDecided(r, `scope.js ${args.join(' ')}`);
+    return r.stdout + r.stderr;
+  };
+  const outputs = [
+    ['prototype push', run(['prototype', 'push', '--root', f.root, '--remote', url, 'prototype/a'])],
+    ['prototype push --delete', run(['prototype', 'push', '--delete', '--root', f.root, '--remote', url])],
+    ['scope.js push', run(['push', '--root', f.root, '--remote', url, '--base', 'main'])],
+    ['branch delete', run(['branch', 'delete', '--root', f.root, '--base', 'main', '--remote', url])],
+  ];
+  for (const [label, text] of outputs) {
+    assert.doesNotMatch(text, /SECRET-TOKEN|hidden-repo|:\/\//, `${label} prints no URL and no credential: ${text}`);
+    assert.match(text, /<remote>/, `${label} names the remote as <remote>: ${text}`);
+  }
+});
+
 test('#delete-refusals: --delete takes no branch argument.', () => {
   const f = pushedBoth();
   const r = spawnSync(process.execPath, [scopePath, 'prototype', 'push', '--delete', '--root', f.root, '--remote', 'origin', 'prototype/a'], { cwd: f.repo, encoding: 'utf8' });

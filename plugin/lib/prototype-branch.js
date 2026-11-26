@@ -11,9 +11,13 @@ const { fail } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
 const { SLUG_RE, readLines, writeLines, getHeader, headerRe, insertHeader } = require('./ledger.js');
 const { withRunLock } = require('./run-digest.js');
-const { gitCall, lastLine, boundEnded, CREDENTIAL_RE } = require('./push.js');
+const { gitCall, lastLine, shownRemote, boundEnded, CREDENTIAL_RE } = require('./push.js');
 
 const HEADER = 'Prototypes';
+
+// Exit 0 when every branch pushed; push.js's not-pushed exit when none did; this one when some did and some did not.
+const NOT_PUSHED_EXIT = 3;
+const SOME_PUSHED_EXIT = 5;
 
 function parseArgs(args) {
   const rest = [...args];
@@ -75,15 +79,11 @@ function verbPrototypePush(cwd, args) {
   return pushed;
 }
 
-// Exit 0 when every branch pushed; push.js's not-pushed exit when none did; this one when some did and some did not.
-const NOT_PUSHED_EXIT = 3;
-const SOME_PUSHED_EXIT = 5;
-
 function pushOne(cwd, remote, scope, slug) {
   const local = `refs/heads/prototype/${slug}`;
   const target = `refs/heads/prototype/${scope}/${slug}`;
   const name = `prototype/${scope}/${slug}`;
-  const byHand = `run by hand: git push ${remote} ${local}:${target}`;
+  const byHand = `run by hand: git push ${shownRemote(remote)} ${local}:${target}`;
   const commit = resolveCommit(local, cwd);
   if (!commit) return { line: `missing prototype/${slug} is no local branch; nothing pushed for ${name}; ${byHand}` };
   const r = gitCall(['push', '--end-of-options', remote, `${local}:${target}`], cwd, true);
@@ -106,14 +106,11 @@ function failedWord(r) {
 function record(root, pushed) {
   withRunLock(root, () => {
     const lines = readLines(root);
-    let at = lines.findIndex((l) => headerRe(HEADER).test(l));
-    if (at < 0) {
+    if (!prototypeSpan(lines)) {
       insertHeader(lines, HEADER, '');
-      at = lines.findIndex((l) => headerRe(HEADER).test(l));
-      lines[at] = `**${HEADER}:**`;
+      lines[prototypeSpan(lines).at] = `**${HEADER}:**`;
     }
-    let end = at + 1;
-    while (end < lines.length && lines[end].startsWith('- ')) end++;
+    const { at, end } = prototypeSpan(lines);
     const kept = new Map(lines.slice(at + 1, end).map((l) => [l.slice(2).split(' ')[0], l]));
     for (const p of pushed) kept.set(p.branch, `- ${p.branch} ${p.commit}`);
     lines.splice(at + 1, end - at - 1, ...kept.values());
@@ -124,30 +121,25 @@ function record(root, pushed) {
 // `--delete`: every recorded branch deleted from the remote through `branch delete`'s own remote delete, leased on its
 // recorded commit; its remote-tracking ref only once the remote branch reads deleted or gone; and the local
 // `prototype/<slug>` in this clone only where it points at the recorded commit. Every bullet is tried whatever the
-// others did, and the ledger is never written.
+// others did, and the ledger is never written. A record that fails adopt's check is refused before any git call.
 function verbPrototypeDelete(cwd, root, given) {
-  const recorded = prototypeBlock(readLines(root)).slice(1).map((l) => l.slice(2).split(' '));
+  const lines = readLines(root);
+  const recorded = prototypeBlock(lines).slice(1).map((l) => l.slice(2).split(' '));
   if (!recorded.length) {
     console.log(`nothing is recorded: the ledger under ${root} carries no **${HEADER}:** bullet, so no prototype branch is deleted`);
     return;
   }
   const scope = scopeOf(root);
-  const { deleteRemote, deleteTracking, isNamedRemote, KEPT_EXIT } = require('./branch-delete.js');
+  checkPrototypeRecord(lines, scope, `prototype push --delete: the ledger under ${root}`);
+  const { deleteOnRemote, isNamedRemote, KEPT_EXIT } = require('./branch-delete.js');
   const remote = resolveRemote(cwd, given);
   const named = remote ? isNamedRemote(cwd, remote) : false;
   const out = [];
   for (const [branch, commit] of recorded) {
     const slug = branch.slice(`prototype/${scope}/`.length);
     const ref = `refs/heads/${branch}`;
-    const remoteLine = remote
-      ? deleteRemote(cwd, remote, branch, commit)
-      : `remote not-reached ${branch}: no remote is configured or given; run by hand: git push --force-with-lease=${ref}:${commit} --delete <remote> ${ref}`;
-    const remoteWord = remoteLine.split(' ')[1];
-    const trackingRef = named ? `refs/remotes/${remote}/${branch}` : null;
-    const trackingTip = trackingRef ? resolveCommit(trackingRef, cwd) : null;
-    const tracking = trackingTip && !['deleted', 'gone'].includes(remoteWord)
-      ? `tracking not-reached ${trackingRef} is kept beside the remote branch, which reads ${remoteWord}`
-      : deleteTracking(remote, named, trackingRef, trackingTip, cwd);
+    const noRemote = `remote not-reached ${branch}: no remote is configured or given; run by hand: git push --force-with-lease=${ref}:${commit} --delete <remote> ${ref}`;
+    const { tracking, remoteLine } = deleteOnRemote(cwd, remote, named, branch, commit, noRemote);
     out.push(deleteLocal(cwd, slug, commit), tracking, remoteLine);
   }
   console.log(out.join('\n'));
@@ -162,33 +154,39 @@ function deleteLocal(cwd, slug, commit) {
   if (tip !== commit) return `local kept ${name}: it points at ${tip}, another commit than the recorded ${commit}`;
   const r = gitCall(['branch', '-D', '--end-of-options', name], cwd);
   if (r.status === 0) return `local deleted ${name} was ${commit}`;
-  const why = /used by worktree|checked out at/.test(r.stderr || '') ? 'it is checked out in a worktree' : 'git refused the delete';
-  return `local kept ${name}: ${why}: ${lastLine(r)}; run by hand: git branch -D ${name}`;
+  return `local kept ${name}: ${lastLine(r)}; run by hand: git branch -D ${name}`;
+}
+
+// The span of the `**Prototypes:**` line and the bullets under it: `at` the header's index and `end` the index past
+// its last bullet, or null where the lines carry no such header.
+function prototypeSpan(lines) {
+  const at = lines.findIndex((l) => headerRe(HEADER).test(l));
+  if (at < 0) return null;
+  let end = at + 1;
+  while (end < lines.length && lines[end].startsWith('- ')) end++;
+  return { at, end };
 }
 
 // The `**Prototypes:**` line and the bullets under it, as ledger lines, or none where the ledger carries no such line.
 function prototypeBlock(lines) {
-  const at = lines.findIndex((l) => headerRe(HEADER).test(l));
-  if (at < 0) return [];
-  let end = at + 1;
-  while (end < lines.length && lines[end].startsWith('- ')) end++;
-  return lines.slice(at, end);
+  const span = prototypeSpan(lines);
+  return span ? lines.slice(span.at, span.end) : [];
 }
 
-// Adopt's check of a run-state payload's record: one `**Prototypes:**` line at most, and each bullet a branch
-// `prototype/<scope>/<slug>` of this scope with a valid slug, a full commit id of 40 or 64 lowercase hex characters,
-// and no branch named twice. The anchor body is editable by anyone with issue access, and wrap-up deletes what the
-// record names, so a refusal names the bullet.
-function checkPrototypeRecord(payload, scope) {
-  if (payload.filter((l) => headerRe(HEADER).test(l)).length > 1) fail(`run-state payload carries more than one **${HEADER}:** line`);
+// The check of a record, adopt's on a run-state payload and `--delete`'s on the ledger, `what` naming the source in a
+// refusal: one `**Prototypes:**` line at most, and each bullet a branch `prototype/<scope>/<slug>` of this scope with
+// a valid slug, a full commit id of 40 or 64 lowercase hex characters, and no branch named twice. The anchor body is
+// editable by anyone with issue access, and wrap-up deletes what the record names, so a refusal names the bullet.
+function checkPrototypeRecord(lines, scope, what) {
+  if (lines.filter((l) => headerRe(HEADER).test(l)).length > 1) fail(`${what} carries more than one **${HEADER}:** line`);
   const seen = new Set();
-  for (const line of prototypeBlock(payload).slice(1)) {
+  for (const line of prototypeBlock(lines).slice(1)) {
     const bullet = line.slice(2);
     const [branch, commit, ...extra] = bullet.split(' ');
     const prefix = `prototype/${scope}/`;
-    if (!branch.startsWith(prefix) || !SLUG_RE.test(branch.slice(prefix.length))) fail(`run-state payload's **${HEADER}:** bullet "${bullet}" names no branch prototype/${scope}/<slug>`);
-    if (!/^([0-9a-f]{40}|[0-9a-f]{64})$/.test(commit || '') || extra.length) fail(`run-state payload's **${HEADER}:** bullet "${bullet}" carries no full commit id`);
-    if (seen.has(branch)) fail(`run-state payload's **${HEADER}:** bullet names ${branch} twice`);
+    if (!branch.startsWith(prefix) || !SLUG_RE.test(branch.slice(prefix.length))) fail(`${what}'s **${HEADER}:** bullet "${bullet}" names no branch prototype/${scope}/<slug>`);
+    if (!/^([0-9a-f]{40}|[0-9a-f]{64})$/.test(commit || '') || extra.length) fail(`${what}'s **${HEADER}:** bullet "${bullet}" carries no full commit id`);
+    if (seen.has(branch)) fail(`${what}'s **${HEADER}:** bullet names ${branch} twice`);
     seen.add(branch);
   }
 }
