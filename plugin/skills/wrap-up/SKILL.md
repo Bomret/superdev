@@ -132,8 +132,9 @@ Applies once the gate passed. Read every bullet from the `unresolved` field of t
 1. Remove `<run-root>/scopetree`. Remove each slicetree at `<run-root>/slicetrees/*`. Remove the emptied `<run-root>/slicetrees/` directory. Run `git worktree prune`.
 2. Delete any leftover `slice/<scope>/*` branch.
 3. Run **The branch question** below.
-4. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" run-state delete --root <run-root>`. Print its `run-state:` line and continue whatever it reports.
-5. Remove `<run-root>/run.lock` if it exists.
+4. Run **The prototype teardown** below.
+5. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" run-state delete --root <run-root>`. Print its `run-state:` line and continue whatever it reports.
+6. Remove `<run-root>/run.lock` if it exists.
 
 **A refused tree removal.** Applies when `git worktree remove` refuses a tree. Report the refusal, name the path, and leave the stage at `shipped`. Stop, and never force-remove.
 
@@ -146,6 +147,8 @@ Applies once the gate passed. Read every bullet from the `unresolved` field of t
 
 - **Yes** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" branch delete --root <run-root> --base <base>`, with no `--remote`, so it resolves the same remote `contained` did. Print its lines. Whatever it exits, 0, 3, 4, or 1, continue the cleanup and §7, and report each kept or failed ref with the command to run by hand that the verb printed.
 - **Keep** → run nothing. The prune reaps the local ref later.
+
+**The prototype teardown.** Applies to cleanup step 4, on every cleanup, whatever the branch question's verdict or answer. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prototype push --delete --root <run-root>`, with no `--remote`, so it resolves the `Remote:` value itself (`${CLAUDE_PLUGIN_ROOT}/references/prototype.md`'s `## The push and its teardown`). Ask nothing. Print its lines, and report each kept or failed branch with the command to run by hand that the verb printed. Whatever it exits, 0, 4, or 1, continue the cleanup and §7. A sibling repository on a shared anchor holds no record of its own, so its teardown deletes nothing.
 
 **What stays.** Applies to every cleanup. Keep the rest of `<run-root>`. Keep `.superdev/kb-pending/<scope>/`. Keep the scope branch unless the operator answers yes to the branch question.
 
