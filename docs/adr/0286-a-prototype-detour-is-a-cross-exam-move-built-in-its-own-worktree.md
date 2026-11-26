@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0287](0287-a-prototype-branch-is-pushed-on-a-yes-and-torn-down-with-its-run.md),
+which pushes a prototype branch on the operator's yes at the plan's end, deletes it at wrap-up, and routes no
+branch name to an ADR.
+
 **Context.** The prototype discipline (`references/prototype.md`) was reachable only from `/superdev:brainstorm` §4,
 which offered it neutrally. An operator who starts at `/superdev:plan` never met it, although `plan-contract.md`
 already accepts a prototype-sourced snippet in a slice `spec`. A UI question such as "which of these two layouts

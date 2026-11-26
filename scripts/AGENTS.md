@@ -32,7 +32,7 @@ reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
 `suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `dod-check`, `dod-own`, `ci`, `fail-to-pass`, `fail-to-pass-check`, `prepare`,
-`citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, `status`, `section`, `tier`, `dod-open`, `contained`, `red-evidence`, `candidates`, `denial`, `consent`, and `route` each in the module of its name. `branch` is `scope-branch.js`'s `resolveScopeBranch`, and `branch delete` is `branch-delete.js`'s `verbBranchDelete` (ADR 0274, INV-0204). It takes `gitCall`, `lastLine`, `boundEnded`, `pushTimeoutMs`, and `CREDENTIAL_RE` from `push.js`. It takes `judgeContainment` and `refetchMark` from `containment.js`, and `resolveRemote` from `remote.js`. `checkout` is `scope-checkout.js`'s `scopeCheckout`, and `lock` is `run-lock.js`'s `verbLock`; `run-lock.js` also holds the run lock's reader and one-hour bound that `plan-open.js` shares. `run-roots.js` holds the one scan of `.superdev/scopes/*/` that `status` and `candidates` share. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `windowIndexes`, `traceFlags`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share, and `traceFlags` is the flag parser `trace`, `windows`, `untraced`, and `fail-to-pass-check` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `remote.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
+`citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, `status`, `section`, `tier`, `dod-open`, `contained`, `red-evidence`, `candidates`, `denial`, `consent`, and `route` each in the module of its name. `branch` is `scope-branch.js`'s `resolveScopeBranch`, and `branch delete` is `branch-delete.js`'s `verbBranchDelete` (ADR 0274, INV-0204). It takes `gitCall`, `lastLine`, `shownRemote`, `boundEnded`, `pushTimeoutMs`, and `CREDENTIAL_RE` from `push.js`. It takes `judgeContainment` and `refetchMark` from `containment.js`, and `resolveRemote` from `remote.js`. `prototype push` is `prototype-branch.js`'s `verbPrototypePush` (ADR 0287, INV-0210). It takes `gitCall`, `lastLine`, `shownRemote`, `boundEnded`, and `CREDENTIAL_RE` from `push.js`, and `resolveRemote` from `remote.js`. Its `--delete` flag takes `deleteOnRemote`, `isNamedRemote`, and `KEPT_EXIT` from `branch-delete.js`. `deleteOnRemote` is the remote and remote-tracking delete that `branch delete` also calls. `prototype-branch.js` also holds `prototypeBlock` and `checkPrototypeRecord`. `prototypeBlock` reads the `**Prototypes:**` header that `init` keeps. `checkPrototypeRecord` is the check that `adopt` and `--delete` apply to it. `checkout` is `scope-checkout.js`'s `scopeCheckout`, and `lock` is `run-lock.js`'s `verbLock`; `run-lock.js` also holds the run lock's reader and one-hour bound that `plan-open.js` shares. `run-roots.js` holds the one scan of `.superdev/scopes/*/` that `status` and `candidates` share. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `windowIndexes`, `traceFlags`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share, and `traceFlags` is the flag parser `trace`, `windows`, `untraced`, and `fail-to-pass-check` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall`, `lastLine`, and `boundEnded` from `push.js` and `parseRemote` from `remote.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `literalEnv`, `existsAt`, `fileAt`, `listWorktrees`),
 `containment.js` (`testContainment`, `judgeContainment`, `refetchMark`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`, `patchInBaseHistory`, `commitInBaseHistory`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
@@ -416,7 +416,35 @@ a missing ledger, a ledger with no `**Branch:**` line, or a `**Branch:**` line t
 `hooks/merge-guard.js` denies a subagent's run of this verb, as it denies a subagent's plain push. Every git call runs with `GIT_TERMINAL_PROMPT=0` and
 `--end-of-options` ahead of a remote or revision argument, and every network call carries a time bound of 60000 ms, or whatever `code-host.pushTimeoutMs` of the operator configuration (`### The operator configuration`) names, and a
 kill signal, the refetch of `<base-ref>` inside the containment test included. The code lives in `plugin/lib/push.js`, and
-`tests/scope-push.test.js` holds its cases.
+`tests/scope-push.test.js` holds its cases. `push.js`'s `shownRemote` prints a remote as its name, or as `<remote>` where
+it holds `://` or `@`. `lastLine` replaces every URL in git's last stderr line with the remote as `shownRemote` prints
+it. No line `push`, `branch delete`, or `prototype push` prints shows a remote URL or a credential.
+
+`prototype push --root <run-root> --remote <remote> <branch>…` pushes a run's prototype branches (ADR 0287, INV-0210).
+Each `<branch>` is a local `prototype/<slug>` or its pushed spelling `prototype/<scope>/<slug>`.
+`<scope>` is the slug of the ledger's `**Branch:**` label. A branch named twice is pushed once. A name whose slug fails the scope-slug
+charset is refused with exit 1 before any git process starts. Each branch is resolved to its commit, then pushed as
+`refs/heads/prototype/<slug>:refs/heads/prototype/<scope>/<slug>` with no force and no lease. It prints one line per
+branch: `pushed`, `missing`, `refused` (a remote branch of that name at another commit), `credential-rejected`,
+`unreachable`, `timed-out`, or `push-failed`. Every line that pushed nothing names the command to run by hand, and a
+`timed-out` push records nothing and says its outcome is unknown. Each pushed branch gets one bullet under
+`**Prototypes:**`, `- prototype/<scope>/<slug> <commit>`. A re-push replaces its own bullet. The write runs under the
+run's lock and is traced as a `ledger prototype push` event. It exits 0 when every branch pushed, 5 when some did, and 3 when
+none did.
+
+`prototype push --delete --root <run-root> [--remote <remote>]` deletes every recorded branch for
+`/superdev:wrap-up`. A record that fails `adopt`'s check of it (a branch outside `prototype/<scope>/`, a commit that is
+no full id, a branch named twice, a second header line) is refused with exit 1 before any git process starts. The
+remote resolves as `contained` resolves it. Each recorded branch is deleted in three places:
+
+- The remote branch goes through `branch delete`'s own leased remote delete on its recorded commit.
+- Its remote-tracking ref goes only once the remote branch reads deleted or gone.
+- The local `prototype/<slug>` goes only where it points at the recorded commit and no worktree holds it.
+
+With no
+remote, each branch prints `remote not-reached` and its command to run by hand. It writes nothing to the ledger,
+exits 0 when every line reads deleted or gone or nothing is recorded, and exits 4 when any is kept.
+`hooks/merge-guard.js` denies a subagent's run of either form. `tests/scope-prototype-push.test.js` holds the cases.
 
 `open <type>/<slug> --base <base-ref> [--remote <remote>] [--lock <nonce>]` sets up or rejoins a `/superdev:plan` run
 (ADR 0185). `/superdev:plan` §2 calls it at the first capture that crystallises, and §6 calls it again. With no ledger, or

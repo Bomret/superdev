@@ -19,7 +19,7 @@ Applies to every start. You turn a vague idea into an intent sharp enough for `/
 
 ## What you write
 
-Applies to every start. Write only these: the intent file as the interview runs, `.superdev/` in `.gitignore` when absent, §6's intent record with the deletion of the file it replaces, a prototype in the worktree and on the `prototype/<slug>` branch `${CLAUDE_PLUGIN_ROOT}/references/prototype.md` states, and on §6's inline off-ramp the worktree `${CLAUDE_PLUGIN_ROOT}/references/inline-offramp.md` cuts with the work inside it. Write no slice, no Definition of Done, no glossary entry, and no ADR. Durable capture is `/superdev:plan`'s job.
+Applies to every start. Write only these: the intent file as the interview runs, `.superdev/` in `.gitignore` when absent, §6's intent record with the deletion of the file it replaces, a prototype in the worktree and on the `prototype/<slug>` branch `${CLAUDE_PLUGIN_ROOT}/references/prototype.md` states, which the intent names as local to the planner's clone and which brainstorm pushes nowhere, and on §6's inline off-ramp the worktree `${CLAUDE_PLUGIN_ROOT}/references/inline-offramp.md` cuts with the work inside it. Write no slice, no Definition of Done, no glossary entry, and no ADR. Durable capture is `/superdev:plan`'s job.
 
 ## The closing message
 

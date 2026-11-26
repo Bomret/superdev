@@ -14,6 +14,7 @@ const { appendTrace } = require('./trace-log.js');
 const { readSide, writeSide, withRunLock, underRunLock } = require('./run-digest.js');
 const { checkRun } = require('./run-check.js');
 const { checkDodWritten } = require('./dod-gate.js');
+const { prototypeBlock } = require('./prototype-branch.js');
 
 // Appended, never read-concat-written: two `init` calls racing each other on the same fresh
 // repository at worst leave a duplicate line, where a rewrite could truncate the file.
@@ -126,10 +127,12 @@ function writeInit(root, workTree, slug, label, stage, stdinJson, log) {
   // regenerates the ledger instead of refusing.
   let priorStage;
   let priorStep = null;
+  let priorPrototypes = [];
   if (fs.existsSync(ledgerPath(root))) {
     const priorLines = readLines(root);
     priorStage = getHeader(priorLines, 'Stage');
     priorStep = getHeader(priorLines, 'Step');
+    priorPrototypes = prototypeBlock(priorLines);
     if (priorStage === 'shipped') {
       // A shipped run is finished only when wrap-up closes it (ADR 0106); re-initialising it would
       // rotate away a ledger verify-ship and wrap-up still read.
@@ -205,6 +208,8 @@ function writeInit(root, workTree, slug, label, stage, stdinJson, log) {
   ];
   // A planned rewrite keeps the standing step (ADR 0147): `/superdev:plan`'s step survives its own re-init.
   if (priorStage === 'planned' && stage === 'planned' && priorStep !== null) insertHeader(doc, 'Step', priorStep);
+  // A planned rewrite keeps the record of pushed prototype branches, so it accumulates across plan runs (ADR 0287).
+  if (priorStage === 'planned' && priorPrototypes.length) doc.splice(doc.indexOf('', 2), 0, ...priorPrototypes);
   fs.mkdirSync(root, { recursive: true });
   writeLines(root, doc);
   log(root);

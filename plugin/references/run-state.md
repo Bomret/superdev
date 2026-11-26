@@ -40,6 +40,9 @@ title, `test-applicability` type, dependencies, `plan-contract.md` status, and c
 - **`**Unresolved:**`** — the run's unresolved-defect record, per `scope-findings.md`'s `## Unresolved defects`.
 - **`**Deferred:**`** — the run's deferred-finding record, per `scope-findings.md`'s `## Deferred findings`.
 - **`**Minors:**`** — the run's Minor queue. Its rules are in **The Minor queue**.
+- **`**Prototypes:**`** — the prototype branches this run pushed, one bullet `- prototype/<scope>/<slug> <commit>` per
+  branch, keyed by branch. `prototype push` writes it, `init` over a `planned` ledger keeps it, and `prototype push
+  --delete` reads it (`prototype.md`'s `## The push and its teardown`).
 - **`**Docs:**`** — that the run performed its documentation pass, and in whose context. Read with `get docs`,
   written with `docs set <value>`, and removed with `docs clear`. The value is a single whitespace-free token, which
   `docs set` enforces.
@@ -157,13 +160,14 @@ stopped.
 **A command publishes once, at its end.** Applies to every command that made one of these ledger writes: `init`'s
 first write of `**Stage:**`, `stage set`, `degraded add`, `degraded add-denial`, `degraded reset-denials`,
 `unresolved add`, `unresolved clear`, `deferred add`, `deferred resolve`, `minors add`, `minors clear`, `docs set`,
-`docs clear`, `pr set`, `pr clear`, `reviewed set`, `reviewed clear`, `suite set`, every `suite reusable` that exits 0, and `deploy set`. It publishes the snapshot once, as the last act of
+`docs clear`, `pr set`, `pr clear`, `reviewed set`, `reviewed clear`, `suite set`, every `suite reusable` that exits 0, `deploy set`, and every `prototype push` that records a branch. It publishes the snapshot once, as the last act of
 the exit that ends it: after the exit's closer (`## The ledger`'s **The step closer**) and after any ledger write the
 exit makes past that closer. A write site records its write and goes on, and the one publish carries every write the
 command made.
 
 - An exit a command reaches with no closer after such a write publishes at that exit.
 - Implement also publishes right after its entry writes `**Stage:** implementing`.
+- Plan publishes at its **The last act**, after `step clear`, only when its `prototype push` recorded a branch.
 - A command that made none of these writes publishes nothing.
 - Each command names where its publish runs.
 - `plan-contract.md` → *Run state* owns what a **snapshot** is.

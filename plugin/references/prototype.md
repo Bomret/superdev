@@ -19,6 +19,15 @@ design after it.
 - `<branch>`: `prototype/<slug>`.
 - `<start>`: the base branch `docs/agents/code-management.md` records, or `HEAD` where no such document records one.
 
+**The `Prototype:` line.** Applies to every line that names a prototype branch in a slice `spec`. It takes one of two
+forms, and names the branch local until a push of it is confirmed (`## The push and its teardown`).
+
+- **Local**: `Prototype: prototype/<slug> (local to the planner's clone)`.
+- **Pushed**: `Prototype: prototype/<scope>/<slug> on <remote>`, `<scope>` the feature label's slug and `<remote>` the
+  remote the branch was pushed to.
+- **On a multi-repository plan**, either form names, right after the branch, the Repository component of the
+  repository that holds the branch: `Prototype: prototype/<slug> in <component> (local to the planner's clone)`.
+
 **State the question first.** Applies to every prototype. Write the one question it answers in the artifact itself.
 
 **Logic prototypes stay liftable.** Applies to a prototype of logic. Keep the logic in one pure module, with the page
@@ -47,13 +56,25 @@ Commit a built prototype inside `<tree>`, never onto the base branch, its messag
   operator both. Nothing is removed by force.
 
 **Route the decision.** Applies once the operator's judgment of the running prototype answers its question. Route the
-validated decision to where the detour was opened, naming `<branch>` wherever it lands.
+validated decision to where the detour was opened.
 
-- **`/superdev:brainstorm`** → the intent file.
-- **`/superdev:plan`** → the answer to the question, a `Prototype: <branch>` line in the `spec` of the slice the
-  decision shapes (`plan-contract.md` → *Fields*), and the ADR when the decision earns one.
+- **`/superdev:brainstorm`** → the intent file, naming `<branch>` as local to the planner's clone.
+- **`/superdev:plan`** → the answer to the question, a `Prototype:` line in its local form in the `spec` of the slice
+  the decision shapes (`plan-contract.md` → *Fields*), and the ADR when the decision earns one. The ADR records the
+  validated decision itself and names no prototype branch, because a pushed branch lives only as long as its run.
 
 **A decision-rich snippet may enter the plan.** Applies to a prototype-produced snippet that encodes a decision more
 precisely than prose can: a state machine, a reducer, a schema, a type shape. It may be inlined in a slice `spec`,
 trimmed to the decision-rich parts and marked as prototype-sourced (`plan-contract.md` → *Fields*). It is the one
 exception to a `spec` stating outcomes and interfaces only.
+
+## The push and its teardown
+
+**The push.** Applies to a prototype branch a slice `spec` names. It reaches a remote only through
+`/superdev:plan`'s end-of-run push, on the operator's own yes (`skills/plan/SKILL.md` §6, **The prototype push**):
+`scope.js prototype push` pushes each local `prototype/<slug>` as `prototype/<scope>/<slug>`, never by force, and
+records the branch with its pushed commit in the run's ledger (`**Prototypes:**`). A line turns to its pushed form only
+after its branch prints `pushed`. `/superdev:brainstorm` pushes nothing.
+
+**The teardown.** Applies to every recorded prototype branch. `/superdev:wrap-up`'s cleanup deletes it as
+`skills/wrap-up/SKILL.md` §6, **The prototype teardown**, states. A branch nobody pushed stays the operator's.
