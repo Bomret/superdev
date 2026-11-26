@@ -361,8 +361,8 @@ function run(argv, cwd, stdinJson) {
       ledgerEvent = { root, fields: ['base', 'set', args[1]] };
       break;
     }
-    // Reads git and the run root and writes nothing: `abandon inventory` prints a run's local items and a token (ADR 0288, INV-0211).
-    // It is no run-writing verb, so the digest check does not run for it.
+    // `abandon inventory` reads git and the run root and prints a run's local items and a token; `abandon apply` removes them under that
+    // token and the run root with them (ADR 0288, INV-0211). Neither is a run-writing verb, so the digest check does not run.
     case 'abandon':
       libAbandon().verbAbandon(cwd, args);
       break;

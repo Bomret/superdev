@@ -2,7 +2,7 @@
 
 // abandon.js: the `abandon` verb (ADR 0288, INV-0211). `abandon inventory` prints everything local a run owns, marks what
 // would lose work, and ends in a `token <hex>` line that hashes every item line. It writes nothing. `computeInventory` is the
-// in-process function `abandon apply` recomputes the inventory with.
+// in-process function `abandon apply` (`abandon-apply.js`) recomputes the inventory with.
 //
 // An item line is tab-separated: `<kind>\t<subject>\t<tip>\t<mark>...`. The tip is a commit id, a content hash, or `-`. A mark
 // is `dirty`, `status=<hash>`, `uncontained <n>`, `loss`, `pages=<n>`, `kept-checked-out`, `stale`, `stage=<stage>`, or
@@ -55,18 +55,18 @@ function makeItem(kind, subject, tip, marks = [], extra = {}) {
 
 const unknown = (reason) => `unknown ${reason}`;
 
-function parseArgs(args) {
+function parseArgs(sub, args) {
   const opts = {};
-  const flags = { '--root': 'root', '--base': 'base', '--remote': 'remote' };
+  const flags = { '--root': 'root', '--base': 'base', '--remote': 'remote', ...(sub === 'apply' ? { '--token': 'token' } : {}) };
   const ownFlag = (v) => Object.hasOwn(flags, v);
   const rest = [...args];
   while (rest.length) {
     const flag = rest[0];
-    if (!ownFlag(flag)) fail(`abandon: unrecognized argument "${flag}"`);
-    opts[flags[flag]] = flag === '--root' ? takeRootOption(rest, 'abandon: ') : takeOption(rest, flag, 'abandon: ', ownFlag);
+    if (!ownFlag(flag)) fail(`abandon ${sub}: unrecognized argument "${flag}"`);
+    opts[flags[flag]] = flag === '--root' ? takeRootOption(rest, `abandon ${sub}: `) : takeOption(rest, flag, `abandon ${sub}: `, ownFlag);
   }
-  if (opts.root === undefined) fail('abandon inventory needs --root <run-root>');
-  if (opts.base === undefined) fail('abandon inventory needs --base <base-ref>');
+  if (opts.root === undefined) fail(`abandon ${sub} needs --root <run-root>`);
+  if (opts.base === undefined) fail(`abandon ${sub} needs --base <base-ref>`);
   return opts;
 }
 
@@ -295,12 +295,15 @@ function computeInventory(cwd, { root: rootArg, base, remote: given }) {
 function verbAbandon(cwd, args) {
   const [sub, ...rest] = args;
   if (sub === 'inventory') {
-    const inv = computeInventory(cwd, parseArgs(rest));
+    const inv = computeInventory(cwd, parseArgs(sub, rest));
     console.log([...inv.lines, `token ${inv.token}`].join('\n'));
     return;
   }
-  if (sub === 'apply') fail('abandon apply is not implemented yet');
+  if (sub === 'apply') {
+    require('./abandon-apply.js').verbApply(cwd, parseArgs(sub, rest));
+    return;
+  }
   fail(`abandon: ${sub ? `unknown subverb "${sub}"` : 'needs a subverb'}; use abandon inventory or abandon apply`);
 }
 
-module.exports = { verbAbandon, computeInventory };
+module.exports = { verbAbandon, computeInventory, readTip };
