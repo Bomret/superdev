@@ -48,6 +48,7 @@ whose `url` equals the Base URL: push the branch, then print the instance compar
 (`<base-url>/<owner>/<repo>/compare/<base>...<scope-branch>`) and the exact `tea` command the step would
 have run. The merge call below degrades the same way: print the exact `tea api` call and merge nothing. The
 check-status read below degrades the same way: print the exact `tea api` call and judge nothing.
+The pull-request close below degrades the same way: print the exact `tea api` call and close nothing.
 
 ## Merge
 
@@ -143,6 +144,16 @@ Only an open pull request is edited.
   merged or closed pull request, a failed producer, or an empty result stops the chain before the edit,
   and the body stays as it was. Read the HTTP status from stderr (`-i`): `tea api` exits 0 on a 4xx or
   5xx answer.
+
+## Close the pull request
+
+`/superdev:abandon` closes the scope branch's open pull request unmerged and posts nothing else.
+
+- **Close it**: read it with **Read the pull request** (`state`, `merged`). A `state` of `closed` or a
+  `merged` of true reads as that state and needs nothing more. An open one closes with `jq -n '{state:
+  "closed"}' > "$j" && tea api -i -X PATCH '/repos/{owner}/{repo}/pulls/<index>' -d @"$j"`, with the same
+  `--login` and `--repo`. Read the HTTP status from stderr (`-i`): `tea api` exits 0 on a 4xx or 5xx
+  answer. A close that fails stays a failed host call for its caller.
 
 ## Compute the base
 

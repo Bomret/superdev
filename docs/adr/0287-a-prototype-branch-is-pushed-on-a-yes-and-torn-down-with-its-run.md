@@ -4,6 +4,8 @@
 
 **Amends:** [ADR 0286](0286-a-prototype-detour-is-a-cross-exam-move-built-in-its-own-worktree.md).
 
+**Amended by:** [ADR 0288](0288-abandon-is-an-operator-command-over-a-local-teardown-verb.md), whose `/superdev:abandon` deletes a run's recorded and named prototype branches, so a run that never reaches wrap-up no longer keeps its pushed ones.
+
 **Context.** ADR 0286 commits a prototype on a local `prototype/<slug>` branch and names it in a slice `spec`, an
 ADR, or brainstorm's intent record. Nothing pushes that branch, so the pointer resolves only in the planner's clone.
 Its readers are people elsewhere: a teammate who claims the scope (ADR 0281), a reviewer, or an operator in a sibling

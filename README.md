@@ -47,6 +47,7 @@ Full documentation: the [superdev wiki](https://github.com/Bomret/superdev/wiki)
 /superdev:ship         → merge the reviewed PR and deploy per the repo's posture
 /superdev:verify-ship  → check the Definition of Done on the deployed system
 /superdev:wrap-up      → close the scope and take the run down
+/superdev:abandon      → drop an intent file, an intent record, or a run before it ships
 /superdev:status       → read-only: every run's progress and what to do next
 /superdev:publish-kb   → send staged knowledge-base pages to the configured backend
 /superdev:review-tests → read-only audit of test cost and test gaps
@@ -67,6 +68,10 @@ ask for it, or the command before them starts them. Ship also starts on your yes
 When verify-ship settles every Definition-of-Done line, it starts `/superdev:wrap-up` itself in the same
 turn. A fully verified scope then closes without another prompt.
 Wrap-up still runs every check and asks every question it asks when you type it.
+
+`/superdev:abandon` starts only when you type it. It lists everything a target owns, including what would lose work, asks one question,
+then closes the pull request and records as abandoned and deletes the branches, worktrees, and run root. It covers a run from `planned`
+through `submitted`, and a merged pull request goes to `/superdev:wrap-up` instead.
 
 Work that would carry no `behavior` slice, such as a rename or a prose fix, can leave the chain: brainstorm at its
 hand-off and plan on a new plan offer to do it inline, in its own worktree on an `inline/<slug>` branch, with no

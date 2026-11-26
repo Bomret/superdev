@@ -95,7 +95,9 @@ test('run trace (ADR 0117): ledger events, the single writer, and the reader.', 
     const readOnly = new Set(['get', 'state', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'dod-tags', 'dod-check', 'dod-own', 'dod-merge', 'ci', 'section', 'tier', 'dod-open', 'contained', 'branch', 'checkout', 'lock', 'route', 'denial', 'consent', 'red-evidence', 'collisions', 'citations', 'source-set', 'untraced', 'windows', 'fail-to-pass-check', 'push', 'run-state', 'test', 'fail-to-pass', 'prepare',
       'candidates',
       // discard removes the run trace with the ledger, so it leaves no line to append to (ADR 0208).
-      'discard']);
+      'discard',
+      // abandon inventory writes nothing (ADR 0288).
+      'abandon']);
     const readOnlySub = /^\s+(deploy get|suite reusable|base resolve|reviewed check)\b/;
     const usageVerbs = new Set(usageText.split('\n').slice(1)
       .filter((l) => /^ {2}[^-\s]/.test(l) && !readOnlySub.test(l))
