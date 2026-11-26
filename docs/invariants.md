@@ -84,10 +84,10 @@ Paths: plugin/skills/plan/**, plugin/references/plan-authoring.md
 
 Class: architecture
 Concepts: No verdict, Containment
-Statement: A spawn whose own bound expired, whether or not its kill succeeded, carries no verdict, on `plugin/scripts/scope.js`, `plugin/lib/containment.js`, `plugin/lib/push.js`, and the `plugin/skills/ship/SKILL.md` and `plugin/skills/submit-pr/SKILL.md` skills. No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern (ADR 0087).
+Statement: A spawn whose own bound expired, whether or not its kill succeeded, carries no verdict, on `plugin/scripts/scope.js`, `plugin/lib/containment.js`, `plugin/lib/push.js`, the shared local git reads in `plugin/lib/git-spawn.js`, `plugin/lib/main-work-tree.js`, and `plugin/lib/branch-delete.js`, which carry a bound by default (ADR 0290), and the `plugin/skills/ship/SKILL.md` and `plugin/skills/submit-pr/SKILL.md` skills. No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern (ADR 0087).
 Breaks: silently
 Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/scope-containment.test.js — the refetch asserts the kill signal rather than the clock; tests/scope-push.test.js — a refetch of base its bound ended prints `timed-out`, never `refused`
-Paths: plugin/scripts/scope.js, plugin/lib/containment.js, plugin/lib/push.js, plugin/skills/ship/SKILL.md, plugin/skills/submit-pr/SKILL.md, tests/**
+Paths: plugin/scripts/scope.js, plugin/lib/containment.js, plugin/lib/push.js, plugin/lib/git-spawn.js, plugin/lib/main-work-tree.js, plugin/lib/branch-delete.js, plugin/skills/ship/SKILL.md, plugin/skills/submit-pr/SKILL.md, tests/**
 
 ### INV-0010
 
