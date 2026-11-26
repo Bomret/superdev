@@ -1429,7 +1429,7 @@ Concepts: Ledger, Run trace, Run root
 Statement: A delete of a run's `ledger.md` or `trace.log`, by whatever means, is detected like any other outside write: the next `scope.js` verb that writes to the run finds the file absent while its digest is present, warns once on stderr naming the file, appends a `tamper <file>` trace line, and goes on. A delete of any other path in a run root is no concern of the check. Only `scope.js discard`, at `planned`, and `scope.js abandon apply`, from `planned` through `submitted`, remove a run's ledger, run trace, and digest sidecar (ADR 0208, ADR 0227, ADR 0288).
 Breaks: silently
 Check: tests/scope-digest.test.js — the ledger deletion and trace deletion cases; the `scope.js discard` suite; the `scope.js abandon` suite
-Paths: plugin/lib/run-check.js, plugin/lib/run-digest.js, plugin/lib/discard.js, plugin/scripts/scope.js, plugin/skills/plan/SKILL.md
+Paths: plugin/lib/run-check.js, plugin/lib/run-digest.js, plugin/lib/discard.js, plugin/lib/abandon.js, plugin/lib/abandon-apply.js, plugin/scripts/scope.js, plugin/skills/plan/SKILL.md
 
 ### INV-0182
 
@@ -1620,7 +1620,7 @@ Concepts: Scope branch, Containment, Code host
 Statement: A superdev step deletes a scope branch only when base contains it, and wrap-up deletes it only on the operator's yes to its one branch question. The one exception is `scope.js abandon apply`, after the operator's one abandon confirm, which deletes the branch whether or not base contains it (ADR 0288). The remote delete is leased on the tip the containment test judged, so a remote branch that moved since keeps its commits; a remote branch already gone counts as deleted.
 Breaks: silently
 Check: tests/scope-branch-delete.test.js — a not-contained branch deletes nothing, a remote moved past the tested tip is kept, a remote already gone reads deleted, and no `--remote` deletes the local ref alone; tests/scope-abandon.test.js — a remote moved past the inventoried tip is kept
-Paths: plugin/scripts/scope.js, plugin/lib/branch-delete.js, plugin/skills/wrap-up/SKILL.md, plugin/hooks/scope-prune.js
+Paths: plugin/scripts/scope.js, plugin/lib/branch-delete.js, plugin/lib/abandon.js, plugin/lib/abandon-apply.js, plugin/skills/wrap-up/SKILL.md, plugin/hooks/scope-prune.js
 
 ### INV-0205
 
@@ -1674,7 +1674,7 @@ Concepts: Prototype detour, Base branch, Scopetree
 Statement: A prototype detour edits no tracked file in the invoking checkout, nor switches its branch, and commits nothing to the base branch or to a scope branch: it is built and committed in its own worktree under the main working tree's ignored `.superdev/`, on its own `prototype/<slug>` branch cut from the base branch, or from the current commit where the repository records no base branch. Only the validated decision it answers reaches the intent file, the interview, an ADR, or a slice `spec`, and an ADR names no prototype branch. A prototype branch reaches a remote only through `/superdev:plan`'s end-of-run push on the operator's yes, as `prototype/<scope>/<slug>` and never by force, with the branch and its pushed tip recorded in the run's ledger; every `Prototype:` line reads local to the planner's clone until that push is confirmed. Only `/superdev:wrap-up` of the run holding that record, or `/superdev:abandon` of that run or of the intent record or file naming the branch, deletes a pushed prototype branch, each under a lease on its recorded tip, and abandon keeps a branch another open record or live run also names, and `/superdev:brainstorm` pushes none (ADR 0287).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/prototype.md, plugin/references/cross-exam.md, plugin/references/plan-contract.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/skills/abandon/SKILL.md, plugin/lib/prototype-branch.js, plugin/lib/abandon.js, plugin/scripts/scope.js
+Paths: plugin/references/prototype.md, plugin/references/cross-exam.md, plugin/references/plan-contract.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/skills/abandon/SKILL.md, plugin/lib/prototype-branch.js, plugin/lib/abandon.js, plugin/lib/abandon-apply.js, plugin/scripts/scope.js
 
 ### INV-0211
 
