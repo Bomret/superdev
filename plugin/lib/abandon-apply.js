@@ -7,7 +7,8 @@
 // file. A target with no run root removes an intent file and the named
 // prototype worktrees and branches alone, in that order; with a run root the prototypes go after the run's own items and
 // before the run root. Every step tolerates an item already gone, every branch goes under a
-// lease on the tip the inventory read, and the run root stays while any item reads kept or failed, so a rerun finds the run.
+// lease on the tip the inventory read, and the run root stays while any item reads kept or failed, so a rerun finds the run. A
+// tracking ref the inventory listed at tip `-` is never deleted: it reads `failed`, with the inventory's reason.
 //
 // An outcome line is `<kind> <word> <subject> ...`, the word one of `deleted`, `gone`, `kept-moved`, `kept-checked-out`,
 // `failed`, `timed-out`, `credential-rejected`, or `not-reached` (`branch-delete.js`'s words). A line carries no remote URL.

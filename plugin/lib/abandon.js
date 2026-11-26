@@ -6,7 +6,9 @@
 //
 // An item line is tab-separated: `<kind>\t<subject>\t<tip>\t<mark>...`. The tip is a commit id, a content hash, or `-`. A mark
 // is `dirty`, `status=<hash>`, `uncontained <n>`, `loss`, `pages=<n>`, `files=<n>`, `kept-checked-out`, `stale`, `stage=<stage>`, or
-// `unknown <reason>`: a read that failed or timed out never reads as safe (INV-0009). Items print in removal order.
+// `unknown <reason>`: a read that failed or timed out never reads as safe (INV-0009). A containment test with a local read a
+// signal ended marks its branch `unknown <verb> signal <signal>`, and a `git remote` read with no verdict lists the tracking ref
+// at tip `-`, marked `unknown remote not read: <reason>` (ADR 0290). Items print in removal order.
 //
 // A run root is one target. The other two have no run root: an intent file (`--intent-file`, one `intent-file` item) and named
 // prototype branches (`--prototype prototype/<slug>`, a `prototype-worktree` item where git registers

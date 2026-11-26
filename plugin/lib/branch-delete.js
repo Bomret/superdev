@@ -14,7 +14,8 @@ const { resolveRemote } = require('./remote.js');
 const { gitCall, lastLine, shownRemote, boundEnded, pushTimeoutMs, CREDENTIAL_RE } = require('./push.js');
 
 // A gate refusal (not contained, undecidable, nothing to judge) deletes nothing and exits 3. A ref kept or failed exits
-// 4. A usage refusal exits 1 through `fail`.
+// 4. A usage refusal exits 1 through `fail`, and so does a read with no verdict (ADR 0290): its one stderr line follows the
+// local deletion's line where that deletion already ran.
 const GATE_EXIT = 3;
 const KEPT_EXIT = 4;
 const DONE_WORDS = ['deleted', 'gone', 'not-reached'];

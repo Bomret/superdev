@@ -4,7 +4,8 @@
 // as `prototype/<scope>/<slug>`, never by force, and records each pushed branch with its commit in the ledger's
 // `**Prototypes:**` header, a push its bound ended included once an ls-remote reads the remote branch at that commit,
 // and its `--delete` flag, which deletes every recorded branch under a lease on its recorded
-// commit (ADR 0287, INV-0210).
+// commit (ADR 0287, INV-0210). A read with no verdict (ADR 0290) stops a push after recording what it pushed, and marks
+// its branch `unknown` under `--delete`.
 
 const { resolveCommit } = require('./git-spawn.js');
 const { resolveRemote } = require('./remote.js');
