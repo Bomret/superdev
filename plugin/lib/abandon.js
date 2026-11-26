@@ -11,7 +11,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { gitSpawn, resolveCommit, listWorktrees } = require('./git-spawn.js');
+const { gitSpawn, listWorktrees } = require('./git-spawn.js');
 const { fail, readPresent } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
 const { CHANGE_TYPES, STAGES, readLedgerHeader } = require('./ledger.js');
@@ -25,10 +25,9 @@ const { namesBase, isNamedRemote } = require('./branch-delete.js');
 const { gitCall, lastLine, shownRemote, boundEnded } =require('./push.js');
 const { configuredRemote, refName, seenRef } = require('./run-state-ref.js');
 
-// Every local git read carries a bound and a kill signal (INV-0009): a read that is ended carries no verdict.
+// Every read made through `localCall` carries a bound and a kill signal (INV-0009): a read that is ended carries no verdict.
 const LOCAL_TIMEOUT_MS = 60000;
 const sha = (data) => crypto.createHash('sha256').update(data).digest('hex');
-const short = (data) => sha(data).slice(0, 16);
 // A subject or mark on an item line holds no tab or line break.
 const clean = (s) => String(s).replace(/[\u0000-\u001f\u007f]/g, '?');
 
@@ -100,6 +99,27 @@ function walkFiles(dir) {
   return { count: files.length, hash: h.digest('hex').slice(0, 16) };
 }
 
+// One hash over a worktree's `status --porcelain -z` text and the content of every changed path that is not a deletion, in
+// porcelain order, so a further edit to a file already listed as changed moves it. A symlink hashes its target text.
+function statusHash(porcelain, dir) {
+  const h = crypto.createHash('sha256').update(porcelain).update('\0');
+  const entries = porcelain.split('\0');
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    if (e.length < 4) continue;
+    const xy = e.slice(0, 2);
+    const file = path.join(dir, e.slice(3));
+    if (/[RC]/.test(xy)) i++;
+    if (xy.includes('D')) continue;
+    const stat = fs.lstatSync(file);
+    h.update(`${e.slice(3)}\0`);
+    if (stat.isSymbolicLink()) h.update(fs.readlinkSync(file));
+    else if (stat.isFile()) h.update(fs.readFileSync(file));
+    h.update('\0');
+  }
+  return h.digest('hex').slice(0, 16);
+}
+
 function stagedItem(kind, dir) {
   if (!fs.existsSync(dir)) return null;
   try {
@@ -122,6 +142,15 @@ function fileItem(file) {
   } catch (e) {
     return makeItem('file', file, null, [unknown(`cannot read (${e.code || e.message})`)]);
   }
+}
+
+// The local read of one ref's commit: `{ tip }`, `{}` where the ref is absent (exit 1), or `{ why }` where the call ended by
+// signal, error, or any other exit.
+function readTip(cwd, ref) {
+  const r = localCall(['rev-parse', '--verify', '--quiet', '--end-of-options', `${ref}^{commit}`], cwd);
+  if (r.status === 0) return { tip: r.stdout.trim() };
+  if (r.signal != null || r.error || r.status !== 1) return { why: `tip not read: ${whyNot(r)}` };
+  return {};
 }
 
 // The ls-remote read of one remote ref: `{ tip }`, `{ gone: true }`, or `{ why }`.
@@ -192,10 +221,16 @@ function computeInventory(cwd, { root: rootArg, base, remote: given }) {
       continue;
     }
     const head = localCall(['rev-parse', 'HEAD'], t.path);
-    const status = localCall(['status', '--porcelain', '--untracked-files=all'], t.path);
+    const status = localCall(['status', '--porcelain', '-z', '--untracked-files=all'], t.path);
     const marks = [];
     if (status.status !== 0) marks.push(unknown(`status not read: ${whyNot(status)}`));
-    else if (status.stdout) marks.push('dirty', `status=${short(status.stdout)}`);
+    else if (status.stdout) {
+      try {
+        marks.push('dirty', `status=${statusHash(status.stdout, t.path)}`);
+      } catch (e) {
+        marks.push('dirty', unknown(`changed files not read (${e.code || e.message})`));
+      }
+    }
     items.push(makeItem('worktree', t.path, head.status === 0 ? head.stdout.trim() : null, head.status === 0 ? marks : [unknown(`HEAD not read: ${whyNot(head)}`), ...marks]));
     const staged = stagedItem('kb-staged', path.join(t.path, '.superdev', 'kb-pending'));
     if (staged) items.push(staged);
@@ -211,11 +246,14 @@ function computeInventory(cwd, { root: rootArg, base, remote: given }) {
       items.push(makeItem('slice-branch', ref, tip, branchMarks(ref.slice('refs/heads/'.length), tip)));
     }
   }
-  const localTip = resolveCommit(`refs/heads/${branch}`, mwt);
-  if (localTip) items.push(makeItem('scope-branch', `refs/heads/${branch}`, localTip, branchMarks(branch, localTip)));
+  const localRef = `refs/heads/${branch}`;
+  const local = readTip(mwt, localRef);
+  if (local.tip) items.push(makeItem('scope-branch', localRef, local.tip, branchMarks(branch, local.tip)));
+  else if (local.why) items.push(makeItem('scope-branch', localRef, null, [unknown(local.why)]));
   const trackingRef = named ? `refs/remotes/${remote}/${branch}` : null;
-  const trackingTip = trackingRef ? resolveCommit(trackingRef, mwt) : null;
-  if (trackingTip) items.push(makeItem('scope-tracking', trackingRef, trackingTip, containmentMarks(mwt, base, trackingTip)));
+  const tracking = trackingRef ? readTip(mwt, trackingRef) : {};
+  if (tracking.tip) items.push(makeItem('scope-tracking', trackingRef, tracking.tip, containmentMarks(mwt, base, tracking.tip)));
+  else if (tracking.why) items.push(makeItem('scope-tracking', trackingRef, null, [unknown(tracking.why)]));
   if (remote) {
     const ref = `refs/heads/${branch}`;
     const read = readRemoteRef(mwt, remote, ref);
@@ -265,4 +303,4 @@ function verbAbandon(cwd, args) {
   fail(`abandon: ${sub ? `unknown subverb "${sub}"` : 'needs a subverb'}; use abandon inventory or abandon apply`);
 }
 
-module.exports = { verbAbandon, computeInventory, parseArgs, makeItem, containmentMarks };
+module.exports = { verbAbandon, computeInventory };

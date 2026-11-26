@@ -6,6 +6,7 @@
 
 const { test, after } = require('node:test');
 const assert = require('node:assert');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -170,6 +171,54 @@ test('a new commit on a listed branch, a new untracked file, or a new slice bran
   assert.notStrictEqual(t2, t1);
   git(['branch', `slice/${SCOPE}/03`, 'main'], f.repo);
   assert.notStrictEqual(inv(f).token, t2);
+});
+
+test('a further edit to an already modified tracked file changes the token', () => {
+  const f = fixture();
+  const file = path.join(f.root, 'slicetrees', '01', 'slice-01.md');
+  fs.writeFileSync(file, 'edit one\n');
+  const t1 = inv(f).token;
+  fs.writeFileSync(file, 'edit two\n');
+  assert.notStrictEqual(inv(f).token, t1);
+});
+
+test('new content in an already listed untracked file changes the token', () => {
+  const f = fixture();
+  const t0 = inv(f).token;
+  fs.writeFileSync(path.join(f.root, 'slicetrees', '01', 'untracked.txt'), 'changed\n');
+  assert.notStrictEqual(inv(f).token, t0);
+});
+
+test('a deleted tracked file is inventoried as dirty', () => {
+  const f = fixture();
+  fs.rmSync(path.join(f.root, 'slicetrees', '01', 'slice-01.md'));
+  const r = inv(f);
+  assert.strictEqual(r.status, 0, r.err);
+  assert.ok(find(r, 'worktree', 'slicetrees/01').includes('dirty'));
+});
+
+test('drafts, the capture patch, and the local seen ref are listed with their content hash or tip', () => {
+  const f = fixture();
+  const sd = path.join(f.repo, '.superdev');
+  for (const n of [`dod-draft-${SCOPE}.md`, `slice-draft-${SCOPE}.md`, `captures-${SCOPE}.patch`]) fs.writeFileSync(path.join(sd, n), `${n}\n`);
+  const tip = git(['rev-parse', `refs/heads/${BRANCH}`], f.repo);
+  const seen = `refs/superdev-seen/${crypto.createHash('sha1').update('origin').digest('hex').slice(0, 12)}/${SCOPE}`;
+  git(['update-ref', seen, tip], f.repo);
+  const r = inv(f);
+  for (const n of [`dod-draft-${SCOPE}.md`, `slice-draft-${SCOPE}.md`, `captures-${SCOPE}.patch`]) {
+    const item = find(r, 'file', n);
+    assert.ok(item, n);
+    assert.strictEqual(item[2], crypto.createHash('sha256').update(`${n}\n`).digest('hex').slice(0, 16));
+  }
+  assert.deepStrictEqual(find(r, 'run-state-seen').slice(1, 3), [seen, tip]);
+});
+
+test('the scope branch checked out in the main working tree is listed kept-checked-out', () => {
+  const f = fixture();
+  git(['worktree', 'remove', '--force', f.scopetree], f.repo);
+  git(['checkout', '-q', BRANCH], f.repo);
+  const r = inv(f);
+  assert.ok(find(r, 'scope-branch').includes('kept-checked-out'));
 });
 
 test('a run lock under an hour old refuses at planned and at implementing, naming the lock and when it goes stale', () => {
