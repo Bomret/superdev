@@ -19,8 +19,8 @@ Paths: plugin/skills/**, plugin/references/**
 ### INV-0002
 
 Class: process
-Statement: A load-bearing commitment that reaches /superdev:plan leaves the run either as an invariant register entry or as a reason, named out loud, that it implies no entry. A rejected direction a seeded intent carries leaves it in an ADR's Considered options, in the epic's non-goals, or with a reason, named out loud, that it is dropped. None of either is dropped in silence.
-Concepts: Load-bearing commitment, Rejected direction, Invariant register, Intent
+Statement: A load-bearing commitment that reaches /superdev:plan leaves the run either as an invariant register entry or as a reason, named out loud, that it implies no entry. A dropped direction a seeded intent carries leaves it in an ADR's Considered options when it is a rejected approach the operator confirmed, in the epic's non-goals led by its horizon when it is a rejected scope or any deferral, or with a reason, named out loud, that it is filtered. No ADR receives a deferral. None of either is dropped in silence.
+Concepts: Load-bearing commitment, Dropped direction, Horizon, Invariant register, Intent
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/brainstorm/**, plugin/skills/plan/**, plugin/references/domain-modeling.md

@@ -13,5 +13,10 @@ concept, not the request's wording** (the glossary's terms, the code's own names
 **Prior rejection.** Applies when `.out-of-scope/` exists. Read `.out-of-scope/*.md`, and surface every entry that
 resembles this request **by concept, not keyword** ("night theme" matches `dark-mode.md`).
 
-- **A match** → a decision already made: present it, and proceed only when the user explicitly overturns it.
+- **A match** → a durable rejection, its **Horizon** `Rejected`: present it under `cross-exam.md`'s **Offer only live
+  options**, and build it only when the operator explicitly overturns it.
 - `docs/agents/documentation.md` → *Rejected requests* owns the convention.
+
+**Other past rejects.** Applies to an ADR's considered option or a non-goal the session meets while it reads the
+repository. Present it with its **Horizon** under `cross-exam.md`'s **Offer only live options**: it never alone drops an
+option, and the operator decides. The audit adds no store search for one.

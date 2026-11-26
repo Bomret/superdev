@@ -49,17 +49,17 @@ Applies to the whole conversation. Run it with these core moves of cross-exam.md
 - **Resume** → re-read the file, summarize where it stands, skip §1, and continue at the first still-open decision. Ask no point the file records as settled.
 - **Start fresh** → continue at §1, and leave every existing draft in place.
 
-**Keep the file current.** Applies once the intent file exists. Edit each point into its section in the turn it settles: the problem, a direction, a success criterion, a scope line, a commitment, or a rejected direction. You own the file during the interview, and the operator steers through the conversation.
+**Keep the file current.** Applies once the intent file exists. Edit each point into its section in the turn it settles: the problem, a direction, a success criterion, a scope line, a commitment, or a dropped direction. You own the file during the interview, and the operator steers through the conversation.
 
 - A direction still under discussion sits under the still-open decisions.
 - The file gets no section beyond §5's.
-- A first commitment, or a first rejected direction worth keeping → add its heading then.
+- A first commitment, or a first dropped direction worth keeping → add its heading then.
 
 ## 1. Start from the problem, not the solution
 
 **The problem.** Applies when `$ARGUMENTS` names a solution ("add a cache", "build a dashboard"). Pull the conversation back one level before going further. Ask who feels this pain, what frustrates them today, why it matters now, and what happens if nothing changes.
 
-**Write the intent file.** Applies once the operator confirms the problem, before any direction is explored. The write is mandatory, with the slug taken from the confirmed problem and not from `$ARGUMENTS`. Write `status: draft` frontmatter, then §5's headings as a skeleton with the problem statement filled in. The skeleton leaves out **Load-bearing commitments** and **Rejected directions**.
+**Write the intent file.** Applies once the operator confirms the problem, before any direction is explored. The write is mandatory, with the slug taken from the confirmed problem and not from `$ARGUMENTS`. Write `status: draft` frontmatter, then §5's headings as a skeleton with the problem statement filled in. The skeleton carries the **Goal** heading and leaves out **Load-bearing commitments** and **Dropped directions**.
 
 - A slug naming an existing file in `.superdev/brainstorm/` → a distinct name with a `-2` or `-3` suffix. Never overwrite a file this session did not create.
 - `.superdev/` absent from the repo's `.gitignore` → add it.
@@ -75,9 +75,16 @@ Applies once the problem is confirmed and audited for prior art, in this session
 - Two equally strong survivors → say they are a toss-up.
 - Keep diverging until the exploration has run. Then converge.
 
-## 3. Find the Minimal Lovable Product (MLP)
+## 3. Find the smallest version that reaches the run goal
 
-Applies to the direction the user leans toward. Find the **smallest end-to-end version that delivers real value**: a complete, narrow slice a user could actually use. Push back on gold-plating, and push back on scope too thin to deliver anything real.
+**The run goal.** Applies to the direction the user leans toward. Name the **Run goal** with the operator: the one milestone this run aims at, written in one line under **Goal**. Find the **smallest end-to-end version that reaches it**: a complete, narrow path a user could actually use. Tell the operator that the goal is not the product's final shape, and push back on gold-plating and on scope too thin to deliver anything real.
+
+**Each cut's horizon.** Applies to every scope exclusion and every dropped direction the intent records. Propose each one's **Horizon** and write it as the lead word of its line:
+
+- `- **Deferred:** <what> — <why outside this goal>`
+- `- **Rejected:** <what> — <durable reason>`
+
+A `Rejected` needs the operator's confirmation with its durable reason, asked as part of the question that drops the cut. A cut the operator has not confirmed as rejected, and a cut whose horizon is uncertain, is written `Deferred`.
 
 ## 4. Surface unknowns
 
@@ -100,15 +107,16 @@ Applies once the space has been explored. Bring the intent file to its final for
 |---|---|
 | **Problem statement** | The pain, from the user's perspective. |
 | **Target user** | Who this is for. |
+| **Goal** | One line: the milestone this run aims at. |
 | **Success criteria** | Checkable criteria. |
-| **Rough scope + non-goals** | The MLP, and what is deliberately excluded. |
+| **Rough scope + non-goals** | The smallest version that reaches the goal, and what it defers or rejects, each exclusion led by `Deferred` or `Rejected` (§3's **Each cut's horizon**). |
 | **Still-open decisions** | What remains genuinely undecided. |
 | **Load-bearing commitments** | Each commitment the discovery settled that constrains later decisions, written as a pair: the principle, then the rule it implies. A principle with no rule is no commitment. `/superdev:plan` turns each into an invariant register entry, or names why it implies none (domain-modeling.md). None settled → write no section, and say so. |
-| **Rejected directions** | Each direction explored and dropped, and why it lost, kept only where a future reader would plausibly re-propose it. Nothing worth keeping → omit the heading. `/superdev:plan` makes these durable (domain-modeling.md). |
+| **Dropped directions** | Each direction explored and dropped, led by its horizon word with its reason (§3's **Each cut's horizon**), kept only where a future reader would plausibly re-propose it. Nothing worth keeping → omit the heading. `/superdev:plan` makes these durable (domain-modeling.md). |
 
 ## 6. Hand off
 
-**The readiness test.** Applies to the intent file. It passes once the intent has a clear problem, checkable success criteria, and a bounded scope, even with decisions still open.
+**The readiness test.** Applies to the intent file. It passes once the intent has a clear problem, a stated goal, checkable success criteria, and a bounded scope, even with decisions still open. An intent with no **Goal** line fails it.
 
 **The off-ramp check.** Applies once the readiness test passes, before `status: ready` is set. Check the criterion of `${CLAUDE_PLUGIN_ROOT}/references/inline-offramp.md`'s `## 1. The criterion` against the agreed scope. When it holds, ask that reference's question in place of the hand-off.
 

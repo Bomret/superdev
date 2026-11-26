@@ -46,7 +46,7 @@ finding, every `disputed` finding, and every observation a sweep carries takes t
    document describes no intent record`, naming `/superdev:setup` as the remedy: its re-run offers the section from
    the matching seed.
 2. **Create the record.** Make the **Create it** call with the whole intent file as the body, every section,
-   **Rejected directions** and **Load-bearing commitments** included, and the intent's heading as the title. The
+   **Dropped directions** and **Load-bearing commitments** included, and the intent's heading as the title. The
    frontmatter stays out of the body.
    - **The body** → pass it as a file or a quoted heredoc, as the store document's call states, so no intent text
      reaches a shell unquoted.

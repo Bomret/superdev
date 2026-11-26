@@ -102,7 +102,8 @@ section headings, and one-line bullets, in this order. It carries no paragraph o
    gives the verdict alone, with no path. On the inline exit the line is the opening line of
    `## The inline exit`.
 2. **`### Settled`.** One bullet per settled decision, as `- **<decision>:** <one line>`.
-3. **`### Rejected`.** One bullet per rejected direction, as `- **<direction>:** <one line on why it lost>`.
+3. **`### Dropped`.** One bullet per dropped direction, led by its horizon, as `- **Deferred:** <direction> — <one
+   line>` or `- **Rejected:** <direction> — <durable reason>`, the plan's one line shape.
 4. **`### Still open`.** One one-line bullet per decision left open.
 5. **`### Findings`.** One one-line bullet per fact the discovery found in the code or the docs.
 6. **`### Intent challenge`.** The challenge outcome on every exit that reached §4: one bullet per finding, `- none
