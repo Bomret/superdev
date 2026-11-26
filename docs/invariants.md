@@ -1426,9 +1426,9 @@ Paths: plugin/lib/push.js, plugin/lib/fail-to-pass.js, plugin/lib/kb-backend.js,
 
 Class: architecture
 Concepts: Ledger, Run trace, Run root
-Statement: A delete of a run's `ledger.md` or `trace.log`, by whatever means, is detected like any other outside write: the next `scope.js` verb that writes to the run finds the file absent while its digest is present, warns once on stderr naming the file, appends a `tamper <file>` trace line, and goes on. A delete of any other path in a run root is no concern of the check. Only `scope.js discard` removes a run's ledger, run trace, and digest sidecar (ADR 0208, ADR 0227).
+Statement: A delete of a run's `ledger.md` or `trace.log`, by whatever means, is detected like any other outside write: the next `scope.js` verb that writes to the run finds the file absent while its digest is present, warns once on stderr naming the file, appends a `tamper <file>` trace line, and goes on. A delete of any other path in a run root is no concern of the check. Only `scope.js discard`, at `planned`, and `scope.js abandon apply`, from `planned` through `submitted`, remove a run's ledger, run trace, and digest sidecar (ADR 0208, ADR 0227, ADR 0288).
 Breaks: silently
-Check: tests/scope-digest.test.js — the ledger deletion and trace deletion cases; the `scope.js discard` suite
+Check: tests/scope-digest.test.js — the ledger deletion and trace deletion cases; the `scope.js discard` suite; the `scope.js abandon` suite
 Paths: plugin/lib/run-check.js, plugin/lib/run-digest.js, plugin/lib/discard.js, plugin/scripts/scope.js, plugin/skills/plan/SKILL.md
 
 ### INV-0182
@@ -1617,9 +1617,9 @@ Paths: plugin/lib/plan-open.js, plugin/lib/contained.js, plugin/lib/containment.
 
 Class: architecture
 Concepts: Scope branch, Containment, Code host
-Statement: A superdev step deletes a scope branch only when base contains it, and wrap-up deletes it only on the operator's yes to its one branch question. The remote delete is leased on the tip the containment test judged, so a remote branch that moved since keeps its commits; a remote branch already gone counts as deleted.
+Statement: A superdev step deletes a scope branch only when base contains it, and wrap-up deletes it only on the operator's yes to its one branch question. The one exception is `scope.js abandon apply`, after the operator's one abandon confirm, which deletes the branch whether or not base contains it (ADR 0288). The remote delete is leased on the tip the containment test judged, so a remote branch that moved since keeps its commits; a remote branch already gone counts as deleted.
 Breaks: silently
-Check: tests/scope-branch-delete.test.js — a not-contained branch deletes nothing, a remote moved past the tested tip is kept, a remote already gone reads deleted, and no `--remote` deletes the local ref alone
+Check: tests/scope-branch-delete.test.js — a not-contained branch deletes nothing, a remote moved past the tested tip is kept, a remote already gone reads deleted, and no `--remote` deletes the local ref alone; tests/scope-abandon.test.js — a remote moved past the inventoried tip is kept
 Paths: plugin/scripts/scope.js, plugin/lib/branch-delete.js, plugin/skills/wrap-up/SKILL.md, plugin/hooks/scope-prune.js
 
 ### INV-0205
@@ -1675,3 +1675,13 @@ Statement: A prototype detour edits no tracked file in the invoking checkout, no
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/prototype.md, plugin/references/cross-exam.md, plugin/skills/brainstorm/SKILL.md
+
+### INV-0211
+
+Class: architecture
+Concepts: Abandon, Run root, Scope branch, Run lock
+Statement: `scope.js abandon apply` removes only what the inventory the operator confirmed listed. It recomputes the inventory and deletes nothing when the inventory's hash differs from its `--token`, deletes each branch under a lease on the tip that inventory read, so a branch that moved since keeps its commits, refuses while the run lock is younger than its one-hour bound, and removes the run root last, so an interrupted teardown leaves the run findable and a second run finishes it (ADR 0288).
+Breaks: silently
+Check: tests/scope-abandon.test.js — a token from a changed inventory deletes nothing, a remote moved past the inventoried tip is kept, a fresh lock refuses, and a second apply after an interrupted one finishes the teardown
+Symbols: verbAbandon
+Paths: plugin/lib/abandon.js
