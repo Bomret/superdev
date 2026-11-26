@@ -153,4 +153,4 @@ function deleteRemote(cwd, remote, branch, tested) {
   return failed('push', pushed, tested);
 }
 
-module.exports = { verbBranchDelete, deleteOnRemote, isNamedRemote, KEPT_EXIT };
+module.exports = { verbBranchDelete, deleteOnRemote, isNamedRemote, namesBase, KEPT_EXIT };

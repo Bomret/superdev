@@ -38,4 +38,4 @@ function verbDiscard(cwd, rootArg) {
   if (fs.readdirSync(root).length === 0) fs.rmdirSync(root);
 }
 
-module.exports = { verbDiscard };
+module.exports = { verbDiscard, realish };
