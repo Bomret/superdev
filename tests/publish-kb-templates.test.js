@@ -11,7 +11,18 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { assertSpawnDecided } = require('./spawn-verdict');
 const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
+
+// Every `sh` and `git` child this suite spawns carries a qualitative ceiling and passes `assertSpawnDecided` before its
+// output is read, so a hung or killed child fails with a decided verdict instead of hanging the suite (AGENTS.md, ADR 0086).
+// A hung child is effectively unbounded, so a loose ceiling still falsifies a hang; a healthy child clears it under any load.
+const SPAWN_CEILING_MS = 120000;
+function spawnDecided(command, args, opts = {}) {
+  const result = spawnSync(command, args, { ...opts, timeout: SPAWN_CEILING_MS, killSignal: 'SIGKILL' });
+  assertSpawnDecided(result, `${command} ${args.slice(0, 2).join(' ')}`.slice(0, 80));
+  return result;
+}
 
 // --- the real `### find` template in docs/agents/knowledge-base.md separates "genuinely absent"
 // from a jq failure that is not absence, and reads every listing page before it answers 3. The runFind-level mapping (exit 3 -> absent, anything else -> unknown) is
@@ -66,7 +77,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   ]);
 
   function runFindTemplate(body, status = '200 OK', logins = oneLogin, extraEnv = {}, operator = {}, title = 'Missing Page') {
-    return spawnSync('sh',['-c', findTemplate, 'sh', valuesFile({ title, operator })], {
+    return spawnDecided('sh',['-c', findTemplate, 'sh', valuesFile({ title, operator })], {
       env: {
         ...process.env,
         PATH: stubDir + path.delimiter + process.env.PATH,
@@ -173,7 +184,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   // The path keeps every directory of the real one except those holding a `tea`, so `sh` and `jq` resolve on every OS.
   const pathWithoutTea = process.env.PATH.split(path.delimiter)
     .filter((d) => d && !['tea', 'tea.exe'].some((n) => fs.existsSync(path.join(d, n))));
-  const noTea = spawnSync('sh',['-c', findTemplate, 'sh', valuesFile({ title: 'Missing Page', operator: {} })], {
+  const noTea = spawnDecided('sh',['-c', findTemplate, 'sh', valuesFile({ title: 'Missing Page', operator: {} })], {
     env: { ...process.env, PATH: pathWithoutTea.join(path.delimiter) },
     encoding: 'utf8',
   });
@@ -210,7 +221,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   const pathLog = path.join(stubDir, 'paths.log');
   function runVerb(verb, body, status, bodyFile) {
     fs.rmSync(pathLog, { force: true });
-    return spawnSync('sh',['-c', templates[verb], 'sh', valuesFile({ title: 'T', bodyFile, found: { sub_url: SUB_URL }, operator: {} })], {
+    return spawnDecided('sh',['-c', templates[verb], 'sh', valuesFile({ title: 'T', bodyFile, found: { sub_url: SUB_URL }, operator: {} })], {
       env: {
         ...process.env,
         PATH: stubDir + path.delimiter + process.env.PATH,
@@ -241,7 +252,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   // create and update send the staged title, from the values file, byte for byte, with the body base64-encoded.
   for (const verb of ['create', 'update']) {
     const stdin = path.join(stubDir, `${verb}.stdin`);
-    const sent = spawnSync('sh',['-c', templates[verb], 'sh', valuesFile({ title: hostileTitle, bodyFile, found: { sub_url: SUB_URL }, operator: {} })], {
+    const sent = spawnDecided('sh',['-c', templates[verb], 'sh', valuesFile({ title: hostileTitle, bodyFile, found: { sub_url: SUB_URL }, operator: {} })], {
       env: { ...process.env, PATH: stubDir + path.delimiter + process.env.PATH, TEA_STUB_STATUS: '200 OK', TEA_STUB_LOGINS: oneLogin, TEA_STUB_STDIN: stdin },
       encoding: 'utf8',
     });
@@ -268,7 +279,7 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   made.push(work);
   const bare = path.join(work, 'wiki.git');
   const git = (args, cwd = work) => {
-    const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
+    const r = spawnDecided('git', args, { cwd, encoding: 'utf8' });
     assert.equal(r.status, 0, `git ${args.join(' ')}: ${r.stderr}`);
   };
   git(['init', '-q', '--bare', '-b', 'master', bare]);
@@ -288,7 +299,7 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
     '#!/bin/sh\necho "$*" >> "$GH_STUB_LOG"\n[ -n "$GH_STUB_FAIL" ] && exit 1\n' +
     '[ "$1" = api ] && { [ -n "$GH_STUB_API_FAIL" ] && { echo "HTTP 401: bad credentials" >&2; exit 1; }; echo tester; }\nexit 0\n', { mode: 0o755 });
   // A `git` wrapper logs the prompt setting and the arguments of each call, then runs the real git.
-  const realGit = spawnSync('sh',['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  const realGit = spawnDecided('sh',['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
   fs.writeFileSync(path.join(ghDir, 'git'),
     `#!/bin/sh\necho "prompt=$GIT_TERMINAL_PROMPT $*" >> "$GIT_STUB_LOG"\nexec ${realGit} "$@"\n`, { mode: 0o755 });
   const n = Number(process.env.GIT_CONFIG_COUNT || 0);
@@ -302,14 +313,14 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
     [`GIT_CONFIG_VALUE_${n}`]: wikiUrl,
     ...extra,
   });
-  const run = (verb, values, extra) => spawnSync('sh',['-c', templates[verb], 'sh', valuesFile(values)], { env: env(extra), encoding: 'utf8' });
+  const run = (verb, values, extra) => spawnDecided('sh',['-c', templates[verb], 'sh', valuesFile(values)], { env: env(extra), encoding: 'utf8' });
   const body = path.join(work, 'body.md');
   fs.writeFileSync(body, '# hi\n');
   const title = 'Guide: Plan a feature';
 
   assert.equal(run('find', { title }).status, 3, 'a clone without the page file answers absent (3)');
   assert.equal(run('find', { title }, { GH_STUB_FAIL: '1' }).status, 2, 'a gh with no login could not answer (2)');
-  const broken = spawnSync('sh',['-c', templates.find, 'sh', valuesFile({ title })], { env: env({ [`GIT_CONFIG_KEY_${n}`]: `url.file://${work}/missing.git.insteadOf` }), encoding: 'utf8' });
+  const broken = spawnDecided('sh',['-c', templates.find, 'sh', valuesFile({ title })], { env: env({ [`GIT_CONFIG_KEY_${n}`]: `url.file://${work}/missing.git.insteadOf` }), encoding: 'utf8' });
   assert.equal(broken.status, 2, 'a failed clone could not answer (2), never absent');
   assert.equal(run('update', { title, bodyFile: body }).status, 1, 'update of an absent page fails');
   const created = run('create', { title, bodyFile: body });
@@ -364,7 +375,7 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   const page = 'Plain Page';
   fs.writeFileSync(body, '# one\n');
   assert.equal(run('create', { title: page, bodyFile: body }).status, 0, 'create writes the page');
-  const commits = () => spawnSync('git', ['-C', bare, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+  const commits = () => spawnDecided('git', ['-C', bare, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
   const before = commits();
   const same = run('update', { title: page, bodyFile: body, found: {} });
   assert.equal(same.status, 0, `update with an unchanged body exits 0: ${same.stderr}`);
@@ -398,7 +409,7 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   fs.rmSync(ghLog, { force: true });
   fs.rmSync(gitLog, { force: true });
   assert.equal(run('create', { title: 'Token Page', bodyFile: body }, { GH_TOKEN: token }).status, 0);
-  const tokenBroken = spawnSync('sh',['-c', templates.find, 'sh', valuesFile({ title })],
+  const tokenBroken = spawnDecided('sh',['-c', templates.find, 'sh', valuesFile({ title })],
     { env: env({ GH_TOKEN: token, [`GIT_CONFIG_KEY_${n}`]: `url.file://${work}/missing.git.insteadOf` }), encoding: 'utf8' });
   assert.equal(tokenBroken.status, 2);
   for (const [what, text] of [['gh argv', fs.readFileSync(ghLog, 'utf8')], ['git argv', fs.readFileSync(gitLog, 'utf8')], ['clone stderr', tokenBroken.stderr]]) {
@@ -459,7 +470,7 @@ test('the real `### read` template in plugin/references/knowledge-base-confluenc
   fs.writeFileSync(path.join(stubDir, 'curl'), '#!/bin/sh\nprintf "%s" "$CURL_STUB_BODY"\n', { mode: 0o755 });
 
   function runReadTemplate(body) {
-    return spawnSync('sh',['-c', readTemplate, 'sh', valuesFile({ title: 'T', found: { id: '123', version: 4 }, operator: {} })], {
+    return spawnDecided('sh',['-c', readTemplate, 'sh', valuesFile({ title: 'T', found: { id: '123', version: 4 }, operator: {} })], {
       env: {
         ...process.env,
         PATH: stubDir + path.delimiter + process.env.PATH,
