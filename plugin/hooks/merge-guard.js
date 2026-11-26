@@ -9,9 +9,11 @@
 // The check is one raw-text rule (ADR 0227) and reads no shell words, so the hook requires no module. After a
 // backslash-newline is joined, a line is denied when it holds a lead word (`git`, `gh`, `tea`, or `scope.js`, in any
 // letter case) and, later on that line, a verb word: `push`, `merge`, `rebase`, `pull`, or, after `tea`, its `m` merge
-// alias. A lead word starts at the line's start, after whitespace, `/`, a backslash (`\git` skips an alias), a quote,
-// or a shell operator character; a verb
-// word is bounded on both sides by the line's ends, whitespace, `/`, a quote, a backtick, `;`, `&`, `|`, `)`, `<`, or `>`. So `-merge`
+// alias, and the lower-case `abandon` as the first word after `scope.js`, read with every quote and backslash removed so
+// `"abandon"`, `'abandon'`, and `ab""andon` count, and nowhere later, so `--root …/scopes/abandon` and `feat/abandon`
+// pass. A lead word starts at the line's start, after whitespace,
+// `/`, a backslash (`\git` skips an alias), a quote, or a shell operator character; a verb word is bounded on both sides
+// by the line's ends, whitespace, `/`, a quote, a backtick, `;`, `&`, `|`, `)`, `<`, or `>`. So `-merge`
 // (`dod-merge`), `push.ts`, and `merge-guard.js` hold no verb. `gh api -X PUT repos/o/r/pulls/1/merge` is denied
 // through its trailing `/merge`.
 //
@@ -24,11 +26,13 @@
 const LEAD = /(?<![^\s/\\"'`;&|(])(git|gh|tea|scope\.js)(?![\w-])/i;
 const TEA = /(?<![^\s/\\"'`;&|(])tea(?![\w-])/i;
 const VERB = /(?<![^\s/"'`;&|)<>])(?:push|merge|rebase|pull)(?![^\s/"'`;&|)<>])/;
+// Read on the line with every quote and backslash removed, as the shell splices `"abandon"` and `ab""andon` into one word.
+const ABANDON = /(?<![^\s/`;&|(])[Ss][Cc][Oo][Pp][Ee]\.[Jj][Ss]\s+abandon(?![^\s/`;&|)<>])/;
 const TEA_ALIAS = /(?<![^\s/"'`;&|)<>])m(?![^\s/"'`;&|)<>])/;
 
 const INTEGRATE =
   'superdev: subagents must not integrate. A line naming `git`, `gh`, `tea`, or `scope.js` and later the word `push`, `merge`, ' +
-  "`rebase`, or `pull` (or `m` after `tea`) is the controller's job — commit on your slice branch and report your status. " +
+  "`rebase`, or `pull` (or `m` after `tea`, or `abandon` right after `scope.js`) is the controller's job — commit on your slice branch and report your status. " +
   'A commit message or PR body that holds one of those words passes when written through a heredoc on the lines after the ' +
   "command (`git commit -F - <<'EOF'`, then the message, then `EOF`), as long as no line of it holds one of those lead " +
   'words followed by one of those verbs. A verb word that is a segment of a path or ref after a lead word denies the line too ' +
@@ -40,6 +44,7 @@ function integrates(cmd) {
   for (const line of cmd.replace(/\\\r?\n/g, ' ').split(/\r?\n/)) {
     const lead = LEAD.exec(line);
     if (!lead) continue;
+    if (ABANDON.test(line.replace(/["'\\]/g, ''))) return true;
     if (VERB.test(line.slice(lead.index + lead[0].length))) return true;
     const tea = TEA.exec(line);
     if (tea && TEA_ALIAS.test(line.slice(tea.index + tea[0].length))) return true;

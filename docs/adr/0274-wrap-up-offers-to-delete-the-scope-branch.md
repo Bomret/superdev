@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0288](0288-abandon-is-an-operator-command-over-a-local-teardown-verb.md), whose `scope.js abandon` deletes
+a scope branch base does not contain, after the operator's one confirm.
+
 **Amends:** [ADR 0071](0071-the-prune-reaps-the-scope-branch-with-its-run-root.md), whose prune stays the
 silent backstop for the local ref, and [ADR 0106](0106-verifying-and-closing-a-shipped-scope-are-separate-human-only-commands.md)
 point 3, whose cleanup kept the scope branch.

@@ -173,6 +173,11 @@ needs.
 mapping-gate dispatch reports `accepted`, and no controller writes it from a report: only an attended operator's own
 decision, mid-conversation with the controller, writes it. No unattended run and no subagent writes it.
 
+- **`/superdev:abandon`'s confirm is such a decision.** Its note reads `accepted: abandoned in <component> via
+  /superdev:abandon`. On a shared anchor it ticks only the lines `scope.js dod-own` gives this repository. These ticks
+  are the one exception to `## Only a controller ticks`: abandon has no run left to hold `dod.md`, so it writes each
+  line straight to the anchor through the store document's `## Definition of Done ticks` call, which is what a
+  sibling's wrap-up reads.
 - The stage gate treats an `accepted:` line as settled: review raises no Critical finding and holds no stage on it,
   and run handoff, document's re-check, and ship's gate read it the same way.
 - Review still challenges the line's facts through a holds tick (`### A holds tick`). Review never turns an unmet

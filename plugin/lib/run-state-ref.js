@@ -259,4 +259,4 @@ function deleteRunState(root, cwd) {
   }
 }
 
-module.exports = { pushRunState, fetchRunState, deleteRunState };
+module.exports = { pushRunState, fetchRunState, deleteRunState, configuredRemote, refName, seenRef };

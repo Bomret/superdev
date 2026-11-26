@@ -41,6 +41,7 @@ Do not fail. Push the branch, then print the compare URL
 `gh pr create ...` command the user can run once `gh` is available.
 The merge call below degrades the same way: print the exact `gh pr merge`/REST call and merge nothing.
 The check-status read below degrades the same way: print the exact `gh api` calls and judge nothing.
+The pull-request close below degrades the same way: print the exact `gh pr close` call and close nothing.
 
 ## Merge
 
@@ -118,6 +119,16 @@ Only an open pull request is edited.
   A failed read, a merged or closed pull request, a failed producer, or an empty result stops the chain
   before the edit, and the body stays as it was. Never pass the body on stdin from a pipe: a pipe drops
   the producer's exit status, and an empty body would replace the pull request's own.
+
+## Close the pull request
+
+`/superdev:abandon` closes the scope branch's open pull request unmerged and posts nothing else.
+
+- **Close it**: read it with `gh pr view <number> --json state` (or `GET /repos/<owner>/<repo>/pulls/<pull_number>`
+  for `state` and `merged`). A `state` of `CLOSED` or `MERGED` (`closed` or `merged` true on the REST read)
+  reads as that state and needs nothing more. An `OPEN` one closes with `gh pr close <number>` (over plain
+  REST, `PATCH /repos/<owner>/<repo>/pulls/<pull_number>` with `{"state":"closed"}`). A close that fails
+  stays a failed host call for its caller.
 
 ## Compute the base
 

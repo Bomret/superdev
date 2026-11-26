@@ -54,7 +54,7 @@ Do not fall back to a token or a raw HTTP call (curl). No `gh` or `jq` on the pa
 (`https://github.com/Bomret/superdev/compare/main...<scope-branch>?expand=1`) and the exact `gh` command
 the step would have run. The merge call below degrades the same way: print the exact `gh pr merge` or
 `gh api` REST call and merge nothing. The check-status read below degrades the same way: print the exact `gh api` calls and
-judge nothing.
+judge nothing. The pull-request close below degrades the same way: print the exact `gh pr close` call and close nothing.
 
 ## Merge
 
@@ -138,6 +138,14 @@ ADR 0121). Only an open pull request is edited.
   a failed producer, or an empty result stops the chain before the edit, and the body stays as it was.
   Stdin from a pipe is never the body source: a pipe drops the producer's exit status, and an empty body
   replaces the pull request's own.
+
+## Close the pull request
+
+`/superdev:abandon` closes the scope branch's open pull request unmerged and posts nothing else.
+
+- **Close it**: read it with `gh pr view <number> --repo Bomret/superdev --json state`. A `state` of `CLOSED`
+  or `MERGED` reads as that state and needs nothing more. An `OPEN` one closes with `gh pr close <number>
+  --repo Bomret/superdev`. A close that fails stays a failed host call for its caller.
 
 ## Compute the base
 

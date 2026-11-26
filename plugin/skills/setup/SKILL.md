@@ -82,7 +82,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 **A replaced rule.** Applies to a rule the current seed replaced. Such a rule is a contradicted rule. List it as a seed gap under the seed rule it contradicts, never as a stale deviation or a section only the document carries.
 
 - A knowledge-base outline entry holding a placeholder (`<...>`, such as `How it works: <mechanism>`), or an outline lacking the rule, contradicts the seed's **Every outline entry names a topic page** rule. Explicit entries that differ from the seed's example entries are filled-in values, no gap.
-- A slice-store close that strips no status label contradicts the seed's **Close an issue** rule: a bare `tea issues close <index>` (Forgejo), a bare close `PATCH` (GitHub, the abandoned `not_planned` close included), or a bare `merged` transition where the ready marker is a label (Jira). The triage record's **Close it** call is no such close.
+- A slice-store close that strips no status label contradicts the seed's **Close an issue** rule: a bare `tea issues close <index>` (Forgejo), a bare close `PATCH` (GitHub), or a bare `merged` transition where the ready marker is a label (Jira). An abandoned record's close follows **Close as abandoned**: a plain `completed` close of it (GitHub), a close with no abandoned comment (Forgejo), or a done transition with no **Abandoned resolution** (Jira) contradicts it. The triage record's **Close it** call is no such close.
 
 **No gap.** Applies to a difference of these kinds: a renamed heading, a filled-in value where the seed carries a placeholder, setup-facing instruction text, and a section only the document carries. List none of them as a gap. A document with no seed gap says so.
 

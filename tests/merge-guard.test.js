@@ -86,6 +86,34 @@ test('A subagent is denied every DENIED command and allowed every ALLOWED one; t
   assert.equal(decide({ agent_id: 'a1' }).block, false, 'a subagent call with no command → allow');
 });
 
+test('`abandon` is a verb word only as the first word after `scope.js` (INV-0141); the operator runs it', () => {
+  const denied = [
+    'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" abandon apply --root r --base main --token t',
+    'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" abandon inventory --root r',
+    'node scope.js abandon inventory',
+    "cd x && node '/p/scope.js' abandon apply",
+    'node /p/Scope.JS abandon apply',
+    'node scope.js "abandon" apply',
+    "node scope.js 'abandon' inventory",
+    'node scope.js ab""andon apply',
+    "node scope.js ab''andon apply",
+  ];
+  for (const c of denied) {
+    assert.equal(decide(sub(c)).block, true, 'a subagent call is denied: ' + JSON.stringify(c));
+    assert.equal(decide(ctl(c)).block, false, 'the operator runs it: ' + JSON.stringify(c));
+  }
+  const allowed = [
+    'git log feat/abandon',
+    "git branch --list 'slice/abandon/*'",
+    'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root /r/.superdev/scopes/abandon',
+    'node scope.js base resolve --branch feat/abandon --base main',
+    'node scope.js ABANDON inventory',
+  ];
+  for (const c of allowed) {
+    assert.equal(decide(sub(c)).block, false, 'a subagent call passes: ' + JSON.stringify(c));
+  }
+});
+
 test('The `m` alias is a verb after `tea` only.', () => {
   assert.equal(decide(sub('git m 3')).block, false, 'git has no m alias');
   assert.equal(decide(sub('gh pr m 3')).block, false, 'gh has no m alias');

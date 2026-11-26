@@ -2,7 +2,7 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, reviewed, deploy, suite, base, discard, get, state, status,
+// Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, reviewed, deploy, suite, base, discard, abandon (`abandon inventory` and `abandon apply`), get, state, status,
 // publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, prototype (`prototype push` and its deleting `prototype push --delete`), root, staging, dod-merge, dod-line, dod-tags, dod-check, dod-own, ci, section, tier, dod-open, contained, red-evidence, branch (the read-only `branch --root` and the deleting `branch delete`), checkout, lock, route, denial, consent, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
@@ -54,6 +54,7 @@ const libRunStateRef = () => require('../lib/run-state-ref.js');
 const libDodMerge = () => require('../lib/dod-merge.js');
 const libPlanOpen = () => require('../lib/plan-open.js');
 const libDiscard = () => require('../lib/discard.js');
+const libAbandon = () => require('../lib/abandon.js');
 const libCi = () => require('../lib/ci.js');
 const libSection = () => require('../lib/section.js');
 const libTier = () => require('../lib/tier.js');
@@ -360,6 +361,11 @@ function run(argv, cwd, stdinJson) {
       ledgerEvent = { root, fields: ['base', 'set', args[1]] };
       break;
     }
+    // `abandon inventory` reads git and the run root and prints a run's local items and a token; `abandon apply` removes them under that
+    // token and the run root with them (ADR 0288, INV-0211). Neither is a run-writing verb, so the digest check does not run.
+    case 'abandon':
+      libAbandon().verbAbandon(cwd, args);
+      break;
     case 'discard': {
       const root = takeRoot(args);
       if (args.length) fail(`discard: unrecognized argument "${args[0]}"`);
