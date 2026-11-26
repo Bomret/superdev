@@ -31,6 +31,10 @@ finding, every `disputed` finding, and every observation a sweep carries takes t
 - **A plan comment names an id** when it carries it as `#<this record> F<n>`, or as a bare `F<n>` with no record
   reference before it. An id cited against another record, such as `#<other record> F<n>`, marks nothing on this
   record.
+- **A plan comment that names a scope anchor a later abandon comment on the same record names marks no finding
+  planned.** `/superdev:abandon` comments on each record the run was seeded from, in the form `Abandoned: #<anchor
+  reference> (<feature label>)`: the anchor as the store reference and the feature label, and the word abandoned. A
+  part that anchor planned reads as unplanned again.
 - A brainstorm intent carries no ids: it has no findings list.
 
 ## Write, confirm, then delete
