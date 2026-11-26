@@ -3,7 +3,9 @@
 // abandon-apply.js: the `abandon apply` verb (ADR 0288, INV-0211). It recomputes the inventory, deletes nothing where the
 // inventory's hash differs from `--token`, and otherwise removes each item the inventory listed, in removal order: worktrees,
 // slice branches, the remote scope branch, its tracking ref, the local scope branch, the run-state ref, drafts, staged pages,
-// and the run root last, its ledger the very last file. Every step tolerates an item already gone, every branch goes under a
+// and the run root last, its ledger the very last file. A target with no run root removes an intent file and the named
+// prototype worktrees and branches alone, in that order; with a run root the prototypes go after the run's own items and
+// before the run root. Every step tolerates an item already gone, every branch goes under a
 // lease on the tip the inventory read, and the run root stays while any item reads kept or failed, so a rerun finds the run.
 //
 // An outcome line is `<kind> <word> <subject> ...`, the word one of `deleted`, `gone`, `kept-moved`, `kept-checked-out`,
@@ -65,22 +67,60 @@ function removeBranch(ctx, item) {
   return leasedDelete(ctx, label, item.subject, item.tip, name, byHand);
 }
 
-// A draft or capture in `.superdev/`, removed as a file or a link and never followed.
+// A draft or capture in `.superdev/`, or an intent file in `.superdev/brainstorm/`, removed as a file or a link and never
+// followed.
 function removeFile(ctx, item) {
   const p = item.subject;
+  const k = item.kind;
+  const dir = k === 'intent-file' ? path.join(ctx.realSd, 'brainstorm') : ctx.realSd;
   const byHand = `rm ${q(p)}`;
-  if (realish(path.dirname(p)) !== ctx.realSd) return `file failed ${p}: it is not directly inside ${ctx.realSd}; run by hand: ${byHand}`;
+  if (realish(path.dirname(p)) !== dir) return `${k} failed ${p}: it is not directly inside ${dir}; run by hand: ${byHand}`;
   try {
     fs.lstatSync(p);
   } catch (e) {
-    return e.code === 'ENOENT' ? `file gone ${p}` : `file failed ${p}: ${e.code}; run by hand: ${byHand}`;
+    return e.code === 'ENOENT' ? `${k} gone ${p}` : `${k} failed ${p}: ${e.code}; run by hand: ${byHand}`;
   }
   try {
     fs.rmSync(p, { force: true });
-    return `file deleted ${p} was ${item.tip}`;
+    return `${k} deleted ${p} was ${item.tip}`;
   } catch (e) {
-    return `file failed ${p}: ${e.code || e.message}; run by hand: ${byHand}`;
+    return `${k} failed ${p}: ${e.code || e.message}; run by hand: ${byHand}`;
   }
+}
+
+// The detour worktree of a named prototype, removed by force. It removes only where the path is its own name under
+// `<main>/.superdev/prototypes/`.
+function removePrototypeWorktree(ctx, item) {
+  const p = item.subject;
+  const byHand = `git worktree remove --force --force ${q(p)}`;
+  if (item.listFailed) return `prototype-worktree failed ${p}: the inventory could not list worktrees; run by hand: git worktree list, then ${byHand}`;
+  if (!fs.existsSync(p)) return `prototype-worktree gone ${p}`;
+  if (realish(p) !== p || path.dirname(p) !== path.join(ctx.realSd, 'prototypes')) return `prototype-worktree failed ${p}: it does not resolve inside ${path.join(ctx.realSd, 'prototypes')}; run by hand: ${byHand}`;
+  const r = gitCall(['worktree', 'remove', '--force', '--force', p], ctx.mainTree);
+  if (r.status === 0 || !fs.existsSync(p)) return `prototype-worktree deleted ${p} was ${item.tip}`;
+  return `prototype-worktree failed ${p}: ${lastLine(r)}; run by hand: ${byHand}`;
+}
+
+// A named prototype branch, deleted with `git branch -D` once a tip check shows it still at the inventoried commit. A branch
+// that moved reads kept-moved, and one a worktree still has checked out is left to git's own refusal. Base is never deleted.
+function removePrototypeBranch(ctx, item) {
+  const name = branchOf(item.subject);
+  const byHand = `git branch -D ${name}`;
+  const label = 'prototype-branch';
+  if (!name.startsWith('prototype/')) return `${label} failed ${name} is no prototype branch; abandon deletes none else`;
+  if (namesBase(name, ctx.base, ctx.remote)) return `${label} failed ${name} names the base branch ${ctx.base}; abandon never removes base`;
+  if (item.tip === '-') return `${label} failed ${name}: the inventory could not read its tip; run by hand: ${byHand}`;
+  const moved = (at) => `${label} kept-moved ${name} is at ${at}, past the inventoried tip ${item.tip}; run by hand: ${byHand}`;
+  const now = readTip(ctx.mainTree, item.subject);
+  if (now.why) return `${label} failed ${name}: ${now.why}; run by hand: ${byHand}`;
+  if (!now.tip) return `${label} gone ${name}`;
+  if (now.tip !== item.tip) return moved(now.tip);
+  const r = gitCall(['branch', '-D', name], ctx.mainTree);
+  if (r.status === 0) return `${label} deleted ${name} was ${item.tip}`;
+  const again = readTip(ctx.mainTree, item.subject);
+  if (again.tip === undefined && !again.why) return `${label} gone ${name}`;
+  if (again.tip && again.tip !== item.tip) return moved(again.tip);
+  return `${label} failed ${name}: ${lastLine(r)}; run by hand: ${byHand}`;
 }
 
 // The staged pages of the scope. The directory removes only where it resolves, links included, to its own name under
@@ -137,34 +177,45 @@ function removeItems(inv, base) {
   const lines = [];
   const run = (fn, items) => items.forEach((i) => lines.push(fn(ctx, i)));
 
-  run(removeWorktree, of('worktree'));
-  const pruned = gitCall(['worktree', 'prune'], inv.mainTree);
-  if (pruned.status !== 0) lines.push(`worktree failed prune: ${lastLine(pruned)}; run by hand: git worktree prune`);
-  const listed = listWorktrees(inv.mainTree);
-  ctx.listFailure = listed.failure;
-  for (const t of listed.trees || []) if (t.branch) ctx.checkedOut.set(t.branch, realish(t.path));
-  run(removeBranch, of('slice-branch'));
+  if (inv.root) {
+    run(removeWorktree, of('worktree'));
+    const pruned = gitCall(['worktree', 'prune'], inv.mainTree);
+    if (pruned.status !== 0) lines.push(`worktree failed prune: ${lastLine(pruned)}; run by hand: git worktree prune`);
+    const listed = listWorktrees(inv.mainTree);
+    ctx.listFailure = listed.failure;
+    for (const t of listed.trees || []) if (t.branch) ctx.checkedOut.set(t.branch, realish(t.path));
+    run(removeBranch, of('slice-branch'));
 
-  // The remote first: the tracking ref goes only once the remote branch reads deleted or gone.
-  const remoteItem = of('scope-remote')[0];
-  let remoteLine = null;
-  if (!inv.remote) remoteLine = 'remote not-reached no remote is configured or given';
-  else if (!remoteItem) remoteLine = `remote gone ${shownRemote(inv.remote)} ${inv.branch} is already absent`;
-  else if (remoteItem.tip === '-') remoteLine = `remote failed ${shownRemote(inv.remote)} ${inv.branch}: the inventory could not read the remote tip; run by hand: git push --delete ${shownRemote(inv.remote)} ${remoteItem.ref}`;
-  else remoteLine = deleteRemote(inv.mainTree, inv.remote, inv.branch, remoteItem.tip);
-  lines.push(remoteLine);
-  for (const t of of('scope-tracking')) {
-    lines.push(['deleted', 'gone'].includes(word(remoteLine))
-      ? leasedDelete(ctx, 'tracking', t.subject, t.tip, t.subject, `git update-ref -d ${t.subject}`)
-      : `tracking not-reached ${t.subject} is kept beside the remote branch, which reads ${word(remoteLine)}`);
+    // The remote first: the tracking ref goes only once the remote branch reads deleted or gone.
+    const remoteItem = of('scope-remote')[0];
+    let remoteLine = null;
+    if (!inv.remote) remoteLine = 'remote not-reached no remote is configured or given';
+    else if (!remoteItem) remoteLine = `remote gone ${shownRemote(inv.remote)} ${inv.branch} is already absent`;
+    else if (remoteItem.tip === '-') remoteLine = `remote failed ${shownRemote(inv.remote)} ${inv.branch}: the inventory could not read the remote tip; run by hand: git push --delete ${shownRemote(inv.remote)} ${remoteItem.ref}`;
+    else remoteLine = deleteRemote(inv.mainTree, inv.remote, inv.branch, remoteItem.tip);
+    lines.push(remoteLine);
+    for (const t of of('scope-tracking')) {
+      lines.push(['deleted', 'gone'].includes(word(remoteLine))
+        ? leasedDelete(ctx, 'tracking', t.subject, t.tip, t.subject, `git update-ref -d ${t.subject}`)
+        : `tracking not-reached ${t.subject} is kept beside the remote branch, which reads ${word(remoteLine)}`);
+    }
+    run(removeBranch, of('scope-branch'));
+    lines.push(runStateLine(ctx, of('run-state-ref')[0]));
+    run(removeFile, of('file'));
+    run(removePending, of('kb-pending'));
   }
-  run(removeBranch, of('scope-branch'));
-  lines.push(runStateLine(ctx, of('run-state-ref')[0]));
-  run(removeFile, of('file'));
-  run(removePending, of('kb-pending'));
+  run(removeFile, of('intent-file'));
+  const trees = of('prototype-worktree');
+  run(removePrototypeWorktree, trees);
+  if (trees.length) {
+    const pruned = gitCall(['worktree', 'prune'], inv.mainTree);
+    if (pruned.status !== 0) lines.push(`prototype-worktree failed prune: ${lastLine(pruned)}; run by hand: git worktree prune`);
+  }
+  run(removePrototypeBranch, of('prototype-branch'));
 
-  const done = lines.every((l) => DONE_WORDS.includes(word(l)));
   const root = of('run-root')[0];
+  if (!root) return lines;
+  const done = lines.every((l) => DONE_WORDS.includes(word(l)));
   if (done) lines.push(removeRoot(ctx, root));
   else lines.push(`run-root not-reached ${root.subject} stays, ledger included, until every item above reads deleted, gone, or not-reached; run the same command again after the kept or failed items are settled`);
   return lines;

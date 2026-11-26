@@ -572,3 +572,120 @@ test('a tracking ref that survives the remote delete is removed by the leased tr
   assert.ok(result.stdout.split('\n').includes(`tracking deleted ${track} was ${tip}`), result.stdout);
   assert.ok(!refExists(f.repo, track));
 });
+
+// The targets with no run root: an intent file and named prototype branches (`--intent-file`, `--prototype`).
+function detour(f) {
+  const brainstorm = path.join(f.repo, '.superdev', 'brainstorm');
+  fs.mkdirSync(brainstorm, { recursive: true });
+  const intent = path.join(brainstorm, 'x.md');
+  fs.writeFileSync(intent, '# idea\n');
+  const tree = path.join(f.repo, '.superdev', 'prototypes', 'y');
+  git(['worktree', 'add', '-q', '-b', 'prototype/y', tree, 'main'], f.repo);
+  commit(tree, 'proto.md', 'p\n', 'wip: prototype');
+  fs.writeFileSync(path.join(tree, 'dirty.txt'), 'd\n');
+  return { intent, tree };
+}
+
+function abandonCall(f, sub, args, { env } = {}) {
+  const result = spawnSync(process.execPath, [scopePath, 'abandon', sub, ...args], {
+    cwd: f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL', env: env || process.env,
+  });
+  assertSpawnDecided(result, `scope.js abandon ${sub}`);
+  const lines = result.stdout.split('\n').filter(Boolean);
+  const last = lines[lines.length - 1] || '';
+  return { status: result.status, err: result.stderr, out: result.stdout, lines, items: lines.filter((l) => !l.startsWith('token ')).map((l) => l.split('\t')), token: last.startsWith('token ') ? last.slice(6) : null };
+}
+
+test('an intent file and a prototype branch are inventoried with tip and dirty worktree, and apply removes all three', () => {
+  const f = fixture();
+  const d = detour(f);
+  const args = ['--base', 'main', '--intent-file', '.superdev/brainstorm/x.md', '--prototype', 'prototype/y'];
+  const r = abandonCall(f, 'inventory', args);
+  assert.strictEqual(r.status, 0, r.err);
+  const tip = git(['rev-parse', 'refs/heads/prototype/y'], f.repo);
+  assert.strictEqual(find(r, 'intent-file')[1], fs.realpathSync(d.intent));
+  assert.deepStrictEqual(find(r, 'prototype-branch').slice(1, 4), ['refs/heads/prototype/y', tip, 'uncontained 1']);
+  assert.ok(find(r, 'prototype-worktree').includes('dirty'));
+  const a = abandonCall(f, 'apply', [...args, '--token', r.token]);
+  assert.strictEqual(a.status, 0, a.out + a.err);
+  assert.ok(lineFor(a, 'intent-file deleted '), a.out);
+  assert.ok(lineFor(a, 'prototype-worktree deleted '), a.out);
+  assert.ok(a.lines.includes(`prototype-branch deleted prototype/y was ${tip}`), a.out);
+  assert.ok(!fs.existsSync(d.intent) && !fs.existsSync(d.tree) && !refExists(f.repo, 'refs/heads/prototype/y'));
+  assert.ok(fs.existsSync(f.root), 'the run is no target here');
+});
+
+test('an intent file outside .superdev/brainstorm, or a symlink leading out of it, refuses with nothing deleted', () => {
+  const f = fixture();
+  detour(f);
+  const outside = path.join(f.copy, 'outside.md');
+  fs.writeFileSync(outside, 'keep\n');
+  fs.symlinkSync(outside, path.join(f.repo, '.superdev', 'brainstorm', 'link.md'));
+  for (const target of [outside, '.superdev/brainstorm/link.md', 'README.md', '.superdev/brainstorm/../scopes/demo/ledger.md']) {
+    for (const sub of ['inventory', 'apply']) {
+      const r = abandonCall(f, sub, ['--base', 'main', '--intent-file', target, ...(sub === 'apply' ? ['--token', 'x'] : [])]);
+      assert.strictEqual(r.status, 1, `${sub} ${target}`);
+      assert.match(r.err, /no intent file/);
+    }
+  }
+  assert.strictEqual(fs.readFileSync(outside, 'utf8'), 'keep\n');
+  assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
+});
+
+test('--prototype main, prototype/../x, and feat/other refuse before any git call', () => {
+  const f = fixture();
+  const shim = path.join(f.copy, 'shim');
+  fs.mkdirSync(shim, { recursive: true });
+  const real = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\n: > "${shim}/called"\nexec '${real}' "$@"\n`, { mode: 0o755 });
+  const env = { ...process.env, PATH: `${shim}${path.delimiter}${process.env.PATH}` };
+  for (const name of ['main', 'prototype/../x', 'feat/other', 'prototype/', 'prototype/a/b']) {
+    const r = abandonCall(f, 'inventory', ['--base', 'main', '--prototype', name], { env });
+    assert.strictEqual(r.status, 1, name);
+    assert.match(r.err, /no prototype branch/);
+  }
+  assert.ok(!fs.existsSync(path.join(shim, 'called')), 'no git process ran');
+});
+
+test('--root with --intent-file refuses, and an absent target refuses', () => {
+  const f = fixture();
+  assert.strictEqual(abandonCall(f, 'inventory', ['--root', f.root, '--base', 'main', '--intent-file', 'a.md']).status, 1);
+  assert.match(abandonCall(f, 'inventory', ['--base', 'main']).err, /needs --root/);
+  assert.match(abandonCall(f, 'inventory', ['--prototype', 'prototype/y']).err, /needs --base/);
+});
+
+test('a prototype branch that gained a commit after the inventory is kept as kept-moved', () => {
+  const f = fixture();
+  const d = detour(f);
+  const args = ['--base', 'main', '--prototype', 'prototype/y'];
+  const r = abandonCall(f, 'inventory', args);
+  git(['-C', d.tree, 'add', 'dirty.txt'], f.repo);
+  git(['-C', d.tree, 'commit', '-q', '-m', 'late'], f.repo);
+  const moved = git(['rev-parse', 'refs/heads/prototype/y'], f.repo);
+  // The commit moves the worktree's status, so the stale token mismatches. A fresh inventory then a move after it is the case.
+  assert.strictEqual(abandonCall(f, 'apply', [...args, '--token', r.token]).status, 3);
+  const fresh = abandonCall(f, 'inventory', args);
+  const shim = path.join(f.copy, 'shim');
+  fs.mkdirSync(shim, { recursive: true });
+  const real = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  const body = `if [ "$1" = worktree ] && [ "$2" = prune ] && [ ! -e "${shim}/done" ]; then : > "${shim}/done"; '${real}' -C '${f.repo}' commit-tree -p ${moved} -m late2 ${moved}^{tree} > "${shim}/new" 2>/dev/null; '${real}' -C '${f.repo}' update-ref refs/heads/prototype/y "$(cat ${shim}/new)"; fi\n`;
+  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\n${body}exec '${real}' "$@"\n`, { mode: 0o755 });
+  const a = abandonCall(f, 'apply', [...args, '--token', fresh.token], { env: { ...process.env, PATH: `${shim}${path.delimiter}${process.env.PATH}` } });
+  assert.strictEqual(a.status, 4, a.out + a.err);
+  assert.ok(lineFor(a, 'prototype-branch kept-moved prototype/y'), a.out);
+  assert.ok(refExists(f.repo, 'refs/heads/prototype/y'));
+});
+
+test('--root with --prototype removes the named prototype after the run\'s own items and before the run root', () => {
+  const f = fixture();
+  detour(f);
+  const base = ['--root', f.root, '--base', 'main', '--remote', 'origin', '--prototype', 'prototype/y'];
+  const r = abandonCall(f, 'inventory', base);
+  const kinds = r.items.map((i) => i[0]);
+  assert.ok(kinds.indexOf('kb-pending') < kinds.indexOf('prototype-worktree') && kinds.indexOf('prototype-branch') < kinds.indexOf('run-root'), kinds.join());
+  const a = abandonCall(f, 'apply', [...base, '--token', r.token]);
+  assert.strictEqual(a.status, 0, a.out + a.err);
+  const kinds2 = a.lines.map((l) => l.split(' ')[0]);
+  assert.ok(kinds2.lastIndexOf('local') < kinds2.indexOf('prototype-worktree') && kinds2.indexOf('prototype-branch') < kinds2.indexOf('run-root'), a.out);
+  assert.ok(!refExists(f.repo, 'refs/heads/prototype/y') && !fs.existsSync(f.root));
+});
