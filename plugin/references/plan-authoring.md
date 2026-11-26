@@ -113,8 +113,9 @@ an interview this way). It is advisory.
 - **A single-slice plan** parks nothing: an unresolved load-bearing decision there means the plan is not
   single-slice yet.
 
-**Non-goals.** Applies to something deliberately not being built, from the interview's own scoping or routed from a
-seeded intent's dropped direction (`domain-modeling.md`). On a multi-slice plan, write it to the epic's `## Non-goals`
+**Non-goals.** Applies to something deliberately not being built, from the interview's own scoping, from a seeded
+intent's own non-goals (brainstorm's **Rough scope + non-goals** exclusions, a sweep's or a review-tests' non-goals),
+or routed from a seeded intent's dropped direction (`domain-modeling.md`). On a multi-slice plan, write it to the epic's `## Non-goals`
 section. It is advisory: `/implement` never reads it.
 
 - **Each line leads with its horizon** → `- **Deferred:** <what> — <why outside this goal>` or `- **Rejected:** <what>

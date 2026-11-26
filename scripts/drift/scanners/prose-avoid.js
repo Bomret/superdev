@@ -464,11 +464,7 @@ function scanScopeReviewNoFullRun(root) {
   return gaps;
 }
 
-// scanRetiredScopeTerms(): no Markdown file at any depth under `plugin/`, its AGENTS.md files included, names a
-// retired scope term (ADR 0289): `MLP` as a whole, case-sensitive word, the phrase "Minimal Lovable Product", or the
-// phrase "rejected direction(s)", the phrases case-insensitive. Fenced blocks are read too. Each phrase matches across
-// any run of whitespace, a line break included, so a phrase wrapped across lines is caught; a gap names its file and
-// the line the match starts on.
+// scanRetiredScopeTerms(): the `retired-scope-terms` check, whose contract `scripts/AGENTS.md` owns (ADR 0289).
 // simplicity: the ceiling is those three spellings: a paraphrase ("lovable minimum", "a direction we rejected") and an
 // abbreviation in another case ("mlp", "MLPs") walk past.
 const RETIRED_SCOPE_TERMS = [/\bMLP\b/g, /\bMinimal\s+Lovable\s+Product\b/gi, /\brejected\s+directions?\b/gi];

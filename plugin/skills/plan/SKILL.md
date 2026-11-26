@@ -191,7 +191,7 @@ The `not-contained`, `dirty`, and `held` stops write nothing.
 
 A triage record already written is amended instead, through the store's own `## Triage record` section (best-effort), so its provenance names the revised label and branch.
 
-**Dropped alternatives.** Applies to every dropped direction §1 carried in and every alternative this interview drops, before this plan ends. Route it by kind and horizon where `references/domain-modeling.md` says: an ADR's `Considered options` only for a rejected approach the operator confirmed, and the epic's non-goals, led by the horizon word, for a rejected scope and every deferral. A deferral never reaches an ADR, and a cut you cannot route is filtered out loud.
+**Dropped alternatives.** Applies to every dropped direction §1 carried in and every alternative this interview drops, before this plan ends. Route each one to a durable home by `references/domain-modeling.md`'s **Route each cut** and **The filter**.
 
 **Commitments.** Applies to every seeded commitment and every commitment this interview originates. Convert each by the move `references/domain-modeling.md` states: into an invariant register entry, or into a reason said out loud that it constrains nothing, or that it is an authoring rule this repository's register never receives, or into a working rule of the build, test, documentation, or release setup when it constrains that setup alone.
 
