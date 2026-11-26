@@ -76,7 +76,5 @@ exception to a `spec` stating outcomes and interfaces only.
 records the branch with its pushed commit in the run's ledger (`**Prototypes:**`). A line turns to its pushed form only
 after its branch prints `pushed`. `/superdev:brainstorm` pushes nothing.
 
-**The teardown.** Applies to every recorded prototype branch. `/superdev:wrap-up`'s cleanup deletes it with `scope.js
-prototype push --delete`, under a lease on its recorded commit, whatever the scope branch's fate (`skills/wrap-up/SKILL.md`
-§6). The local `prototype/<slug>` goes only in the clone running wrap-up, and only at the recorded commit. A branch
-nobody pushed stays the operator's.
+**The teardown.** Applies to every recorded prototype branch. `/superdev:wrap-up`'s cleanup deletes it as
+`skills/wrap-up/SKILL.md` §6, **The prototype teardown**, states. A branch nobody pushed stays the operator's.
