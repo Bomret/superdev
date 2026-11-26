@@ -56,7 +56,9 @@ Applies once the target resolved. Build the whole inventory and show it in full 
 **The prototype branches.** Collect each branch the target's own records name: the `Prototype:` line of each slice spec of the run, the intent record's text or the intent file's text, and the ledger's `**Prototypes:**` header for the pushed ones (`${CLAUDE_PLUGIN_ROOT}/references/prototype.md`'s `## The push and its teardown`). A pushed form `prototype/<scope>/<slug> on <remote>` maps to its local `prototype/<slug>` too.
 
 - **Shared** → a branch another open intent record, another local intent file, or another open anchor's open slices also names is **kept**: list it as kept, with the record that names it.
-- **Unshared** → listed for deletion, its tip beside it. Pass each unshared local name to the verb as `--prototype prototype/<slug>`, except the local name of a branch the ledger's `**Prototypes:**` header records as pushed: §6 step 4 deletes that local name with its remote branch, so the token holds no item that step removes.
+- **Unshared** → listed for deletion, its tip beside it. Pass each unshared local name to the verb as `--prototype prototype/<slug>`, the local names of branches the ledger's `**Prototypes:**` header records as pushed included.
+- **A pushed branch with no detour worktree** → §6 step 4 deletes its local name with its remote branch, so the token holds no item that step removes. Where the inventory prints no `prototype-worktree` line for a pushed name, run the inventory again without that name. The last inventory's lines and token are the ones you print and pass on.
+- **A pushed branch whose detour worktree git still registers** (a `prototype-worktree` line, `stale` included) keeps its name: git refuses step 4's delete of a branch a worktree holds, so step 4 prints it as kept, and step 5's `apply` removes the tree, then the branch.
 
 **An interrupted rerun.** Applies when an earlier abandon of this target stopped partway. An item already gone reads as gone and an item already closed or commented reads as done: list each so, and list what remains.
 
@@ -95,8 +97,8 @@ Applies after yes. The order exists so an interruption leaves the run findable: 
 1. Close the pull request through **Close the pull request**.
 2. **Close as abandoned** each open slice of this repository, then the anchor, skipping a record already closed. On a shared anchor, close no anchor: write each own line's `accepted: abandoned in <component> via /superdev:abandon` note straight to the anchor through the store document's `## Definition of Done ticks` call, as `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` states, and leave the anchor open.
 3. Comment on each absorbed record and each intent record through **Comment on it**, in the form `${CLAUDE_PLUGIN_ROOT}/references/intent-handoff.md`'s `## Finding ids` states for abandon. Absorbed records stay open. The store's skip rule posts no second comment.
-4. `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prototype push --delete --root <run-root>` for the recorded branches, with no `--remote`. Print its lines. A kept or failed branch is reported with the hand command the verb printed, and does not stop the command.
-5. `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" abandon apply --root <run-root> --base <base> --token <hex>` with the inventory's token and the same `--prototype prototype/<slug>` flags §3 passed its inventory.
+4. `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prototype push --delete --root <run-root>` for the recorded branches, with no `--remote`. Print its lines. A kept or failed branch is reported with the hand command the verb printed, and does not stop the command. A local name §3 kept for its detour worktree reads kept here, and step 5 deletes it.
+5. `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" abandon apply --root <run-root> --base <base> --token <hex>` with the inventory's token and the same `--prototype prototype/<slug>` flags §3 passed its last inventory.
 
 ## 7. A failed call, a rerun, a changed token
 
