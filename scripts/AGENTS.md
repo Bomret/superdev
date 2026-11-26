@@ -477,6 +477,14 @@ and a run whose stage is later than `planned`. An absent file or an absent root 
 it. The code lives in `plugin/lib/discard.js`, and `tests/scope-discard.test.js` holds its cases. `plugin/lib/drive-path.js`, the
 MSYS drive-path translator, is the only path helper `discard.js` and `prepare.js` share (ADR 0150).
 
+`abandon inventory` and `abandon apply` are the sanctioned removal of a run's branches, worktrees, run-state ref, and run root, from
+`planned` through `submitted` (ADR 0288, INV-0211). `inventory` writes nothing: it prints one tab-separated item line per local item,
+marks what would lose work, and ends in a `token <hex>` line hashing every item line. `apply --token <hex>` recomputes the inventory,
+deletes nothing where the hash differs, and otherwise removes each item in the removal order `lib/abandon-apply.js`'s header states,
+printing one outcome line per item. A run lock younger than its bound refuses both. The target forms (`--root`, `--intent-file`,
+`--prototype`), the marks, the outcome words, and the exits belong to the headers of `plugin/lib/abandon.js` and `abandon-apply.js`.
+`/superdev:abandon` is the only caller, and `merge-guard` denies the verb to a subagent. `tests/scope-abandon.test.js` holds its cases.
+
 ### Run digest (ADR 0227)
 
 `run-digest.js` keeps `<run-root>/digest.json`, the size and sha256 of `ledger.md` and `trace.log` as `scope.js` and the hooks last
