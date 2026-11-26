@@ -7,6 +7,11 @@
 // An item line is tab-separated: `<kind>\t<subject>\t<tip>\t<mark>...`. The tip is a commit id, a content hash, or `-`. A mark
 // is `dirty`, `status=<hash>`, `uncontained <n>`, `loss`, `pages=<n>`, `kept-checked-out`, `stale`, `stage=<stage>`, or
 // `unknown <reason>`: a read that failed or timed out never reads as safe (INV-0009). Items print in removal order.
+//
+// A run root is one target. The other two have no run root: an intent file (`--intent-file`, one `intent-file` item) and named
+// prototype branches (`--prototype prototype/<slug>`, a `prototype-worktree` item where git registers
+// `<main>/.superdev/prototypes/<slug>`, and a `prototype-branch` item). `--prototype` joins `--root` or an intent file, or
+// stands alone as the form for an intent record target. The verb lists and deletes only the names it was given.
 
 const crypto = require('crypto');
 const fs = require('fs');
@@ -14,7 +19,7 @@ const path = require('path');
 const { gitSpawn, listWorktrees } = require('./git-spawn.js');
 const { fail, readPresent } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
-const { CHANGE_TYPES, STAGES, readLedgerHeader } = require('./ledger.js');
+const { CHANGE_TYPES, STAGES, SLUG_RE, readLedgerHeader } = require('./ledger.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { drivePath } = require('./drive-path.js');
 const { realish } = require('./discard.js');
@@ -55,18 +60,35 @@ function makeItem(kind, subject, tip, marks = [], extra = {}) {
 
 const unknown = (reason) => `unknown ${reason}`;
 
+// A `--prototype` value: `prototype/<slug>` with a slug `SLUG_RE` accepts, checked before any git process runs.
+const PROTOTYPE_PREFIX = 'prototype/';
+const isPrototypeName = (v) => v.startsWith(PROTOTYPE_PREFIX) && SLUG_RE.test(v.slice(PROTOTYPE_PREFIX.length));
+
 function parseArgs(sub, args) {
   const opts = {};
-  const flags = { '--root': 'root', '--base': 'base', '--remote': 'remote', ...(sub === 'apply' ? { '--token': 'token' } : {}) };
-  const ownFlag = (v) => Object.hasOwn(flags, v);
+  const flags = { '--root': 'root', '--base': 'base', '--remote': 'remote', '--intent-file': 'intentFile', ...(sub === 'apply' ? { '--token': 'token' } : {}) };
+  const ownFlag = (v) => Object.hasOwn(flags, v) || v === '--prototype';
+  const prefix = `abandon ${sub}: `;
   const rest = [...args];
+  const prototypes = [];
   while (rest.length) {
     const flag = rest[0];
     if (!ownFlag(flag)) fail(`abandon ${sub}: unrecognized argument "${flag}"`);
-    opts[flags[flag]] = flag === '--root' ? takeRootOption(rest, `abandon ${sub}: `) : takeOption(rest, flag, `abandon ${sub}: `, ownFlag);
+    if (flag === '--prototype') {
+      const value = rest[1];
+      if (value === undefined || value === '' || value.startsWith('--')) fail(`${prefix}--prototype needs a value`);
+      if (!isPrototypeName(value)) fail(`${prefix}--prototype ${value} is no prototype branch: it must be ${PROTOTYPE_PREFIX}<slug>`);
+      if (prototypes.includes(value)) fail(`${prefix}--prototype ${value} given twice`);
+      prototypes.push(value);
+      rest.splice(0, 2);
+      continue;
+    }
+    opts[flags[flag]] = flag === '--root' ? takeRootOption(rest, prefix) : takeOption(rest, flag, prefix, ownFlag);
   }
-  if (opts.root === undefined) fail(`abandon ${sub} needs --root <run-root>`);
+  if (opts.root !== undefined && opts.intentFile !== undefined) fail(`abandon ${sub}: --root and --intent-file are mutually exclusive`);
+  if (opts.root === undefined && opts.intentFile === undefined && !prototypes.length) fail(`abandon ${sub} needs --root <run-root>, --intent-file <path>, or --prototype <branch>`);
   if (opts.base === undefined) fail(`abandon ${sub} needs --base <base-ref>`);
+  opts.prototypes = prototypes;
   return opts;
 }
 
@@ -120,6 +142,22 @@ function statusHash(porcelain, dir) {
   return h.digest('hex').slice(0, 16);
 }
 
+// The item of one registered worktree that exists: its HEAD, and `dirty` with a `status=` hash where it holds changes.
+function worktreeItem(kind, dir) {
+  const head = localCall(['rev-parse', 'HEAD'], dir);
+  const status = localCall(['status', '--porcelain', '-z', '--untracked-files=all'], dir);
+  const marks = [];
+  if (status.status !== 0) marks.push(unknown(`status not read: ${whyNot(status)}`));
+  else if (status.stdout) {
+    try {
+      marks.push('dirty', `status=${statusHash(status.stdout, dir)}`);
+    } catch (e) {
+      marks.push('dirty', unknown(`changed files not read (${e.code || e.message})`));
+    }
+  }
+  return makeItem(kind, dir, head.status === 0 ? head.stdout.trim() : null, head.status === 0 ? marks : [unknown(`HEAD not read: ${whyNot(head)}`), ...marks]);
+}
+
 function stagedItem(kind, dir) {
   if (!fs.existsSync(dir)) return null;
   try {
@@ -130,17 +168,17 @@ function stagedItem(kind, dir) {
   }
 }
 
-function fileItem(file) {
+function fileItem(file, kind = 'file') {
   let stat;
   try {
     stat = fs.lstatSync(file);
   } catch (e) {
-    return e.code === 'ENOENT' ? null : makeItem('file', file, null, [unknown(`cannot read (${e.code})`)]);
+    return e.code === 'ENOENT' ? null : makeItem(kind, file, null, [unknown(`cannot read (${e.code})`)]);
   }
   try {
-    return makeItem('file', file, stat.isFile() ? sha(fs.readFileSync(file)).slice(0, 16) : null, stat.isFile() ? [] : [unknown('not a regular file')]);
+    return makeItem(kind, file, stat.isFile() ? sha(fs.readFileSync(file)).slice(0, 16) : null, stat.isFile() ? [] : [unknown('not a regular file')]);
   } catch (e) {
-    return makeItem('file', file, null, [unknown(`cannot read (${e.code || e.message})`)]);
+    return makeItem(kind, file, null, [unknown(`cannot read (${e.code || e.message})`)]);
   }
 }
 
@@ -160,6 +198,54 @@ function readRemoteRef(cwd, remote, ref) {
   if (r.status !== 0) return { why: `ls-remote failed: ${lastLine(r, remote)}` };
   const hit = r.stdout.split('\n').map((l) => l.split('\t')).find((p) => p[1] === ref);
   return hit ? { tip: hit[0].trim() } : { gone: true };
+}
+
+// The one `intent-file` item of `--intent-file`: the path must resolve, after symlinks, to `<main>/.superdev/brainstorm/<slug>.md`.
+// A file already gone lists nothing.
+function intentItem(cwd, mwt, arg) {
+  const dir = realish(path.join(mwt, '.superdev', 'brainstorm'));
+  const p = realish(path.resolve(cwd, drivePath(arg)));
+  const name = path.basename(p);
+  if (path.dirname(p) !== dir || !name.endsWith('.md') || !SLUG_RE.test(name.slice(0, -3))) fail(`abandon: ${arg} is no intent file: it must resolve to ${dir}${path.sep}<slug>.md`);
+  return fileItem(p, 'intent-file');
+}
+
+// The items of the named prototype branches, each a `prototype-worktree` item (where git registers its detour worktree) then a
+// `prototype-branch` item (where the branch exists).
+function prototypeItems(mwt, base, remote, names) {
+  const items = [];
+  const listed = names.length ? listWorktrees(mwt) : null;
+  const protos = realish(path.join(mwt, '.superdev', 'prototypes'));
+  for (const name of names) {
+    if (namesBase(name, base, remote)) fail(`abandon: --prototype ${name} names the base branch ${base}; abandon never removes base`);
+    const treePath = path.join(protos, name.slice(PROTOTYPE_PREFIX.length));
+    if (listed.failure) items.push(makeItem('prototype-worktree', treePath, null, [unknown(listed.failure)], { listFailed: true }));
+    else {
+      const t = listed.trees.find((x) => realish(drivePath(x.path)) === treePath);
+      if (t && !fs.existsSync(treePath)) items.push(makeItem('prototype-worktree', treePath, null, ['stale']));
+      else if (t) items.push(worktreeItem('prototype-worktree', treePath));
+    }
+    const ref = `refs/heads/${name}`;
+    const read = readTip(mwt, ref);
+    if (read.tip) items.push(makeItem('prototype-branch', ref, read.tip, containmentMarks(mwt, base, read.tip)));
+    else if (read.why) items.push(makeItem('prototype-branch', ref, null, [unknown(read.why)]));
+  }
+  return items;
+}
+
+// The inventory of a target with no run root: an intent file, prototype branches, or both.
+function detourInventory(cwd, { base, remote: given, intentFile, prototypes }) {
+  const mwt = mainWorkTree(cwd);
+  if (mwt === null) fail(`abandon: not inside a git repository (cwd: ${cwd})`);
+  const remote = resolveRemote(cwd, given);
+  const items = [];
+  if (intentFile !== undefined) {
+    const it = intentItem(cwd, mwt, intentFile);
+    if (it) items.push(it);
+  }
+  items.push(...prototypeItems(mwt, base, remote, prototypes));
+  const lines = items.map((i) => i.line);
+  return { items, lines, token: sha(`${lines.join('\n')}\n`), root: null, scope: null, branch: null, remote, stateRemote: null, mainTree: mwt, stage: null };
 }
 
 // Refuses a run that cannot be abandoned and returns what the inventory reads from: the run root, its scope, ledger values,
@@ -194,7 +280,8 @@ function checkRun(cwd, rootArg, base, given) {
 
 // The inventory of a run: `{ items, lines, token, root, scope, branch, remote, stateRemote, mainTree, stage }`. A refusal throws
 // as `fail` does. `base` is the run's base ref and `given` the `--remote` value, or undefined.
-function computeInventory(cwd, { root: rootArg, base, remote: given }) {
+function computeInventory(cwd, { root: rootArg, base, remote: given, intentFile, prototypes = [] }) {
+  if (rootArg === undefined) return detourInventory(cwd, { base, remote: given, intentFile, prototypes });
   const run = checkRun(cwd, rootArg, base, given);
   const { mwt, root, scope, stage, branch, remote, lock } = run;
   const items = [];
@@ -220,18 +307,7 @@ function computeInventory(cwd, { root: rootArg, base, remote: given }) {
       items.push(makeItem('worktree', t.path, null, ['stale']));
       continue;
     }
-    const head = localCall(['rev-parse', 'HEAD'], t.path);
-    const status = localCall(['status', '--porcelain', '-z', '--untracked-files=all'], t.path);
-    const marks = [];
-    if (status.status !== 0) marks.push(unknown(`status not read: ${whyNot(status)}`));
-    else if (status.stdout) {
-      try {
-        marks.push('dirty', `status=${statusHash(status.stdout, t.path)}`);
-      } catch (e) {
-        marks.push('dirty', unknown(`changed files not read (${e.code || e.message})`));
-      }
-    }
-    items.push(makeItem('worktree', t.path, head.status === 0 ? head.stdout.trim() : null, head.status === 0 ? marks : [unknown(`HEAD not read: ${whyNot(head)}`), ...marks]));
+    items.push(worktreeItem('worktree', t.path));
     const staged = stagedItem('kb-staged', path.join(t.path, '.superdev', 'kb-pending'));
     if (staged) items.push(staged);
   }
@@ -285,6 +361,7 @@ function computeInventory(cwd, { root: rootArg, base, remote: given }) {
   const pending = stagedItem('kb-pending', path.join(sd, 'kb-pending', scope));
   if (pending) items.push(pending);
   if (lock) items.push(makeItem('lock', path.join(root, 'run.lock'), sha(lock.text).slice(0, 16), ['stale']));
+  items.push(...prototypeItems(mwt, base, remote, prototypes));
   items.push(makeItem('run-root', root, null, [`stage=${stage}`]));
 
   const lines = items.map((i) => i.line);
