@@ -361,9 +361,19 @@ test('abandon apply without its options and an unknown subverb refuse', () => {
 // `hook` is a shell command run once, just before `git worktree prune`: the first git call after the inventory is
 // recomputed and the token matched. A `git` shim first on PATH runs it, so a ref moves in the window between the inventory and
 // the deletes, which no command line can open. The shim is a fixture around unchanged code.
-function apply(f, token, { extra = ['--remote', 'origin'], cwd, hook } = {}) {
+// `after` is `failList` (a `git worktree list` after the prune fails) or `failPrune` (the prune fails).
+function apply(f, token, { extra = ['--remote', 'origin'], cwd, hook, after } = {}) {
   const env = { ...process.env };
-  if (hook) {
+  if (after) {
+    const shim = path.join(f.copy, 'shim');
+    fs.mkdirSync(shim, { recursive: true });
+    const real = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+    const body = after === 'failList'
+      ? `if [ "$1" = worktree ] && [ "$2" = prune ]; then : > "${shim}/done"; fi\nif [ "$1" = worktree ] && [ "$2" = list ] && [ -e "${shim}/done" ]; then echo boom >&2; exit 1; fi\n`
+      : `if [ "$1" = worktree ] && [ "$2" = prune ]; then echo prune-boom >&2; exit 1; fi\n`;
+    fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\n${body}exec '${real}' "$@"\n`, { mode: 0o755 });
+    env.PATH = `${shim}${path.delimiter}${process.env.PATH}`;
+  } else if (hook) {
     const shim = path.join(f.copy, 'shim');
     fs.mkdirSync(shim, { recursive: true });
     const real = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
@@ -505,4 +515,60 @@ test('a local slice branch that gained a commit after the inventory reads kept-m
   assert.ok(line && line.includes(moved), r.out);
   assert.strictEqual(git(['rev-parse', `refs/heads/slice/${SCOPE}/02`], f.repo), moved);
   assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
+});
+
+test('a worktree listing that fails during apply keeps every branch, the checked-out scope branch included, and the run root', () => {
+  const f = fixture();
+  git(['worktree', 'remove', '--force', f.scopetree], f.repo);
+  git(['checkout', '-q', BRANCH], f.repo);
+  const r = apply(f, inv(f).token, { after: 'failList' });
+  assert.strictEqual(r.status, 4, r.out);
+  assert.ok(lineFor(r, `local failed ${BRANCH}: worktrees not listed`), r.out);
+  assert.ok(lineFor(r, `slice-branch failed slice/${SCOPE}/01: worktrees not listed`), r.out);
+  assert.ok(refExists(f.repo, `refs/heads/${BRANCH}`));
+  assert.strictEqual(git(['rev-parse', '--abbrev-ref', 'HEAD'], f.repo), BRANCH);
+  assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
+});
+
+test('a failed worktree prune reads failed and keeps the run root', () => {
+  const f = fixture();
+  const r = apply(f, inv(f).token, { after: 'failPrune' });
+  assert.strictEqual(r.status, 4, r.out);
+  assert.ok(lineFor(r, 'worktree failed prune: prune-boom'), r.out);
+  assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
+});
+
+test('items removed between the inventory and the deletes read gone and the exit is 0', () => {
+  const f = fixture();
+  const draft = path.join(f.repo, '.superdev', `dod-draft-${SCOPE}.md`);
+  fs.writeFileSync(draft, 'draft\n');
+  const token = inv(f).token;
+  const pending = path.join(f.repo, '.superdev', 'kb-pending', SCOPE);
+  const tree = path.join(f.root, 'slicetrees', '01');
+  const hook = `git -C '${f.repo}' update-ref -d refs/heads/slice/${SCOPE}/02 && rm '${draft}' && rm -r '${pending}' && rm -rf '${tree}'`;
+  const r = apply(f, token, { hook });
+  assert.strictEqual(r.status, 0, r.out + r.err);
+  assert.ok(lineFor(r, `slice-branch gone slice/${SCOPE}/02`), r.out);
+  assert.ok(lineFor(r, `file gone ${draft}`), r.out);
+  assert.ok(lineFor(r, `kb-pending gone ${pending}`), r.out);
+  assert.ok(!fs.existsSync(f.root));
+});
+
+test('a tracking ref that survives the remote delete is removed by the leased tracking delete', () => {
+  const f = fixture();
+  const track = `refs/remotes/origin/${BRANCH}`;
+  const tip = git(['rev-parse', track], f.repo);
+  const token = inv(f).token;
+  // The shim puts the tracking ref back once the remote delete has run.
+  const shim = path.join(f.copy, 'shim');
+  fs.mkdirSync(shim, { recursive: true });
+  const real = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\n'${real}' "$@"\ns=$?\nif [ "$s" = 0 ] && [ "$1" = push ] && [ ! -e "${shim}/done" ]; then : > "${shim}/done"; '${real}' update-ref ${track} ${tip}; fi\nexit $s\n`, { mode: 0o755 });
+  const result = spawnSync(process.execPath, [scopePath, 'abandon', 'apply', '--root', f.root, '--base', 'main', '--remote', 'origin', '--token', token], {
+    cwd: f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL', env: { ...process.env, PATH: `${shim}${path.delimiter}${process.env.PATH}` },
+  });
+  assertSpawnDecided(result, 'scope.js abandon apply');
+  assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+  assert.ok(result.stdout.split('\n').includes(`tracking deleted ${track} was ${tip}`), result.stdout);
+  assert.ok(!refExists(f.repo, track));
 });

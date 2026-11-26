@@ -21,15 +21,18 @@ const { computeInventory, readTip } = require('./abandon.js');
 
 const word = (line) => line.split(' ')[1];
 const branchOf = (ref) => ref.replace(/^refs\/heads\//, '');
+// A path in a hand command, single-quoted so a copy-paste survives spaces.
+const q = (p) => `'${String(p).replace(/'/g, `'\\''`)}'`;
 
-// The worktree at `item.subject`, removed with its changes. A stale registration, whose directory is gone, reads gone and
-// leaves the prune to clear it.
+// The worktree at `item.subject`, removed with its changes, a locked one included (`--force` twice: the token bound the
+// operator's confirmation). A stale registration, whose directory is gone, reads gone and leaves the prune to clear it.
 function removeWorktree(ctx, item) {
   const p = item.subject;
-  const byHand = `git worktree remove --force ${p}`;
+  const byHand = `git worktree remove --force --force ${q(p)}`;
+  if (item.tip === '-' && item.marks.some((m) => m.startsWith('unknown'))) return `worktree failed ${p}: the inventory could not list worktrees; run by hand: git worktree list, then ${byHand} for each tree of the run`;
   if (!fs.existsSync(p)) return `worktree gone ${p}`;
   if (realish(p) !== p || !p.startsWith(ctx.root + path.sep)) return `worktree failed ${p}: it does not resolve inside the run root ${ctx.root}; run by hand: ${byHand}`;
-  const r = gitCall(['worktree', 'remove', '--force', p], ctx.mainTree);
+  const r = gitCall(['worktree', 'remove', '--force', '--force', p], ctx.mainTree);
   if (r.status === 0) return `worktree deleted ${p} was ${item.tip}`;
   return fs.existsSync(p) ? `worktree failed ${p}: ${lastLine(r)}; run by hand: ${byHand}` : `worktree deleted ${p} was ${item.tip}`;
 }
@@ -56,6 +59,7 @@ function removeBranch(ctx, item) {
   const byHand = `git branch -D ${name}`;
   const label = item.kind === 'slice-branch' ? 'slice-branch' : 'local';
   if (namesBase(name, ctx.base, ctx.remote)) return `${label} failed ${name} names the base branch ${ctx.base}; abandon never removes base`;
+  if (ctx.listFailure) return `${label} failed ${name}: worktrees not listed (${ctx.listFailure}), so a checked-out branch cannot be ruled out; run by hand: ${byHand}`;
   const at = ctx.checkedOut.get(name);
   if (at) return `${label} kept-checked-out ${name} is checked out at ${at} and stays there; run by hand: switch that tree to another branch, then ${byHand}`;
   return leasedDelete(ctx, label, item.subject, item.tip, name, byHand);
@@ -64,7 +68,7 @@ function removeBranch(ctx, item) {
 // A draft or capture in `.superdev/`, removed as a file or a link and never followed.
 function removeFile(ctx, item) {
   const p = item.subject;
-  const byHand = `rm ${p}`;
+  const byHand = `rm ${q(p)}`;
   if (realish(path.dirname(p)) !== ctx.realSd) return `file failed ${p}: it is not directly inside ${ctx.realSd}; run by hand: ${byHand}`;
   try {
     fs.lstatSync(p);
@@ -83,7 +87,7 @@ function removeFile(ctx, item) {
 // `<main>/.superdev/kb-pending/`: a link that leads elsewhere is refused and its target stays untouched.
 function removePending(ctx, item) {
   const p = item.subject;
-  const byHand = `rm -r ${p}`;
+  const byHand = `rm -r ${q(p)}`;
   try {
     fs.lstatSync(p);
   } catch (e) {
@@ -101,7 +105,7 @@ function removePending(ctx, item) {
 // The run root, ledger last. Everything inside it resolves under it: `rmSync` removes a link, never its target.
 function removeRoot(ctx, item) {
   const p = item.subject;
-  const byHand = `rm -r ${p}`;
+  const byHand = `rm -r ${q(p)}`;
   if (realish(p) !== path.join(realish(path.join(ctx.mainTree, '.superdev', 'scopes')), ctx.scope)) return `run-root failed ${p}: it does not resolve to its own name under ${path.join(ctx.realSd, 'scopes')}; run by hand: ${byHand}`;
   try {
     for (const name of fs.readdirSync(p)) if (name !== 'ledger.md') fs.rmSync(path.join(p, name), { recursive: true, force: true });
@@ -134,8 +138,10 @@ function removeItems(inv, base) {
   const run = (fn, items) => items.forEach((i) => lines.push(fn(ctx, i)));
 
   run(removeWorktree, of('worktree'));
-  gitCall(['worktree', 'prune'], inv.mainTree);
+  const pruned = gitCall(['worktree', 'prune'], inv.mainTree);
+  if (pruned.status !== 0) lines.push(`worktree failed prune: ${lastLine(pruned)}; run by hand: git worktree prune`);
   const listed = listWorktrees(inv.mainTree);
+  ctx.listFailure = listed.failure;
   for (const t of listed.trees || []) if (t.branch) ctx.checkedOut.set(t.branch, realish(t.path));
   run(removeBranch, of('slice-branch'));
 
