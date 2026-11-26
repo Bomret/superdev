@@ -28,17 +28,39 @@ const branchOf = (ref) => ref.replace(/^refs\/heads\//, '');
 const q = (p) => `'${String(p).replace(/'/g, `'\\''`)}'`;
 
 // The worktree at `item.subject`, removed with its changes, a locked one included (`--force` twice: the token bound the
-// operator's confirmation). A stale registration, whose directory is gone, reads gone and leaves the prune to clear it.
+// operator's confirmation). A run's tree removes only inside the run root, a prototype's detour tree only inside
+// `<main>/.superdev/prototypes/`. A stale registration, whose directory is gone, reads gone and leaves the prune to clear it.
 function removeWorktree(ctx, item) {
   const p = item.subject;
+  const k = item.kind;
+  const within = k === 'prototype-worktree' ? path.join(ctx.realSd, 'prototypes') : ctx.root;
   const byHand = `git worktree remove --force --force ${q(p)}`;
-  if (item.marks.some((m) => m.startsWith('unknown worktree list'))) return `worktree failed ${p}: the inventory could not list worktrees; run by hand: git worktree list, then ${byHand} for each tree of the run`;
-  if (item.tip === '-' && item.marks.some((m) => m.startsWith('unknown HEAD not read'))) return `worktree failed ${p}: the inventory could not read its HEAD; run by hand: ${byHand}`;
-  if (!fs.existsSync(p)) return `worktree gone ${p}`;
-  if (realish(p) !== p || !p.startsWith(ctx.root + path.sep)) return `worktree failed ${p}: it does not resolve inside the run root ${ctx.root}; run by hand: ${byHand}`;
+  if (item.marks.some((m) => m.startsWith('unknown worktree list'))) return `${k} failed ${p}: the inventory could not list worktrees; run by hand: git worktree list, then ${byHand}${k === 'worktree' ? ' for each tree of the run' : ''}`;
+  if (item.tip === '-' && item.marks.some((m) => m.startsWith('unknown HEAD not read'))) return `${k} failed ${p}: the inventory could not read its HEAD; run by hand: ${byHand}`;
+  if (!fs.existsSync(p)) return `${k} gone ${p}`;
+  if (realish(p) !== p || !p.startsWith(within + path.sep)) return `${k} failed ${p}: it does not resolve inside ${within}; run by hand: ${byHand}`;
   const r = gitCall(['worktree', 'remove', '--force', '--force', p], ctx.mainTree);
-  if (r.status === 0) return `worktree deleted ${p} was ${item.tip}`;
-  return fs.existsSync(p) ? `worktree failed ${p}: ${lastLine(r)}; run by hand: ${byHand}` : `worktree deleted ${p} was ${item.tip}`;
+  if (r.status === 0 || !fs.existsSync(p)) return `${k} deleted ${p} was ${item.tip}`;
+  return `${k} failed ${p}: ${lastLine(r)}; run by hand: ${byHand}`;
+}
+
+// Removes the file or directory `p` of an item of `kind` once `inParent` holds for it, never following a link: `rmSync`
+// removes a link, not its target. A path already gone reads gone. `refused` is the failed line's reason where `inParent`
+// does not hold, `byHand` the command a failed line names, `rm` the removal, and `tip`, where given, ends the deleted line.
+function guardedRm(kind, p, { tip, inParent, refused, byHand, rm = () => fs.rmSync(p, { force: true }) }) {
+  const failed = (why) => `${kind} failed ${p}: ${why}; run by hand: ${byHand}`;
+  try {
+    fs.lstatSync(p);
+  } catch (e) {
+    return e.code === 'ENOENT' ? `${kind} gone ${p}` : failed(e.code);
+  }
+  if (!inParent()) return failed(refused);
+  try {
+    rm();
+    return `${kind} deleted ${p}${tip === undefined ? '' : ` was ${tip}`}`;
+  } catch (e) {
+    return failed(e.code || e.message);
+  }
 }
 
 // One ref deleted under a lease on the inventoried tip, by `update-ref -d` or the `deleteArgs` given: a ref already gone reads gone, one that moved reads kept-moved.
@@ -76,32 +98,12 @@ function removeFile(ctx, item) {
   const k = item.kind;
   const sub = k === 'intent-file' ? 'brainstorm' : path.basename(path.dirname(p)) === 'design' ? 'design' : '';
   const dir = path.join(ctx.realSd, sub);
-  const byHand = `rm ${q(p)}`;
-  if (realish(path.dirname(p)) !== dir) return `${k} failed ${p}: it is not directly inside ${dir}; run by hand: ${byHand}`;
-  try {
-    fs.lstatSync(p);
-  } catch (e) {
-    return e.code === 'ENOENT' ? `${k} gone ${p}` : `${k} failed ${p}: ${e.code}; run by hand: ${byHand}`;
-  }
-  try {
-    fs.rmSync(p, { force: true });
-    return `${k} deleted ${p} was ${item.tip}`;
-  } catch (e) {
-    return `${k} failed ${p}: ${e.code || e.message}; run by hand: ${byHand}`;
-  }
-}
-
-// The detour worktree of a named prototype, removed by force. It removes only where the path is its own name under
-// `<main>/.superdev/prototypes/`.
-function removePrototypeWorktree(ctx, item) {
-  const p = item.subject;
-  const byHand = `git worktree remove --force --force ${q(p)}`;
-  if (item.listFailed) return `prototype-worktree failed ${p}: the inventory could not list worktrees; run by hand: git worktree list, then ${byHand}`;
-  if (!fs.existsSync(p)) return `prototype-worktree gone ${p}`;
-  if (realish(p) !== p || path.dirname(p) !== path.join(ctx.realSd, 'prototypes')) return `prototype-worktree failed ${p}: it does not resolve inside ${path.join(ctx.realSd, 'prototypes')}; run by hand: ${byHand}`;
-  const r = gitCall(['worktree', 'remove', '--force', '--force', p], ctx.mainTree);
-  if (r.status === 0 || !fs.existsSync(p)) return `prototype-worktree deleted ${p} was ${item.tip}`;
-  return `prototype-worktree failed ${p}: ${lastLine(r)}; run by hand: ${byHand}`;
+  return guardedRm(k, p, {
+    tip: item.tip,
+    inParent: () => realish(path.dirname(p)) === dir,
+    refused: `it is not directly inside ${dir}`,
+    byHand: `rm ${q(p)}`,
+  });
 }
 
 // A named prototype branch, deleted with `git branch -D` through `leasedDelete`: a branch that moved reads kept-moved, and one
@@ -118,34 +120,29 @@ function removePrototypeBranch(ctx, item) {
 // `<main>/.superdev/kb-pending/`: a link that leads elsewhere is refused and its target stays untouched.
 function removePending(ctx, item) {
   const p = item.subject;
-  const byHand = `rm -r ${q(p)}`;
-  try {
-    fs.lstatSync(p);
-  } catch (e) {
-    return e.code === 'ENOENT' ? `kb-pending gone ${p}` : `kb-pending failed ${p}: ${e.code}; run by hand: ${byHand}`;
-  }
-  if (realish(p) !== path.join(ctx.realSd, 'kb-pending', ctx.scope)) return `kb-pending failed ${p}: it does not resolve to ${path.join(ctx.realSd, 'kb-pending', ctx.scope)}, so nothing was removed; run by hand: ${byHand}`;
-  try {
-    fs.rmSync(p, { recursive: true, force: true });
-    return `kb-pending deleted ${p} was ${item.tip}`;
-  } catch (e) {
-    return `kb-pending failed ${p}: ${e.code || e.message}; run by hand: ${byHand}`;
-  }
+  const own = path.join(ctx.realSd, 'kb-pending', ctx.scope);
+  return guardedRm('kb-pending', p, {
+    tip: item.tip,
+    inParent: () => realish(p) === own,
+    refused: `it does not resolve to ${own}, so nothing was removed`,
+    byHand: `rm -r ${q(p)}`,
+    rm: () => fs.rmSync(p, { recursive: true, force: true }),
+  });
 }
 
 // The run root, ledger last. Everything inside it resolves under it: `rmSync` removes a link, never its target.
 function removeRoot(ctx, item) {
   const p = item.subject;
-  const byHand = `rm -r ${q(p)}`;
-  if (realish(p) !== path.join(realish(path.join(ctx.mainTree, '.superdev', 'scopes')), ctx.scope)) return `run-root failed ${p}: it does not resolve to its own name under ${path.join(ctx.realSd, 'scopes')}; run by hand: ${byHand}`;
-  try {
-    for (const name of fs.readdirSync(p)) if (name !== 'ledger.md') fs.rmSync(path.join(p, name), { recursive: true, force: true });
-    fs.rmSync(path.join(p, 'ledger.md'), { force: true });
-    fs.rmdirSync(p);
-    return `run-root deleted ${p}`;
-  } catch (e) {
-    return `run-root failed ${p}: ${e.code || e.message}; run by hand: ${byHand}`;
-  }
+  return guardedRm('run-root', p, {
+    inParent: () => realish(p) === path.join(realish(path.join(ctx.mainTree, '.superdev', 'scopes')), ctx.scope),
+    refused: `it does not resolve to its own name under ${path.join(ctx.realSd, 'scopes')}`,
+    byHand: `rm -r ${q(p)}`,
+    rm: () => {
+      for (const name of fs.readdirSync(p)) if (name !== 'ledger.md') fs.rmSync(path.join(p, name), { recursive: true, force: true });
+      fs.rmSync(path.join(p, 'ledger.md'), { force: true });
+      fs.rmdirSync(p);
+    },
+  });
 }
 
 // `run-state: ...` lines of `deleteRunState` as outcome words: no remote or no code-management.md reads not-reached.
@@ -197,7 +194,7 @@ function removeItems(inv, base) {
   }
   run(removeFile, of('intent-file'));
   const trees = of('prototype-worktree');
-  run(removePrototypeWorktree, trees);
+  run(removeWorktree, trees);
   if (trees.length) {
     const pruned = gitCall(['worktree', 'prune'], inv.mainTree);
     if (pruned.status !== 0) lines.push(`prototype-worktree failed prune: ${lastLine(pruned)}; run by hand: git worktree prune`);

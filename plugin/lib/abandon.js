@@ -234,7 +234,7 @@ function prototypeItems(mwt, base, remote, names) {
   for (const name of names) {
     if (namesBase(name, base, remote)) fail(`abandon: --prototype ${name} names the base branch ${base}; abandon never removes base`);
     const treePath = path.join(protos, name.slice(PROTOTYPE_PREFIX.length));
-    if (listed.failure) items.push(makeItem('prototype-worktree', treePath, null, [unknown(listed.failure)], { listFailed: true }));
+    if (listed.failure) items.push(makeItem('prototype-worktree', treePath, null, [unknown(listed.failure)]));
     else {
       const t = listed.trees.find((x) => realish(drivePath(x.path)) === treePath);
       if (t && !fs.existsSync(treePath)) items.push(makeItem('prototype-worktree', treePath, null, ['stale']));
@@ -260,7 +260,7 @@ function detourInventory(cwd, { base, remote: given, intentFile, prototypes }) {
   }
   items.push(...prototypeItems(mwt, base, remote, prototypes));
   const lines = items.map((i) => i.line);
-  return { items, lines, token: sha(`${lines.join('\n')}\n`), root: null, scope: null, branch: null, remote, stateRemote: null, mainTree: mwt, stage: null };
+  return { items, lines, token: sha(`${lines.join('\n')}\n`), root: null, remote, mainTree: mwt };
 }
 
 // Refuses a run that cannot be abandoned and returns what the inventory reads from: the run root, its scope, ledger values,
