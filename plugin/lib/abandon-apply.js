@@ -183,6 +183,11 @@ function removeItems(inv, base) {
     else remoteLine = deleteRemote(inv.mainTree, inv.remote, inv.branch, remoteItem.tip);
     lines.push(remoteLine);
     for (const t of of('scope-tracking')) {
+      // A tracking ref the inventory could not read is never deleted: it fails with the inventory's reason, so the run root stays.
+      if (t.tip === '-') {
+        lines.push(`tracking failed ${t.subject}: ${t.marks.join(' ')}; run by hand: git update-ref -d ${t.subject}`);
+        continue;
+      }
       lines.push(['deleted', 'gone'].includes(word(remoteLine))
         ? leasedDelete(ctx, 'tracking', t.subject, t.tip, t.subject, `git update-ref -d ${t.subject}`)
         : `tracking not-reached ${t.subject} is kept beside the remote branch, which reads ${word(remoteLine)}`);

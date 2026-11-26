@@ -426,3 +426,30 @@ test('#delete-refusals: --delete takes no branch argument.', () => {
   assert.strictEqual(r.status, 1, `a usage refusal: ${r.stdout} ${r.stderr}`);
   assert.ok(remoteTip(f, `prototype/${SCOPE}/a`), 'nothing deleted');
 });
+
+// The no-verdict reads (ADR 0290, INV-0009): a fake git ends one read with SIGKILL and runs every other call.
+const { fakeGit: killGit } = require('./fake-git.js');
+
+test('#push-no-verdict: a later slug whose read is killed stops the push; the slug pushed before it is printed and recorded, and --delete finds it.', () => {
+  const f = fixture();
+  const a = git(['rev-parse', 'prototype/a'], f.repo);
+  const killed = killGit({ match: '^rev-parse --verify --quiet --end-of-options refs/heads/prototype/b' });
+  const r = protoPush(f, ['prototype/a', 'prototype/b'], { env: { PATH: killed.env.PATH } });
+  assert.notStrictEqual(r.status, 0, 'the push exits nonzero');
+  assert.strictEqual(r.out, `pushed prototype/${SCOPE}/a ${a}\n`, `prints the slug it pushed: ${r.out}`);
+  assert.deepStrictEqual(r.err.trim().split('\n'), ['git rev-parse was ended by signal SIGKILL — no verdict'], 'the refusal is its one stderr line');
+  assert.deepStrictEqual(bullets(f), [`prototype/${SCOPE}/a ${a}`], 'records the pushed slug');
+  assert.strictEqual(remoteTip(f, `prototype/${SCOPE}/b`), null, 'attempts no further slug');
+  const d = protoDelete(f);
+  assert.match(d.out, new RegExp(`^remote deleted origin prototype/${SCOPE}/a`, 'm'), `--delete finds the recorded slug: ${d.out}`);
+});
+
+test('#delete-no-verdict: a branch whose read is killed prints unknown, every other branch is tried, and the exit is 4.', () => {
+  const f = pushedBoth();
+  const killed = killGit({ match: '^rev-parse --verify --quiet --end-of-options refs/heads/prototype/a' });
+  const r = protoDelete(f, { env: { PATH: killed.env.PATH } });
+  assert.strictEqual(r.status, 4, `exits 4: ${r.out} ${r.err}`);
+  assert.match(r.out, new RegExp(`^unknown prototype/${SCOPE}/a git rev-parse was ended by signal SIGKILL — no verdict$`, 'm'), r.out);
+  assert.match(r.out, new RegExp(`^remote deleted origin prototype/${SCOPE}/b`, 'm'), `b is still deleted: ${r.out}`);
+  assert.ok(remoteTip(f, `prototype/${SCOPE}/a`), 'the unread branch stays on the remote');
+});

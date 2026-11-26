@@ -95,10 +95,11 @@ function parseArgs(sub, args) {
 }
 
 // The marks of one branch tip: `uncontained <n>` where base lacks commits of it, `unknown <reason>` where the test could not
-// judge. The test runs against the local base alone, so it fetches and writes nothing; a squash-merged branch whose base was
-// not pulled reads uncontained, which keeps its commits.
+// judge, a local read a signal ended included (its `unread` field, ADR 0290). The test runs against the local base alone, so
+// it fetches and writes nothing; a squash-merged branch whose base was not pulled reads uncontained, which keeps its commits.
 function containmentMarks(cwd, base, tip) {
   const judged = judgeContainment(cwd, base, tip, null);
+  if (judged.unread) return [unknown(judged.unread)];
   if (judged.verdict === 'contained') return [];
   if (judged.verdict === 'could-not-resolve') return [unknown('the tip does not resolve to a commit here')];
   const count = localCall(['rev-list', '--count', '--end-of-options', `${base}..${tip}`], cwd);
@@ -300,7 +301,15 @@ function computeInventory(cwd, { root: rootArg, base, remote: given, intentFile,
   const run = checkRun(cwd, rootArg, base, given);
   const { mwt, root, scope, stage, branch, remote, lock } = run;
   const items = [];
-  const named = remote ? isNamedRemote(mwt, remote) : false;
+  // A `git remote` read with no verdict (ADR 0290) leaves the tracking ref unread: it is listed at tip `-`, marked unknown.
+  let named = false;
+  let remoteUnread = null;
+  try {
+    named = remote ? isNamedRemote(mwt, remote) : false;
+  } catch (e) {
+    if (!e.noVerdict) throw e;
+    remoteUnread = e.message;
+  }
 
   // Worktrees: every one git registers under the run root, the scopetree last; the others elsewhere only hold branches.
   const listed = listWorktrees(mwt);
@@ -353,9 +362,10 @@ function computeInventory(cwd, { root: rootArg, base, remote: given, intentFile,
   const local = readTip(mwt, localRef);
   if (local.tip) items.push(makeItem('scope-branch', localRef, local.tip, branchMarks(branch, local.tip)));
   else if (local.why) items.push(makeItem('scope-branch', localRef, null, [unknown(local.why)]));
-  const trackingRef = named ? `refs/remotes/${remote}/${branch}` : null;
-  const tracking = trackingRef ? readTip(mwt, trackingRef) : {};
-  if (tracking.tip) items.push(makeItem('scope-tracking', trackingRef, tracking.tip, containmentMarks(mwt, base, tracking.tip)));
+  const trackingRef = named || remoteUnread ? `refs/remotes/${remote}/${branch}` : null;
+  const tracking = named ? readTip(mwt, trackingRef) : {};
+  if (remoteUnread) items.push(makeItem('scope-tracking', trackingRef, null, [unknown(`remote not read: ${remoteUnread}`)]));
+  else if (tracking.tip) items.push(makeItem('scope-tracking', trackingRef, tracking.tip, containmentMarks(mwt, base, tracking.tip)));
   else if (tracking.why) items.push(makeItem('scope-tracking', trackingRef, null, [unknown(tracking.why)]));
   if (remote) {
     const ref = `refs/heads/${branch}`;

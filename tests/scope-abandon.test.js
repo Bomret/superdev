@@ -80,9 +80,9 @@ function fixture({ stage = 'implementing', ledger } = {}) {
   return { repo, origin, root, scopetree, copy };
 }
 
-function inv(f, { extra = ['--remote', 'origin'], cwd, root } = {}) {
+function inv(f, { extra = ['--remote', 'origin'], cwd, root, env } = {}) {
   const result = spawnSync(process.execPath, [scopePath, 'abandon', 'inventory', '--root', root || f.root, '--base', 'main', ...extra], {
-    cwd: cwd || f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL',
+    cwd: cwd || f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL', env: env || process.env,
   });
   assertSpawnDecided(result, 'scope.js abandon inventory');
   const lines = result.stdout.split('\n').filter(Boolean);
@@ -389,8 +389,8 @@ test('abandon apply without its options and an unknown subverb refuse', () => {
 // recomputed and the token matched. A `git` shim first on PATH runs it, so a ref moves in the window between the inventory and
 // the deletes, which no command line can open. The shim is a fixture around unchanged code.
 // `after` is `failList` (a `git worktree list` after the prune fails) or `failPrune` (the prune fails).
-function apply(f, token, { extra = ['--remote', 'origin'], cwd, hook, after } = {}) {
-  const env = { ...process.env };
+function apply(f, token, { extra = ['--remote', 'origin'], cwd, hook, after, env: given } = {}) {
+  const env = { ...(given || process.env) };
   if (after) {
     const shim = path.join(f.copy, 'shim');
     fs.mkdirSync(shim, { recursive: true });
@@ -881,4 +881,42 @@ test('--prototype naming the base through a remote-qualified --base refuses', ()
   const r = abandonCall(f, 'inventory', ['--base', 'origin/prototype/y', '--prototype', 'prototype/y', '--remote', 'origin']);
   assert.strictEqual(r.status, 1, r.out);
   assert.match(r.err, /names the base branch/);
+});
+
+// The no-verdict reads (ADR 0290, INV-0009): a fake git ends one read with SIGKILL and runs every other call.
+const { fakeGit, calls } = require('./fake-git.js');
+
+test('#no-verdict-remote: a killed `git remote` read lists every item, the tracking ref at tip - marked unknown, and apply deletes no tracking ref', () => {
+  const f = fixture();
+  const killed = fakeGit({ match: '^remote$' });
+  const plain = inv(f);
+  const r = inv(f, { env: killed.env });
+  assert.strictEqual(r.status, 0, r.err);
+  const tracking = find(r, 'scope-tracking');
+  assert.deepStrictEqual(tracking.slice(1, 3), [`refs/remotes/origin/${BRANCH}`, '-'], r.out);
+  assert.ok(tracking[3].startsWith('unknown remote not read: '), r.out);
+  assert.deepStrictEqual(r.items.map((i) => i[0]), plain.items.map((i) => i[0]), 'every other item is still listed');
+  const a = apply(f, r.token, { env: killed.env });
+  const line = lineFor(a, `tracking failed refs/remotes/origin/${BRANCH}`);
+  assert.ok(line && line.includes('remote not read'), a.out + a.err);
+  // `git push --delete` may clear the tracking ref as git's own side effect; apply itself deletes none.
+  assert.ok(!calls(killed.log).some((c) => c.startsWith('update-ref -d') && c.includes(`refs/remotes/origin/${BRANCH}`)), 'apply runs no delete of the tracking ref');
+  assert.ok(lineFor(a, 'run-root not-reached'), a.out);
+  assert.ok(fs.existsSync(f.root), 'the run root stays');
+});
+
+test('#no-verdict-containment: a killed containment read marks the branch item unknown, never uncontained', () => {
+  const f = fixture();
+  const r = inv(f, { env: fakeGit({ match: '^merge-tree --write-tree --end-of-options main ' }).env });
+  assert.strictEqual(r.status, 0, r.err);
+  const scope = find(r, 'scope-branch');
+  assert.ok(scope.slice(3).some((m) => m.startsWith('unknown merge-tree')), r.out);
+  assert.ok(!scope.slice(3).some((m) => m.startsWith('uncontained')), r.out);
+});
+
+test('#no-verdict-main-tree: a killed mainWorkTree read refuses with the no-verdict line, never "not inside a git repository"', () => {
+  const f = fixture();
+  const r = inv(f, { env: fakeGit({ match: '^rev-parse --git-common-dir' }).env });
+  assert.notStrictEqual(r.status, 0);
+  assert.deepStrictEqual(r.err.trim().split('\n'), ['git rev-parse was ended by signal SIGKILL — no verdict']);
 });

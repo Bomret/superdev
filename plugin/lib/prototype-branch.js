@@ -68,13 +68,24 @@ function verbPrototypePush(cwd, args) {
   const slugs = [...new Set(branches.map((b) => slugOf(b, scope)))];
   const pushed = [];
   const lines = [];
+  // A read with no verdict (ADR 0290) stops the push at that slug: every slug pushed before it is printed and recorded first,
+  // and the refusal is the verb's one stderr line.
+  const report = () => {
+    if (pushed.length) record(root, pushed);
+    if (lines.length) console.log(lines.join('\n'));
+  };
   for (const slug of slugs) {
-    const outcome = pushOne(cwd, remote, scope, slug);
+    let outcome;
+    try {
+      outcome = pushOne(cwd, remote, scope, slug);
+    } catch (e) {
+      if (e.noVerdict) report();
+      throw e;
+    }
     lines.push(outcome.line);
     if (outcome.commit) pushed.push({ branch: `prototype/${scope}/${slug}`, commit: outcome.commit });
   }
-  if (pushed.length) record(root, pushed);
-  console.log(lines.join('\n'));
+  report();
   if (pushed.length === slugs.length) return pushed;
   process.exitCode = pushed.length ? SOME_PUSHED_EXIT : NOT_PUSHED_EXIT;
   return pushed;
@@ -147,14 +158,33 @@ function verbPrototypeDelete(cwd, root, given) {
   checkPrototypeRecord(lines, scope, `prototype push --delete: the ledger under ${root}`);
   const { deleteOnRemote, isNamedRemote, KEPT_EXIT } = require('./branch-delete.js');
   const remote = resolveRemote(cwd, given);
-  const named = remote ? isNamedRemote(cwd, remote) : false;
+  // A read with no verdict (ADR 0290) leaves its branch `unknown <branch> <reason>`, and every other branch is still tried.
+  let named = false;
+  let unread = null;
+  try {
+    named = remote ? isNamedRemote(cwd, remote) : false;
+  } catch (e) {
+    if (!e.noVerdict) throw e;
+    unread = e.message;
+  }
   const out = [];
   for (const [branch, commit] of recorded) {
+    if (unread) {
+      out.push(`unknown ${branch} ${unread}`);
+      continue;
+    }
     const slug = branch.slice(`prototype/${scope}/`.length);
     const ref = `refs/heads/${branch}`;
     const noRemote = `remote not-reached ${branch}: no remote is configured or given; run by hand: git push --force-with-lease=${ref}:${commit} --delete <remote> ${ref}`;
-    const { tracking, remoteLine } = deleteOnRemote(cwd, remote, named, branch, commit, noRemote);
-    out.push(deleteLocal(cwd, slug, commit), tracking, remoteLine);
+    let local = null;
+    try {
+      local = deleteLocal(cwd, slug, commit);
+      const { tracking, remoteLine } = deleteOnRemote(cwd, remote, named, branch, commit, noRemote);
+      out.push(local, tracking, remoteLine);
+    } catch (e) {
+      if (!e.noVerdict) throw e;
+      out.push(...(local ? [local] : []), `unknown ${branch} ${e.message}`);
+    }
   }
   console.log(out.join('\n'));
   if (!out.every((l) => ['deleted', 'gone'].includes(l.split(' ')[1]))) process.exitCode = KEPT_EXIT;

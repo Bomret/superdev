@@ -390,3 +390,14 @@ test('#no-verdict-remote: a killed `git remote` read refuses as no verdict, neve
   assert.deepEqual(r.err.trim().split('\n'), ['git remote was ended by signal SIGKILL — no verdict'], 'stderr holds the one no-verdict line');
   assert.deepEqual(allRefs(f), before, 'nothing is deleted');
 });
+
+test('#no-verdict-after-local: a tracking read killed after the local deletion reports the local deletion, then the no-verdict line.', () => {
+  const f = fixture();
+  const local = localTip(f);
+  // The verb reads the tracking tip twice: once to judge, once before the remote delete. The second read is killed.
+  const r = del(f, ['--remote', 'origin'], { PATH: killGit({ match: `^rev-parse .*refs/remotes/origin/${BRANCH}`, nth: 2 }).env.PATH });
+  assert.notEqual(r.status, 0, 'the verb exits nonzero');
+  assert.ok(r.out.includes(`local deleted ${BRANCH} was ${local}`), `the local deletion is reported: ${r.out}`);
+  assert.deepStrictEqual(r.err.trim().split('\n'), ['git rev-parse was ended by signal SIGKILL — no verdict'], 'stderr holds the one no-verdict line');
+  assert.strictEqual(localTip(f), null, 'the local branch is gone');
+});

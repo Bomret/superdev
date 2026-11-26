@@ -91,7 +91,15 @@ function verbBranchDelete(cwd, args) {
   // The remote goes first, so the tracking ref is deleted only once the remote branch reads deleted or gone. A kept
   // remote branch keeps its tracking ref as the clone's pointer to it. The printed order stays local, tracking, remote.
   const local = deleteLocal(cwd, branch, localTip);
-  const { tracking, remoteLine } = deleteOnRemote(cwd, remote, named, branch, tested, 'remote not-reached no remote is configured or given');
+  let onRemote;
+  try {
+    onRemote = deleteOnRemote(cwd, remote, named, branch, tested, 'remote not-reached no remote is configured or given');
+  } catch (e) {
+    // A read with no verdict after the local deletion (ADR 0290): report what was deleted, then refuse.
+    if (e.noVerdict) console.log([...head, local].join('\n'));
+    throw e;
+  }
+  const { tracking, remoteLine } = onRemote;
   const lines = [local, tracking, remoteLine];
   console.log([...head, ...lines].join('\n'));
   if (!lines.every((l) => DONE_WORDS.includes(l.split(' ')[1]))) process.exitCode = KEPT_EXIT;
