@@ -60,7 +60,8 @@ function makeItem(kind, subject, tip, marks = [], extra = {}) {
 
 const unknown = (reason) => `unknown ${reason}`;
 
-// A `--prototype` value: `prototype/<slug>` with a slug `SLUG_RE` accepts, checked before any git process runs.
+// A `--prototype` value: `prototype/<slug>` with a slug `SLUG_RE` accepts, checked before any git process runs, as is a name
+// equal to `--base`. A remote-qualified spelling of base needs the resolved remote, so `prototypeItems` checks it again.
 const PROTOTYPE_PREFIX = 'prototype/';
 const isPrototypeName = (v) => v.startsWith(PROTOTYPE_PREFIX) && SLUG_RE.test(v.slice(PROTOTYPE_PREFIX.length));
 
@@ -88,6 +89,7 @@ function parseArgs(sub, args) {
   if (opts.root !== undefined && opts.intentFile !== undefined) fail(`abandon ${sub}: --root and --intent-file are mutually exclusive`);
   if (opts.root === undefined && opts.intentFile === undefined && !prototypes.length) fail(`abandon ${sub} needs --root <run-root>, --intent-file <path>, or --prototype <branch>`);
   if (opts.base === undefined) fail(`abandon ${sub} needs --base <base-ref>`);
+  for (const name of prototypes) if (namesBase(name, opts.base, null)) fail(`${prefix}--prototype ${name} names the base branch ${opts.base}; abandon never removes base`);
   opts.prototypes = prototypes;
   return opts;
 }

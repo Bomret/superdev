@@ -40,15 +40,15 @@ function removeWorktree(ctx, item) {
   return fs.existsSync(p) ? `worktree failed ${p}: ${lastLine(r)}; run by hand: ${byHand}` : `worktree deleted ${p} was ${item.tip}`;
 }
 
-// One ref deleted under a lease on the inventoried tip: a ref already gone reads gone, one that moved reads kept-moved.
-function leasedDelete(ctx, label, ref, tip, shown, byHand) {
+// One ref deleted under a lease on the inventoried tip, by `update-ref -d` or the `deleteArgs` given: a ref already gone reads gone, one that moved reads kept-moved.
+function leasedDelete(ctx, label, ref, tip, shown, byHand, deleteArgs = ['update-ref', '-d', '--end-of-options', ref, tip]) {
   if (tip === '-') return `${label} failed ${shown}: the inventory could not read its tip; run by hand: ${byHand}`;
   const moved = (at) => `${label} kept-moved ${shown} is at ${at}, past the inventoried tip ${tip}; run by hand: ${byHand}`;
   const now = readTip(ctx.mainTree, ref);
   if (now.why) return `${label} failed ${shown}: ${now.why}; run by hand: ${byHand}`;
   if (!now.tip) return `${label} gone ${shown}`;
   if (now.tip !== tip) return moved(now.tip);
-  const r = gitCall(['update-ref', '-d', '--end-of-options', ref, tip], ctx.mainTree);
+  const r = gitCall(deleteArgs, ctx.mainTree);
   if (r.status === 0) return `${label} deleted ${shown} was ${tip}`;
   const again = readTip(ctx.mainTree, ref);
   if (again.tip === undefined && !again.why) return `${label} gone ${shown}`;
@@ -102,26 +102,14 @@ function removePrototypeWorktree(ctx, item) {
   return `prototype-worktree failed ${p}: ${lastLine(r)}; run by hand: ${byHand}`;
 }
 
-// A named prototype branch, deleted with `git branch -D` once a tip check shows it still at the inventoried commit. A branch
-// that moved reads kept-moved, and one a worktree still has checked out is left to git's own refusal. Base is never deleted.
+// A named prototype branch, deleted with `git branch -D` through `leasedDelete`: a branch that moved reads kept-moved, and one
+// a worktree still has checked out is left to git's own refusal. Base is never deleted.
 function removePrototypeBranch(ctx, item) {
   const name = branchOf(item.subject);
-  const byHand = `git branch -D ${name}`;
   const label = 'prototype-branch';
   if (!name.startsWith('prototype/')) return `${label} failed ${name} is no prototype branch; abandon deletes none else`;
   if (namesBase(name, ctx.base, ctx.remote)) return `${label} failed ${name} names the base branch ${ctx.base}; abandon never removes base`;
-  if (item.tip === '-') return `${label} failed ${name}: the inventory could not read its tip; run by hand: ${byHand}`;
-  const moved = (at) => `${label} kept-moved ${name} is at ${at}, past the inventoried tip ${item.tip}; run by hand: ${byHand}`;
-  const now = readTip(ctx.mainTree, item.subject);
-  if (now.why) return `${label} failed ${name}: ${now.why}; run by hand: ${byHand}`;
-  if (!now.tip) return `${label} gone ${name}`;
-  if (now.tip !== item.tip) return moved(now.tip);
-  const r = gitCall(['branch', '-D', name], ctx.mainTree);
-  if (r.status === 0) return `${label} deleted ${name} was ${item.tip}`;
-  const again = readTip(ctx.mainTree, item.subject);
-  if (again.tip === undefined && !again.why) return `${label} gone ${name}`;
-  if (again.tip && again.tip !== item.tip) return moved(again.tip);
-  return `${label} failed ${name}: ${lastLine(r)}; run by hand: ${byHand}`;
+  return leasedDelete(ctx, label, item.subject, item.tip, name, `git branch -D ${name}`, ['branch', '-D', name]);
 }
 
 // The staged pages of the scope. The directory removes only where it resolves, links included, to its own name under

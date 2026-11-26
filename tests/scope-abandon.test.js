@@ -779,3 +779,55 @@ test('a worktree whose HEAD could not be read reads failed with its own reason, 
   assert.ok(line && line.includes('could not read its HEAD') && !line.includes('could not list'), a.out);
   assert.ok(fs.existsSync(path.join(f.root, 'ledger.md')));
 });
+
+test('--prototype naming the base through --base refuses before any git call', () => {
+  const f = fixture();
+  const env = shimEnv(f, `: > "${path.join(f.copy, 'called')}"`);
+  for (const sub of ['inventory', 'apply']) {
+    const r = abandonCall(f, sub, ['--base', 'prototype/y', '--prototype', 'prototype/y', ...(sub === 'apply' ? ['--token', 'x'] : [])], { env });
+    assert.strictEqual(r.status, 1, sub);
+    assert.match(r.err, /names the base branch/);
+  }
+  assert.ok(!fs.existsSync(path.join(f.copy, 'called')), 'no git process ran');
+});
+
+test('a --prototype whose branch does not exist lists nothing and apply removes nothing', () => {
+  const f = fixture();
+  const args = ['--base', 'main', '--prototype', 'prototype/nope'];
+  const r = abandonCall(f, 'inventory', args);
+  assert.strictEqual(r.status, 0, r.err);
+  assert.deepStrictEqual(r.items, []);
+  const a = abandonCall(f, 'apply', [...args, '--token', r.token]);
+  assert.strictEqual(a.status, 0, a.out + a.err);
+  assert.strictEqual(a.out.trim(), '');
+});
+
+test('a prototype branch checked out outside .superdev/prototypes lists no worktree and reads prototype-branch failed on apply', () => {
+  const f = fixture();
+  const elsewhere = path.join(f.copy, 'elsewhere');
+  git(['worktree', 'add', '-q', '-b', 'prototype/z', elsewhere, 'main'], f.repo);
+  const args = ['--base', 'main', '--prototype', 'prototype/z'];
+  const r = abandonCall(f, 'inventory', args);
+  assert.ok(!find(r, 'prototype-worktree'), r.out);
+  assert.ok(find(r, 'prototype-branch'), r.out);
+  const a = abandonCall(f, 'apply', [...args, '--token', r.token]);
+  assert.strictEqual(a.status, 4, a.out + a.err);
+  assert.ok(lineFor(a, 'prototype-branch failed prototype/z'), a.out);
+  assert.ok(refExists(f.repo, 'refs/heads/prototype/z'));
+  assert.ok(fs.existsSync(elsewhere));
+});
+
+test('a stale prototype worktree registration reads gone, is pruned, and its branch goes', () => {
+  const f = fixture();
+  const d = detour(f);
+  fs.rmSync(d.tree, { recursive: true, force: true });
+  const args = ['--base', 'main', '--prototype', 'prototype/y'];
+  const r = abandonCall(f, 'inventory', args);
+  assert.ok(find(r, 'prototype-worktree').includes('stale'), r.out);
+  const a = abandonCall(f, 'apply', [...args, '--token', r.token]);
+  assert.strictEqual(a.status, 0, a.out + a.err);
+  assert.ok(lineFor(a, 'prototype-worktree gone '), a.out);
+  assert.ok(lineFor(a, 'prototype-branch deleted prototype/y'), a.out);
+  assert.ok(!refExists(f.repo, 'refs/heads/prototype/y'));
+  assert.ok(!git(['worktree', 'list'], f.repo).includes('prototypes'));
+});
