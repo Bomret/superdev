@@ -349,6 +349,33 @@ test('a stale worktree registration is listed as stale', () => {
   assert.ok(find(r, 'worktree', 'slicetrees/02').includes('stale'));
 });
 
+test('a directory under the run root that git no longer registers is listed with its files as loss before the run root', () => {
+  const f = fixture();
+  fs.writeFileSync(path.join(f.scopetree, 'left.txt'), 'left\n');
+  fs.rmSync(path.join(f.scopetree, '.git'));
+  git(['worktree', 'prune'], f.repo);
+  const r = inv(f);
+  assert.strictEqual(r.status, 0, r.err);
+  const item = find(r, 'unregistered-tree', 'scopetree');
+  assert.ok(item, r.out);
+  assert.deepStrictEqual(item.slice(3), ['files=4', 'loss'], 'README.md, docs/agents/code-management.md, scope.md, left.txt');
+  assert.ok(!find(r, 'worktree', 'scopetree'));
+  assert.strictEqual(r.items[r.items.length - 2][0], 'unregistered-tree');
+});
+
+test('the design sketch of the feature is listed as a file and apply removes it', () => {
+  const f = fixture();
+  const sketch = path.join(f.repo, '.superdev', 'design', `${SCOPE}.html`);
+  fs.mkdirSync(path.dirname(sketch), { recursive: true });
+  fs.writeFileSync(sketch, '<html></html>\n');
+  const r = inv(f);
+  assert.strictEqual(find(r, 'file', `${SCOPE}.html`)[2], crypto.createHash('sha256').update('<html></html>\n').digest('hex').slice(0, 16));
+  const a = apply(f, r.token);
+  assert.strictEqual(a.status, 0, a.out + a.err);
+  assert.ok(a.lines.some((l) => l.startsWith(`file deleted ${sketch}`)), a.out);
+  assert.ok(!fs.existsSync(sketch));
+});
+
 test('abandon apply without its options and an unknown subverb refuse', () => {
   const f = fixture();
   for (const sub of ['apply', 'bogus']) {

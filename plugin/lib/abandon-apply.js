@@ -2,8 +2,9 @@
 
 // abandon-apply.js: the `abandon apply` verb (ADR 0288, INV-0211). It recomputes the inventory, deletes nothing where the
 // inventory's hash differs from `--token`, and otherwise removes each item the inventory listed, in removal order: worktrees,
-// slice branches, the remote scope branch, its tracking ref, the local scope branch, the run-state ref, drafts, staged pages,
-// and the run root last, its ledger the very last file. A target with no run root removes an intent file and the named
+// slice branches, the remote scope branch, its tracking ref, the local scope branch, the run-state ref, drafts and the design
+// sketch, staged pages, and the run root last, a tree directory git no longer registers with it, its ledger the very last
+// file. A target with no run root removes an intent file and the named
 // prototype worktrees and branches alone, in that order; with a run root the prototypes go after the run's own items and
 // before the run root. Every step tolerates an item already gone, every branch goes under a
 // lease on the tip the inventory read, and the run root stays while any item reads kept or failed, so a rerun finds the run.
@@ -68,12 +69,13 @@ function removeBranch(ctx, item) {
   return leasedDelete(ctx, label, item.subject, item.tip, name, byHand);
 }
 
-// A draft or capture in `.superdev/`, or an intent file in `.superdev/brainstorm/`, removed as a file or a link and never
-// followed.
+// A draft or capture in `.superdev/`, the design sketch in `.superdev/design/`, or an intent file in `.superdev/brainstorm/`,
+// removed as a file or a link and never followed.
 function removeFile(ctx, item) {
   const p = item.subject;
   const k = item.kind;
-  const dir = k === 'intent-file' ? path.join(ctx.realSd, 'brainstorm') : ctx.realSd;
+  const sub = k === 'intent-file' ? 'brainstorm' : path.basename(path.dirname(p)) === 'design' ? 'design' : '';
+  const dir = path.join(ctx.realSd, sub);
   const byHand = `rm ${q(p)}`;
   if (realish(path.dirname(p)) !== dir) return `${k} failed ${p}: it is not directly inside ${dir}; run by hand: ${byHand}`;
   try {

@@ -5,7 +5,7 @@
 // in-process function `abandon apply` (`abandon-apply.js`) recomputes the inventory with.
 //
 // An item line is tab-separated: `<kind>\t<subject>\t<tip>\t<mark>...`. The tip is a commit id, a content hash, or `-`. A mark
-// is `dirty`, `status=<hash>`, `uncontained <n>`, `loss`, `pages=<n>`, `kept-checked-out`, `stale`, `stage=<stage>`, or
+// is `dirty`, `status=<hash>`, `uncontained <n>`, `loss`, `pages=<n>`, `files=<n>`, `kept-checked-out`, `stale`, `stage=<stage>`, or
 // `unknown <reason>`: a read that failed or timed out never reads as safe (INV-0009). Items print in removal order.
 //
 // A run root is one target. The other two have no run root: an intent file (`--intent-file`, one `intent-file` item) and named
@@ -173,13 +173,13 @@ function worktreeItem(kind, dir) {
   return makeItem(kind, dir, head.status === 0 ? head.stdout.trim() : null, head.status === 0 ? marks : [unknown(`HEAD not read: ${whyNot(head)}`), ...marks]);
 }
 
-function stagedItem(kind, dir) {
+function stagedItem(kind, dir, unit = 'pages') {
   if (!fs.existsSync(dir)) return null;
   try {
     const { count, hash } = walkFiles(dir);
-    return makeItem(kind, dir, hash, [`pages=${count}`, ...(count > 0 ? ['loss'] : [])]);
+    return makeItem(kind, dir, hash, [`${unit}=${count}`, ...(count > 0 ? ['loss'] : [])]);
   } catch (e) {
-    return makeItem(kind, dir, null, [unknown(`cannot read the pages (${e.code || e.message})`)]);
+    return makeItem(kind, dir, null, [unknown(`cannot read the ${unit} (${e.code || e.message})`)]);
   }
 }
 
@@ -326,6 +326,18 @@ function computeInventory(cwd, { root: rootArg, base, remote: given, intentFile,
     const staged = stagedItem('kb-staged', path.join(t.path, '.superdev', 'kb-pending'));
     if (staged) items.push(staged);
   }
+  // A tree directory of the run that git no longer registers, such as one whose registration was pruned with its files
+  // left: the run root's removal takes it, so its files are listed as loss.
+  const unregistered = [];
+  if (!listed.failure) {
+    const registered = new Set(inside.map((t) => t.path));
+    const isDir = (p) => fs.existsSync(p) && fs.lstatSync(p).isDirectory();
+    const slicetrees = path.join(root, 'slicetrees');
+    const ids = isDir(slicetrees) ? fs.readdirSync(slicetrees).sort() : [];
+    for (const dir of [...ids.map((id) => path.join(slicetrees, id)), scopetree]) {
+      if (!registered.has(dir) && isDir(dir)) unregistered.push(stagedItem('unregistered-tree', dir, 'files'));
+    }
+  }
 
   // Branches. A branch of this run checked out outside the run root's worktrees stays where it is checked out.
   const branchMarks = (name, tip) => [...(outside.has(name) ? ['kept-checked-out'] : []), ...containmentMarks(mwt, base, tip)];
@@ -367,9 +379,9 @@ function computeInventory(cwd, { root: rootArg, base, remote: given, intentFile,
     else if (seenTip.why) items.push(makeItem('run-state-seen', seen, null, [unknown(seenTip.why)]));
   }
 
-  // Drafts, captures, staged pages, the lock, and the run root last.
+  // Drafts, captures, the design sketch, staged pages, the lock, the unregistered trees, and the run root last.
   const sd = path.join(mwt, '.superdev');
-  for (const f of [`dod-draft-${scope}.md`, `slice-draft-${scope}.md`, `captures-${scope}.patch`]) {
+  for (const f of [`dod-draft-${scope}.md`, `slice-draft-${scope}.md`, `captures-${scope}.patch`, path.join('design', `${scope}.html`)]) {
     const it = fileItem(path.join(sd, f));
     if (it) items.push(it);
   }
@@ -377,6 +389,7 @@ function computeInventory(cwd, { root: rootArg, base, remote: given, intentFile,
   if (pending) items.push(pending);
   if (lock) items.push(makeItem('lock', path.join(root, 'run.lock'), sha(lock.text).slice(0, 16), ['stale']));
   items.push(...prototypeItems(mwt, base, remote, prototypes));
+  items.push(...unregistered);
   items.push(makeItem('run-root', root, null, [`stage=${stage}`]));
 
   const lines = items.map((i) => i.line);
