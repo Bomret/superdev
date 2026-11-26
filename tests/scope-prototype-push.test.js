@@ -272,3 +272,102 @@ test('#adopt-refuses: adopt refuses, naming the bullet, a branch of another scop
     assert.strictEqual(fs.existsSync(path.join(into, 'ledger.md')), false, 'writes no ledger');
   }
 });
+
+// `prototype push --delete` (ADR 0287, INV-0210): wrap-up's teardown of every branch the ledger records.
+const protoDelete = (f, { remote = 'origin', env = {} } = {}) => {
+  const result = spawnSync(
+    process.execPath,
+    [scopePath, 'prototype', 'push', '--delete', '--root', f.root, ...(remote ? ['--remote', remote] : [])],
+    { cwd: f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL', env: { ...process.env, ...env } }
+  );
+  assertSpawnDecided(result, 'scope.js prototype push --delete');
+  return { status: result.status, out: result.stdout, err: result.stderr };
+};
+const refAt = (repo, ref) => {
+  const r = spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { cwd: repo, encoding: 'utf8' });
+  return r.status === 0 ? r.stdout.trim() : null;
+};
+// Both prototypes pushed and recorded, with their remote-tracking refs fetched.
+const pushedBoth = () => {
+  const f = fixture();
+  assert.strictEqual(protoPush(f, ['prototype/a', 'prototype/b']).status, 0);
+  git(['fetch', '-q', 'origin'], f.repo);
+  return f;
+};
+
+test('#delete-both: removes both recorded remote branches, their tracking refs, and the matching local branches.', () => {
+  const f = pushedBoth();
+  const ledger = ledgerOf(f);
+  assert.ok(refAt(f.repo, `refs/remotes/origin/prototype/${SCOPE}/a`), 'the fixture fetched a tracking ref');
+  const r = protoDelete(f);
+  assert.strictEqual(r.status, 0, `exits 0: ${r.out} ${r.err}`);
+  for (const slug of ['a', 'b']) {
+    assert.match(r.out, new RegExp(`^remote deleted origin prototype/${SCOPE}/${slug}`, 'm'), `remote deleted for ${slug}: ${r.out}`);
+    assert.match(r.out, new RegExp(`^local deleted prototype/${slug}`, 'm'), `local deleted for ${slug}: ${r.out}`);
+    assert.strictEqual(remoteTip(f, `prototype/${SCOPE}/${slug}`), null, `the remote branch ${slug} is gone`);
+    assert.strictEqual(refAt(f.repo, `refs/remotes/origin/prototype/${SCOPE}/${slug}`), null, `the tracking ref of ${slug} is gone`);
+    assert.strictEqual(refAt(f.repo, `refs/heads/prototype/${slug}`), null, `the local branch ${slug} is gone`);
+  }
+  assert.strictEqual(ledgerOf(f), ledger, 'writes nothing to the ledger');
+  const again = protoDelete(f);
+  assert.strictEqual(again.status, 0, `a second run exits 0: ${again.out}`);
+  assert.strictEqual((again.out.match(/^remote gone /gm) || []).length, 2, `reads each remote branch gone: ${again.out}`);
+  assert.strictEqual((again.out.match(/^local gone /gm) || []).length, 2, `reads each local branch gone: ${again.out}`);
+});
+
+test('#delete-moved: a remote branch advanced past its recorded commit is kept with its hand command, the other is still deleted, and the exit is the kept exit.', () => {
+  const f = pushedBoth();
+  const other = path.join(tmp('scope-proto-other-'), 'o');
+  git(['clone', '-q', '-b', `prototype/${SCOPE}/a`, f.origin, other], f.repo);
+  git(['config', 'user.email', 'test@example.com'], other);
+  git(['config', 'user.name', 'test'], other);
+  const moved = commit(other, 'more.md', 'more\n', 'more');
+  git(['push', '-q', 'origin', `HEAD:refs/heads/prototype/${SCOPE}/a`], other);
+  const r = protoDelete(f);
+  assert.strictEqual(r.status, 4, `the kept exit: ${r.out} ${r.err}`);
+  assert.match(r.out, new RegExp(`^remote kept-moved origin prototype/${SCOPE}/a .*run by hand: git push --force-with-lease=`, 'm'), `kept with a hand command: ${r.out}`);
+  assert.strictEqual(remoteTip(f, `prototype/${SCOPE}/a`), moved, 'the moved branch stays');
+  assert.ok(refAt(f.repo, `refs/remotes/origin/prototype/${SCOPE}/a`), 'its tracking ref stays beside it');
+  assert.strictEqual(remoteTip(f, `prototype/${SCOPE}/b`), null, 'the other branch is still deleted');
+});
+
+test('#delete-local-kept: a local prototype branch at another commit, or checked out in a worktree, prints local kept with its reason.', () => {
+  const f = pushedBoth();
+  git(['checkout', '-q', 'prototype/a'], f.repo);
+  commit(f.repo, 'a3.md', 'a3\n', 'prototype: a moved on');
+  git(['checkout', '-q', 'main'], f.repo);
+  const wt = path.join(tmp('scope-proto-wt-'), 't');
+  git(['worktree', 'add', '-q', wt, 'prototype/b'], f.repo);
+  const r = protoDelete(f);
+  assert.match(r.out, /^local kept prototype\/a: .*another commit/m, `a moved local branch is kept: ${r.out}`);
+  assert.match(r.out, /^local kept prototype\/b: .*worktree/m, `a checked-out local branch is kept: ${r.out}`);
+  assert.ok(refAt(f.repo, 'refs/heads/prototype/a') && refAt(f.repo, 'refs/heads/prototype/b'), 'both local branches stay');
+  assert.strictEqual(r.status, 4, `the kept exit: ${r.out}`);
+});
+
+test('#delete-no-remote: with no remote resolved, nothing remote changes and each recorded branch prints its hand command.', () => {
+  const f = pushedBoth();
+  const r = protoDelete(f, { remote: null });
+  for (const slug of ['a', 'b']) {
+    assert.match(r.out, new RegExp(`^remote not-reached prototype/${SCOPE}/${slug}: .*run by hand: git push --force-with-lease=refs/heads/prototype/${SCOPE}/${slug}:[0-9a-f]{40} --delete <remote> refs/heads/prototype/${SCOPE}/${slug}`, 'm'), `prints the hand command: ${r.out}`);
+    assert.ok(remoteTip(f, `prototype/${SCOPE}/${slug}`), `the remote branch ${slug} stays`);
+  }
+  assert.strictEqual(r.status, 4, `the kept exit: ${r.out} ${r.err}`);
+});
+
+test('#delete-nothing-recorded: a ledger with no **Prototypes:** header exits 0 having touched nothing.', () => {
+  const f = fixture();
+  const marker = path.join(tmp('scope-proto-mark-'), 'calls');
+  const r = protoDelete(f, { env: markingGit(marker) });
+  assert.strictEqual(r.status, 0, `exits 0: ${r.out} ${r.err}`);
+  assert.match(r.out, /nothing is recorded/, `says nothing is recorded: ${r.out}`);
+  assert.strictEqual(fs.existsSync(marker), false, 'starts no git process');
+  assert.ok(refAt(f.repo, 'refs/heads/prototype/a'), 'the local branch stays');
+});
+
+test('#delete-refusals: --delete takes no branch argument.', () => {
+  const f = pushedBoth();
+  const r = spawnSync(process.execPath, [scopePath, 'prototype', 'push', '--delete', '--root', f.root, '--remote', 'origin', 'prototype/a'], { cwd: f.repo, encoding: 'utf8' });
+  assert.strictEqual(r.status, 1, `a usage refusal: ${r.stdout} ${r.stderr}`);
+  assert.ok(remoteTip(f, `prototype/${SCOPE}/a`), 'nothing deleted');
+});

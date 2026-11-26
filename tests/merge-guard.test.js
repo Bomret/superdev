@@ -31,6 +31,7 @@ const DENIED = [
   'tea pr m 3',
   'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" push --root r',
   'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prototype push --root r --remote origin prototype/a',
+  'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prototype push --delete --root r',
   'git pull',
   'cd x && git push -u origin s',
   'git add -A\ngit commit -m x\ngit push',

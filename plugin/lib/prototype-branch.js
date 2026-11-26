@@ -2,9 +2,11 @@
 
 // prototype-branch.js: the `prototype push` verb, which pushes a run's local `prototype/<slug>` branches to the remote
 // as `prototype/<scope>/<slug>`, never by force, and records each pushed branch with its commit in the ledger's
-// `**Prototypes:**` header (ADR 0287, INV-0210).
+// `**Prototypes:**` header, and its `--delete` flag, which deletes every recorded branch under a lease on its recorded
+// commit (ADR 0287, INV-0210).
 
 const { resolveCommit } = require('./git-spawn.js');
+const { resolveRemote } = require('./remote.js');
 const { fail } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
 const { SLUG_RE, readLines, writeLines, getHeader, headerRe, insertHeader } = require('./ledger.js');
@@ -15,14 +17,19 @@ const HEADER = 'Prototypes';
 
 function parseArgs(args) {
   const rest = [...args];
-  const opts = { branches: [] };
+  const opts = { branches: [], del: false };
   while (rest.length) {
     const word = rest[0];
     if (word === '--root') opts.root = takeRootOption(rest, 'prototype push: ');
-    else if (word === '--remote') opts.remote = takeOption(rest, '--remote', 'prototype push: ', (v) => v === '--root' || v === '--remote');
+    else if (word === '--remote') opts.remote = takeOption(rest, '--remote', 'prototype push: ', (v) => v === '--root' || v === '--remote' || v === '--delete');
+    else if (word === '--delete' && !opts.del) opts.del = Boolean(rest.shift());
     else opts.branches.push(rest.shift());
   }
   if (opts.root === undefined) fail('prototype push needs --root <run-root>');
+  if (opts.del) {
+    if (opts.branches.length) fail(`prototype push --delete takes no branch argument, and got "${opts.branches[0]}"`);
+    return opts;
+  }
   if (opts.remote === undefined) fail('prototype push needs --remote <remote>');
   if (!opts.branches.length) fail('prototype push needs at least one prototype branch');
   return opts;
@@ -47,7 +54,11 @@ function slugOf(name, scope) {
 }
 
 function verbPrototypePush(cwd, args) {
-  const { root, remote, branches } = parseArgs(args);
+  const { root, remote, branches, del } = parseArgs(args);
+  if (del) {
+    verbPrototypeDelete(cwd, root, remote);
+    return [];
+  }
   const scope = scopeOf(root);
   const slugs = [...new Set(branches.map((b) => slugOf(b, scope)))];
   const pushed = [];
@@ -108,6 +119,51 @@ function record(root, pushed) {
     lines.splice(at + 1, end - at - 1, ...kept.values());
     writeLines(root, lines);
   });
+}
+
+// `--delete`: every recorded branch deleted from the remote through `branch delete`'s own remote delete, leased on its
+// recorded commit; its remote-tracking ref only once the remote branch reads deleted or gone; and the local
+// `prototype/<slug>` in this clone only where it points at the recorded commit. Every bullet is tried whatever the
+// others did, and the ledger is never written.
+function verbPrototypeDelete(cwd, root, given) {
+  const recorded = prototypeBlock(readLines(root)).slice(1).map((l) => l.slice(2).split(' '));
+  if (!recorded.length) {
+    console.log(`nothing is recorded: the ledger under ${root} carries no **${HEADER}:** bullet, so no prototype branch is deleted`);
+    return;
+  }
+  const scope = scopeOf(root);
+  const { deleteRemote, deleteTracking, isNamedRemote, KEPT_EXIT } = require('./branch-delete.js');
+  const remote = resolveRemote(cwd, given);
+  const named = remote ? isNamedRemote(cwd, remote) : false;
+  const out = [];
+  for (const [branch, commit] of recorded) {
+    const slug = branch.slice(`prototype/${scope}/`.length);
+    const ref = `refs/heads/${branch}`;
+    const remoteLine = remote
+      ? deleteRemote(cwd, remote, branch, commit)
+      : `remote not-reached ${branch}: no remote is configured or given; run by hand: git push --force-with-lease=${ref}:${commit} --delete <remote> ${ref}`;
+    const remoteWord = remoteLine.split(' ')[1];
+    const trackingRef = named ? `refs/remotes/${remote}/${branch}` : null;
+    const trackingTip = trackingRef ? resolveCommit(trackingRef, cwd) : null;
+    const tracking = trackingTip && !['deleted', 'gone'].includes(remoteWord)
+      ? `tracking not-reached ${trackingRef} is kept beside the remote branch, which reads ${remoteWord}`
+      : deleteTracking(remote, named, trackingRef, trackingTip, cwd);
+    out.push(deleteLocal(cwd, slug, commit), tracking, remoteLine);
+  }
+  console.log(out.join('\n'));
+  if (!out.every((l) => ['deleted', 'gone'].includes(l.split(' ')[1]))) process.exitCode = KEPT_EXIT;
+}
+
+// The local `prototype/<slug>` in this clone, deleted only at the recorded commit.
+function deleteLocal(cwd, slug, commit) {
+  const name = `prototype/${slug}`;
+  const tip = resolveCommit(`refs/heads/${name}`, cwd);
+  if (!tip) return `local gone ${name}`;
+  if (tip !== commit) return `local kept ${name}: it points at ${tip}, another commit than the recorded ${commit}`;
+  const r = gitCall(['branch', '-D', '--end-of-options', name], cwd);
+  if (r.status === 0) return `local deleted ${name} was ${commit}`;
+  const why = /used by worktree|checked out at/.test(r.stderr || '') ? 'it is checked out in a worktree' : 'git refused the delete';
+  return `local kept ${name}: ${why}: ${lastLine(r)}; run by hand: git branch -D ${name}`;
 }
 
 // The `**Prototypes:**` line and the bullets under it, as ledger lines, or none where the ledger carries no such line.
