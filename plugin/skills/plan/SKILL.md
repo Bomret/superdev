@@ -162,7 +162,7 @@ A new-feature plan loads neither reference.
 |---|---|
 | `cut`, `reused`, or `existing` | Write that capture, and every capture after it (`CONTEXT.md`, every `docs/adr/` file, `docs/invariants.md`), into the scopetree. Nothing this step writes lands in the invoking checkout. |
 | `locked` | Another plan session holds this feature: stop, naming the lock it printed. |
-| `not-contained` | Show the commits it printed, ask, and name the rename remedy it printed. Where its last line is `refetch timed-out` or `refetch failed`, the refetch ended without a base, so the answer is the local one and carries no verdict on the branch (INV-0003, INV-0009): say the second pass did not run, name that line, and ask with the answer named as local. |
+| `not-contained` | Show the commits it printed, ask, and name the rename remedy it printed. Where its last line is `refetch timed-out` or `refetch failed`, the refetch ended without a base, so the answer is the local one and carries no verdict on the branch (INV-0003, INV-0009): say the second pass did not run, name that line, and ask with the answer named as local. Where its last line is `local <verb> no verdict`, a signal ended that local read, so the answer is no verdict on the branch (INV-0003, INV-0009): say so, name the read, offer to run `open` again, and name no rename remedy. |
 | `dirty` or `held` | Name what it printed and stop. |
 
 The `not-contained`, `dirty`, and `held` stops write nothing.

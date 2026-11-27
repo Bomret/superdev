@@ -33,7 +33,7 @@ apart in a script:
 - **`could-not-resolve`** (exit 4) → `<branch>` names no ref this repository can find. The caller tells a branch that
   never existed from one that has not landed.
 
-**The trust lines.** Applies to the lines after the verdict, three always and two optional:
+**The trust lines.** Applies to the lines after the verdict, three always and three optional:
 
 - **`base <full sha>`** names the commit judged against: the commit the refetch brought where it ran, `<base>`
   resolved otherwise.
@@ -47,6 +47,10 @@ apart in a script:
   time or failed (the bound is `code-host.pushTimeoutMs` of `.superdev/info.json`). The verdict is the local one and
   says nothing about the branch (INV-0009). The caller says the second pass did not run and acts on an answer named as
   local.
+- **`local <verb> no verdict`** appears beside a `not-contained` verdict where a signal ended a local git read of the
+  test, its own bound's kill included (ADR 0290). `<verb>` names that read, such as `merge-tree` or `rev-parse`. The
+  test makes no git call after it, so the answer is no verdict on the branch (INV-0003, INV-0009). The caller says the
+  answer is no verdict, names the read that was ended, and offers to run the step again.
 
 **The caller keeps the judgment.** Applies to every caller of the verb. Which `<base>` to hand, what each verdict and
 marker means for the step, and whether a missing branch counts as finished stay with the caller's own step. A branch
@@ -67,7 +71,8 @@ already holds the branch's content reads contained.
 
 **The Stop hook's containment.** Applies to `hooks/scope-prune.js`. It runs the local test alone and never fetches. It
 says nothing on any path, the `fallback ancestor` route included, and its own fallback is `git branch --merged`. It
-mirrors the test in JavaScript and reaches it only for a scope it would otherwise act on, behind its cheaper filters.
+mirrors the test in JavaScript and reaches it only for a scope it would otherwise act on, behind its cheaper filters. A
+read a signal ended, its `--write-tree` probe or any read of a tier, leaves the scope and its branch standing.
 
 **What the test writes.** Applies to every run of the verb. The test writes tree objects into the object database. The
 verb changes no ref, index, working tree, ledger, or trace. The refetch writes `FETCH_HEAD` and fetched objects, and
@@ -102,7 +107,7 @@ execution playbook. `/superdev:plan`'s `scope.js open` computes the same value f
 outcome. Its containment refetch takes the remote as `scope.js contained` does: `--remote` where given, else the
 `Remote:` value of `docs/agents/code-management.md`, else none, which refetches nothing and judges against the local
 base. A `not-contained` stop whose refetch ended without a base ends on the same `refetch timed-out` or `refetch
-failed` line `## Containment` names.
+failed` line `## Containment` names, and one whose local read a signal ended ends on its `local <verb> no verdict` line.
 
 **`resumed`.** Applies to a run whose ledger exists, a `planned` ledger included. Cut nothing and run no containment
 test. A `planned` ledger's branch was already cut, and where the name was taken, decided and re-pointed by
@@ -170,7 +175,9 @@ the remote branch, and decides the **push mode** (`CONTEXT.md`) from the remote 
 - **A remote tip that `## Containment` proves contained in `<base>`** → a push through `--force-with-lease` naming
   that exact tip. It prints `overwritten`.
 - **Any other remote tip** → no push. It prints `refused` and the remote tip's commits that the judged base does not
-  hold, the base refetched from the remote when the refetch ran.
+  hold, the base refetched from the remote when the refetch ran. A `refused` that also prints `local <verb> no verdict`
+  had no verdict: a signal ended that local read of the containment test (`## Containment`). Report it as no verdict,
+  name the read, and say the push can run again.
 
 **Undecided outcomes.** Applies to every case the verb cannot decide. It pushes nothing and prints one of:
 `unreachable` and `credential-rejected` (a failed fetch, the containment refetch of `<base>` included, read under the

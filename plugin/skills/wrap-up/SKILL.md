@@ -141,7 +141,7 @@ Applies once the gate passed. Read every bullet from the `unresolved` field of t
 **The branch question.** Applies to cleanup step 3, once the trees are removed. Test the scope branch with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" contained <base> <scope-branch>`, called exactly as §3 calls it: `<base>` the base branch `docs/agents/code-management.md` names, `<scope-branch>` the `branch` field of §2's `scope.js state` read, and no `--remote`, so the verb resolves the `Remote:` value itself.
 
 - **A first line of `contained`**, with or without a `fallback ancestor` line → ask one question: delete the scope branch now, locally and on the remote the `Remote:` value of `docs/agents/code-management.md` names, or keep both. With no `Remote:` value, the question names the local branch alone.
-- **Any other verdict** → ask nothing. Report that the scope branch stays, with the verdict and any `refetch …` line, and go on to step 4.
+- **Any other verdict** → ask nothing. Report that the scope branch stays, with the verdict and any `refetch …` or `local <verb> no verdict` line, and go on to step 4.
 
 **The answer.** Applies to the branch question's answer.
 

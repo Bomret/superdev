@@ -33,7 +33,8 @@ function parseArgs(args) {
 // Prints the verdict, `base <full sha>` (the base judged against: the refetched one when the refetch ran), `remote <name>`
 // (`remote none` where no remote is named, which runs no refetch),
 // and `judged local|refetched`, then `fallback ancestor` where the git lacks `--write-tree`, and `refetch timed-out` or
-// `refetch failed` where the refetch ended without a base to judge. Writes no ledger, trace, or digest, and changes no ref,
+// `refetch failed` where the refetch ended without a base to judge, and `local <verb> no verdict` where a signal ended a
+// local read (`unreadMark`). Writes no ledger, trace, or digest, and changes no ref,
 // index, or working tree: the test writes tree objects and the refetch writes fetched commit objects and `FETCH_HEAD`.
 function verbContained(cwd, args) {
   const { base, branch, remote: given } = parseArgs(args);
