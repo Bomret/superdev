@@ -1,3 +1,10 @@
+# [0.126.0](https://github.com/Bomret/superdev/compare/v0.125.1...v0.126.0) (2026-11-27)
+
+
+### Features
+
+* **test-slots:** share per-repository test slots and wait out every test run in the background ([f31cde8](https://github.com/Bomret/superdev/commit/f31cde887e7d1bb3ecb2610d7830ee3f073d6398)), closes [#617](https://github.com/Bomret/superdev/issues/617) [#621](https://github.com/Bomret/superdev/issues/621) [#620](https://github.com/Bomret/superdev/issues/620) [#622](https://github.com/Bomret/superdev/issues/622) [#619](https://github.com/Bomret/superdev/issues/619) [#618](https://github.com/Bomret/superdev/issues/618)
+
 ## [0.125.1](https://github.com/Bomret/superdev/compare/v0.125.0...v0.125.1) (2026-11-27)
 
 
