@@ -22,7 +22,7 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 The operator configuration is `.superdev/info.json` of the main working tree. A setting lives there and in no environment variable, because a file shows what is set, belongs to one repository, and is documented by the plugin, where a process environment is invisible and can change behavior from outside (ADR 0207). `plugin/lib/operator-config.js` reads it
 (`operatorSection(cwd, section)` and `operatorBoundMs(cwd, section, key, fallback)`), and a missing file, section, or key gives the
 fallback silently. The time-bound keys are `code-host.pushTimeoutMs` (`lib/push.js`, 60000 ms), `verification.failToPassFloorMs`
-(`lib/fail-to-pass.js`, 10000 ms), `verification.failToPassControlMs` (`lib/fail-to-pass.js`, 300000 ms), and `knowledge-base.timeoutMs` (`lib/kb-backend.js`, 30000 ms). `knowledge-base.teaLogin` and the
+(`lib/fail-to-pass.js`, 10000 ms), `verification.failToPassControlMs` (`lib/fail-to-pass.js`, 300000 ms), and `knowledge-base.timeoutMs` (`lib/kb-backend.js`, 30000 ms). The count key is `verification.testSlots` (`lib/test-slots.js`, 1), read by `operatorCount(cwd, section, key, fallback, min, max)`: a whole number from `min` to `max` is the count, and any other value reads as absent and is named once on stderr, as a bad bound is. `knowledge-base.teaLogin` and the
 other `knowledge-base` keys reach a backend template under `operator` in its values file. No superdev-owned environment variable
 carries a setting or a value (ADR 0207). `lib/push.js` exports `boundEnded(cwd, signal)`, the phrase every bound-ended git call
 reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref.js` reports through it too.
@@ -293,6 +293,19 @@ HEAD moved, the tree was dirty at either end, or the trace recorded an edit, rev
 during the run records `dirty`, so it never backs `suite reusable`. A change no hook records shows only at the two ends. A command ended by a
 signal, or a verb killed first, writes no line, and the command's run ends with the verb: a Node watcher process supervises it and ends it
 through `endRun` (a process-group kill, `taskkill /pid <pid> /t /f` on Windows), which covers `SIGKILL`. `test` ends the group with `SIGTERM`. A failed trace write prints a note on stderr and leaves the exit status unchanged.
+The verb holds a **Test slot** (CONTEXT.md, ADR 0291, INV-0212) while its command runs: it takes the slot after every refusal and
+before `checkRun`, `treeState`, and the trace mark, so the wait reaches no field of the run line.
+
+`lib/test-slots.js`'s `acquireSlot(cwd, { kind, tree })` resolves once the caller holds a slot, to `{ release, setGroup }`. The pool
+is `superdev-test-slots/<n>/` in the repository's git common dir, so every checkout and worktree shares it, `<n>` from 1 to the count.
+A slot is claimed by an atomic `mkdir` and holds `record.json`: the verb's pid, its command's process group (`setGroup`, called
+through `superviseRuns`'s `onStart` as the watcher starts each command), the boot stamp, the verb, and the tree. A slot is free
+when its record names another boot (a stamp more than 10 minutes off), or a dead pid whose group, on POSIX, has no member; on
+Windows the pid alone decides. A slot with no record, or with a record that does not parse, is free once 10 s old. A waiter takes a
+stale record by renaming it to a name of its own, as `withWorktreeLock` does, polls every 200 ms, prints one stderr line naming the
+holder and the record path, and ends at once on SIGINT, SIGTERM, or SIGHUP, holding nothing. Outside a repository, or where the pool
+cannot be written, the caller runs with no slot and one stderr line says so. A verb removes its record when its run ends with an exit status; one
+interrupted or killed while its command runs leaves the record, so on POSIX the slot frees once the command's group is empty.
 Outside every run tree the command runs and nothing is written. The verb takes no option that sets an outcome,
 kind, slice, or tree state. `lib/test-verb.js` requires `lib/run-tree.js` (`locate`, `treeState`, and `relDir`, which writes the run line's directory field) at call time, the locator it shares with the
 run-trace hook, and `lib/run-check.js`, whose digest check runs before the run line is written. `lib/run-tree.js` also holds the path helpers
@@ -360,9 +373,11 @@ therefore name an exempt one.
 
 The verb exits 0 when it read an outcome and 1 on a refusal or an error. It exits 2 when no test command is configured, so
 nothing ran, and 128 plus the signal number when interrupted. An interrupt ends the command's run through `endRun` with `SIGKILL`, and the Node
-watcher process covers a killed verb, so no worktree outlives the verb. The caller runs the verb in the foreground with the Bash tool's `timeout`
-at its ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), and in the background where two runs of the range's test files can
-outlast that ceiling (`references/test-selection.md`, ADR 0232).
+watcher process covers a killed verb, so no worktree outlives the verb. The verb holds one **Test slot** for the whole call, taken
+after its refusals and the trace settlement and before its worktree, its first preparation, and every run bound, so the wait counts
+toward no bound and no run line; `runPrepare` takes no second one, and the slot frees with the worktree's removal (ADR 0291,
+INV-0212). The caller runs the verb in the background and waits it out with Bash calls that each end within 170 s
+(`references/test-selection.md`, ADR 0264, ADR 0291).
 
 `prepare <tree>` runs the **Prepare command** (CONTEXT.md, ADR 0218) at the root of `<tree>`, which must be the root of a
 working tree that `listWorktrees` of `lib/git-spawn.js` lists for the invoking repository. A path holding a newline counts on a git of 2.36 or later. Any
@@ -376,7 +391,8 @@ command and each changed path. The verb compares each tracked path's difference 
 after the command, read with `--no-ext-diff --no-textconv` so no diff program of the user's runs, and a tracked edit the
 tree already held is no such change. An untracked file it writes is no such change either, the
 rule `fail-to-pass` applies. An interrupt ends the command's group with `SIGKILL` and exits 128 plus the signal
-number. A `scope.js prepare` call is no test run: it writes no run line.
+number. A `scope.js prepare` call is no test run: it writes no run line. A call about to run its command, past the stamp check,
+first takes a **Test slot** (ADR 0291, INV-0212); a stamp that holds, a missing section, and `none` take none.
 A command that succeeds on a tree with no tracked change from `HEAD` leaves a stamp, `superdev-prepare.json` in the tree's own
 git directory (`git rev-parse --absolute-git-dir`), recording the command, `HEAD`, and the tree's untracked paths
 (`git ls-files --others --directory`). A later call skips the command, prints one `prepare: skipped` note on stderr, and exits
@@ -389,8 +405,9 @@ leaves none.
 
 `scope.js` has one suite per topic, so a test-first step on one verb runs only that verb's cases (ADR 0139, ADR 0151). `tests/scope-setup.js`
 holds the setup they share and is no suite. The `test` verb's cases split over `scope-test-verb-<topic>` (dirty, first-moment-kill,
-first-moment-term, install, kill, late-fork, record, refusals, tree) and the `fail-to-pass` verb's over `scope-fail-to-pass-<topic>` (bound,
-concurrency, environment, interrupt, prepare, reuse, signals, trace, verdict, watcher), and the `prepare` verb's is `scope-prepare`. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
+first-moment-term, install, kill, late-fork, record, refusals, slots, tree) and the `fail-to-pass` verb's over `scope-fail-to-pass-<topic>` (bound,
+concurrency, environment, interrupt, prepare, reuse, signals, slots, trace, verdict, watcher), and the `prepare` verb's over `scope-prepare` and
+`scope-prepare-slots`. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line` (the `dod-line` verb and the dod-fixtures pin), `scope-dod-tags` (the `dod-tags` verb), `scope-dod-check` (the `dod-check` verb), `scope-dod-merge` (the `dod-merge` verb), `scope-publish-adopt` (`publish`, `adopt`, and the
 `maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, its `run.lock` refresh, and the `trace` filters), `scope-windows` (the `windows` verb and `trace --window`), `scope-digest` (the digest check), `scope-untraced` (the `untraced` verb), `scope-fail-to-pass-check` (the `fail-to-pass-check` verb), `scope-section`, `scope-tier`, `scope-dod-open`, `scope-contained`, `scope-red-evidence`, `scope-branch`, `scope-checkout`, `scope-lock`, `scope-denial`, `scope-consent`, `scope-route`, and `scope-candidates` (the verb of each name), `scope-staging` (`staging` and its `--count` and `--line` forms), `scope-dod-gate` (the Definition-of-Done check on entering `implementing`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
 `scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-ci`, `scope-push`, `scope-open`, `scope-help`, and `scope-stdin` (every verb that reads piped input receives it through the CLI). A focused run for `scope.js`, or for a module it requires, selects

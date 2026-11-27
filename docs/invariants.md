@@ -1693,4 +1693,4 @@ Concepts: Test slot, Operator configuration
 Statement: The `test`, `fail-to-pass`, and `prepare` verbs start no command without holding a test slot from their repository's pool, and the count of slots held at once never exceeds the configured count while every holder's supervising verb lives. A verb takes its slot before it reads the tree state, marks the run trace, or starts any run bound, so the wait changes no recorded duration, tree state, outcome, or exit status and records no run. `fail-to-pass` takes no second slot for its internal preparation (ADR 0291).
 Breaks: silently
 Check: tests named for the verbs — two runs from two worktrees at one slot never overlap, a dead holder's slot is reclaimed, and a queued run's line carries no wait time
-Paths: plugin/lib/test-verb.js, plugin/lib/fail-to-pass.js, plugin/lib/prepare.js, plugin/scripts/scope.js
+Paths: plugin/lib/test-slots.js, plugin/lib/test-verb.js, plugin/lib/fail-to-pass.js, plugin/lib/prepare.js, plugin/scripts/scope.js
