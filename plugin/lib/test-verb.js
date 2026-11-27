@@ -10,6 +10,7 @@ const { verificationCommands } = require('./verification.js');
 const { appendTrace, readTrace, encodePaths } = require('./trace-log.js');
 const { checkRun } = require('./run-check.js');
 const { superviseRuns } = require('./run-supervision.js');
+const { acquireSlot } = require('./test-slots.js');
 const { usage } = require('./usage.js');
 
 // A word as the shell reads it back: left bare where it needs no quoting.
@@ -107,6 +108,13 @@ function verbTest(cwd, args) {
     command = kind === 'focused' ? withPaths(template, paths) : template;
     if (kind === 'focused') files = paths;
   }
+  // The test slot is taken after every refusal and before any read of the tree or the trace, so the wait lands in no field of
+  // the run line (ADR 0291, INV-0212).
+  return acquireSlot(cwd, { kind: 'test', tree: at ? at.tree : topOf() }).then((slot) => {
+    try { runHeld(slot); } catch (e) { slot.release(); throw e; }
+  });
+
+  function runHeld(slot) {
   // The run's digest is checked before the run line is written (ADR 0227); the check may append a `tamper` line, so it comes first.
   if (at) checkRun(at.runRoot);
   const [sha, tree0] = at ? treeState(at.tree) : [];
@@ -117,10 +125,13 @@ function verbTest(cwd, args) {
   // The watcher exists before the command does and starts it: when this process is interrupted or dies by any signal, even
   // SIGKILL, the watcher's channel closes and it ends the command's group (the process tree on Windows). A verb killed before
   // the watcher starts the command leaves nothing to end.
-  const sup = superviseRuns(['inherit', 'inherit', 'inherit'], null, 'SIGTERM');
+  // The slot's record names each command's group, so on POSIX a command that outlives this verb keeps the slot until its group
+  // is empty; on Windows the verb's pid alone holds it, so an interrupt frees it.
+  const sup = superviseRuns(['inherit', 'inherit', 'inherit'], null, 'SIGTERM', { onStart: slot.setGroup });
   // An interrupt ends the run the way a SIGKILL of the verb does: the closed channel makes the watcher end the command.
   const stop = (sig) => () => {
     sup.detach();
+    if (process.platform === 'win32') slot.release();
     process.exit(128 + require('os').constants.signals[sig]);
   };
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, stop(sig));
@@ -129,6 +140,7 @@ function verbTest(cwd, args) {
     const ms = String(Math.round(performance.now() - started));
     sup.stop();
     if (error) {
+      slot.release();
       process.stderr.write(`test: cannot run sh: ${error}\n`);
       process.exit(127);
     }
@@ -153,8 +165,10 @@ function verbTest(cwd, args) {
         process.stderr.write('test: the run line could not be written to the run trace\n');
       }
     }
+    slot.release();
     process.exit(code);
   });
+  }
 }
 
 module.exports = { verbTest, shellWord };

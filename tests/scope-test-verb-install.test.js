@@ -92,7 +92,7 @@ test('On win32 the watcher ends a running command through `taskkill` when its ch
       const [src,cwd,exitFirst]=process.argv.slice(1);
       const w=cp.spawn(process.execPath,['-e',src,'','','SIGTERM'],{stdio:['ignore','ignore','ignore','ipc']});
       w.on('exit',(code)=>process.stdout.write(String(code)));
-      if (exitFirst==='1') w.on('message',()=>w.disconnect());
+      if (exitFirst==='1') w.on('message',(m)=>{ if (!('started' in m)) w.disconnect(); });
       else { const t=setInterval(()=>{ if (fs.existsSync(cwd+'/pid')) { clearInterval(t); w.disconnect(); } },20); }
       w.send({command:exitFirst==='1'?'sleep 30 & echo $$ > pid.tmp && mv pid.tmp pid':'echo $$ > pid.tmp && mv pid.tmp pid && exec sleep 30',cwd});`;
     const r = spawnSync(process.execPath, ['-e', driver, src, D, exitFirst ? '1' : '0'], { encoding: 'utf8', timeout: 20000 });

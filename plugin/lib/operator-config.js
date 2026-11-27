@@ -1,6 +1,6 @@
 'use strict';
 
-// operator-config.js: the reader of the operator configuration's time bounds, `.superdev/info.json` of the main working tree (ADR 0207).
+// operator-config.js: the reader of the operator configuration's time bounds and counts, `.superdev/info.json` of the main working tree (ADR 0207).
 
 const fs = require('fs');
 const path = require('path');
@@ -38,4 +38,19 @@ function operatorBoundMs(cwd, section, key, fallback) {
   return fallback;
 }
 
-module.exports = { operatorBoundMs, operatorSection };
+// The count `<section>.<key>` of the operator configuration, read as `operatorBoundMs` reads a bound: a JSON whole number from `min`
+// to `max` is the count, a missing key gives `fallback` silently, and any other value reads as absent and is named once per
+// process on stderr.
+function operatorCount(cwd, section, key, fallback, min, max) {
+  const value = operatorSection(cwd, section)[key];
+  if (value === undefined) return fallback;
+  if (Number.isInteger(value) && value >= min && value <= max) return value;
+  const name = `${section}.${key}`;
+  if (!noted.has(name)) {
+    noted.add(name);
+    process.stderr.write(`superdev: .superdev/info.json ${name} is not a whole number from ${min} to ${max}; the default ${fallback} applies\n`);
+  }
+  return fallback;
+}
+
+module.exports = { operatorBoundMs, operatorCount, operatorSection };

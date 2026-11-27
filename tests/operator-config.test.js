@@ -17,7 +17,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { operatorBoundMs, operatorSection } = require('../plugin/lib/operator-config.js');
+const { operatorBoundMs, operatorCount, operatorSection } = require('../plugin/lib/operator-config.js');
 
 after(() => {
   for (const d of made) fs.rmSync(d, { recursive: true, force: true });
@@ -95,4 +95,32 @@ test('#worktree: a linked worktree reads the main working tree\'s file, and its 
   fs.mkdirSync(path.join(wt, '.superdev'));
   fs.writeFileSync(path.join(wt, '.superdev', 'info.json'), JSON.stringify({ s: { k: 99 } }));
   assert.deepStrictEqual(read(wt, 's', 'k'), { ms: 4321, err: '' }, 'the worktree reads the main checkout\'s value');
+});
+
+// `operatorCount` with `process.stderr.write` captured, as `read` does for a bound.
+function readCount(cwd, key) {
+  const err = [];
+  const orig = process.stderr.write;
+  process.stderr.write = (chunk) => {
+    err.push(String(chunk));
+    return true;
+  };
+  try {
+    return { n: operatorCount(cwd, 's', key, 1, 1, 64), err: err.join('') };
+  } finally {
+    process.stderr.write = orig;
+  }
+}
+
+test('#count: a whole number from the minimum to the maximum is the count, absent gives the fallback silently, and each other value gives the fallback, named once on stderr without the word milliseconds.', () => {
+  for (const n of [1, 2, 64]) assert.deepStrictEqual(readCount(repoWith({ s: { [`c${n}`]: n } }), `c${n}`), { n, err: '' }, `${n} is the count`);
+  assert.deepStrictEqual(readCount(repoWith({ s: {} }), 'none'), { n: 1, err: '' }, 'absent gives 1 silently');
+  for (const [key, value] of [['countZero', 0], ['countAbove', 65], ['countString', '2'], ['countFraction', 1.5]]) {
+    const repo = repoWith({ s: { [key]: value } });
+    const got = readCount(repo, key);
+    assert.equal(got.n, 1, `${JSON.stringify(value)} counts as 1`);
+    assert.equal((got.err.match(new RegExp(`s\\.${key} is not a whole number from 1 to 64`, 'g')) || []).length, 1, `${JSON.stringify(value)} is named once: ${got.err}`);
+    assert.doesNotMatch(got.err, /millisecond/);
+    assert.deepStrictEqual(readCount(repo, key), { n: 1, err: '' }, `${JSON.stringify(value)}: silent after the first reading`);
+  }
 });
