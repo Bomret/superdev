@@ -166,8 +166,9 @@ test('#waiting-line: a waiter says once which run holds the slot and where its r
 test('#timing-wait: a queued `timing` run\'s printed run time excludes its wait for the slot.', async () => {
   const { K, script } = fresh();
   fs.writeFileSync(path.join(one.S, 'docs', 'agents', 'verification.md'), '# V\n\n```sh\ntrue\n```\n\n## Timing command\n\n`true`\n');
+  let a;
   try {
-    const a = start(W, script('h.sh', `touch ${K}/ready; while [ ! -e ${K}/go ]; do sleep 0.05; done`));
+    a = start(W, script('h.sh', `touch ${K}/ready; while [ ! -e ${K}/go ]; do sleep 0.05; done`));
     await waitFor(() => fs.existsSync(path.join(K, 'ready')), 'the holder\'s command');
     const bStarted = performance.now();
     const child = spawn(process.execPath, [scopePath, 'test', 'timing'], { cwd: one.S, env: one.env, stdio: ['ignore', 'ignore', 'pipe'] });
@@ -185,6 +186,9 @@ test('#timing-wait: a queued `timing` run\'s printed run time excludes its wait 
     assert.ok(m, 'the run time is printed: ' + err);
     assert.ok(Number(m[1]) + held <= rb.total, `the run time ${m[1]} ms excludes the wait of at least ${Math.round(held)} ms (total ${Math.round(rb.total)} ms)`);
   } finally {
+    // The holder ends on every exit, a failed wait included, so a failing case never leaves it running.
+    fs.writeFileSync(path.join(K, 'go'), '');
+    if (a) await a.done;
     one.sh(one.S, ['checkout', '-q', '--', 'docs']);
   }
 });
