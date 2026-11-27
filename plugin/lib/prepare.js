@@ -88,16 +88,24 @@ async function verbPrepare(cwd, args) {
   if (prep.state === 'none') return;
   const gitDir = gitSpawn(['rev-parse', '--absolute-git-dir'], real).stdout.trim();
   const stampPath = gitDir ? path.join(drivePath(gitDir), STAMP) : null;
-  let stamp = null;
-  if (stampPath) try { stamp = JSON.parse(fs.readFileSync(stampPath, 'utf8')); } catch { /* no stamp: prepare */ }
-  if (stillPrepared(stamp, real, prep.command)) {
+  // Whether the stamp holds; prints the skip note when it does.
+  const skipped = () => {
+    let stamp = null;
+    if (stampPath) try { stamp = JSON.parse(fs.readFileSync(stampPath, 'utf8')); } catch { /* no stamp: prepare */ }
+    if (!stillPrepared(stamp, real, prep.command)) return false;
     process.stderr.write(`prepare: skipped \`${prep.command}\`: it succeeded at ${stamp.head.slice(0, 12)}, and every tracked change since is Markdown\n`);
-    return;
-  }
+    return true;
+  };
+  if (skipped()) return;
   // A test slot holds the command's run, taken only now that a command will run (ADR 0291, INV-0212). Its record names the
   // command's group, so on POSIX a command that outlives this verb keeps the slot until its group is empty; on Windows the
-  // verb's pid alone holds it, so an interrupt frees it.
+  // verb's pid alone holds it, so an interrupt frees it. A preparation of the same tree that held the slot first may have
+  // left a stamp that holds, so the stamp is read again once the slot is held.
   const slot = await acquireSlot(cwd, { kind: 'prepare', tree: real });
+  if (skipped()) {
+    slot.release();
+    return;
+  }
   if (stampPath) fs.rmSync(stampPath, { force: true });
   const sup = superviseRuns(['ignore', 2, 2], null, 'SIGKILL', { onStart: slot.setGroup });
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {

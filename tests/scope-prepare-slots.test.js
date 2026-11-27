@@ -6,7 +6,8 @@ require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `prepare <tree>` verb and its Test slot (ADR 0291, INV-0212): the verb waits for a slot
 // only when it is about to run its command, so a waiter says so and runs after the holder, ends at once when interrupted, and a
-// stamp that holds, a missing section, or `none` runs nothing and waits for nothing. A `scope.js test` run from the repository's
+// stamp that holds, a missing section, or `none` runs nothing and waits for nothing, and two preparations of one tree queued
+// together run the command once. A `scope.js test` run from the repository's
 // main checkout holds the only slot. Every case writes only inside its own temporary directory.
 
 const assert = require('node:assert');
@@ -150,4 +151,25 @@ test('#no-command: a stamp that holds, a missing section, and `none` each run no
   } finally {
     await h.release();
   }
+});
+
+test('#queued-twice: two preparations of one tree queued behind a test run holding the only slot run the command once.', async () => {
+  const { tree, K } = worktree('');
+  fs.writeFileSync(path.join(tree, 'docs', 'agents', 'verification.md'), verification(section(`\`echo x >> ${K}/runs\``)));
+  git(tree, ['commit', '-q', '-am', 'prep']);
+  const h = await hold(K);
+  let a;
+  let b;
+  try {
+    a = prepare(tree);
+    b = prepare(tree);
+    await waitFor(() => (waits(a.stderr) === 1 || a.ended) && (waits(b.stderr) === 1 || b.ended), 'both waiting lines');
+    assert.equal(waits(a.stderr) + waits(b.stderr), 2, 'both preparations wait: ' + a.stderr + b.stderr);
+  } finally {
+    await h.release();
+  }
+  assert.equal((await a.done).code, 0, a.stderr);
+  assert.equal((await b.done).code, 0, b.stderr);
+  assert.equal(fs.readFileSync(path.join(K, 'runs'), 'utf8'), 'x\n', 'the command ran once');
+  assert.match(a.stderr + b.stderr, /^prepare: skipped /m, 'the later preparation prints the skip note');
 });

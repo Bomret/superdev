@@ -23,7 +23,9 @@ fixed ports or one local database. Every run already passes through one choke po
    command, and wait while none is free. The pool is per repository, kept in the git common dir, so the main checkout
    and every slicetree and scopetree share it and two repositories never wait on each other. `fail-to-pass` holds its
    slot for its whole call, its internal preparation included, and takes it before any of its timers starts. A
-   `prepare` call whose stamp skips the command takes no slot.
+   `prepare` call whose stamp skips the command takes no slot. A `prepare` call reads the stamp again once it holds the
+   slot, and frees the slot without running the command when a preparation of the same tree that held it first left a
+   stamp that holds.
 2. **No trace of the wait.** A verb takes its slot before it reads the tree state or marks the run trace, so the wait
    lands in no run line's duration or tree state and records no run.
 3. **The count.** The operator configuration's `verification.testSlots` sets the count, a whole number from 1 to 64.
