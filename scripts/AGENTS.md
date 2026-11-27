@@ -48,7 +48,7 @@ signal ended carries no verdict. `resolveCommit`, `refResolves`, `mainWorkTree`,
 `git <verb> was ended by signal <signal> — no verdict` through `refuseKilled`, whose error carries `noVerdict` (`{ verb, signal }`).
 `existsAt` and `fileAt` answer `null`, and `listWorktrees` answers `{ failure }` naming the signal. A spawn that never started is a
 Spawn failure and keeps its answer (ADR 0087). `judgeContainment` answers `not-contained` where a local read was ended, and names that
-read in its result's `unread` field (`<verb> signal <signal>`); `unreadMark` prints it as `local <verb> no verdict`. `fileAt`'s `show <commit>:<path>` read is literal by its syntax. `existsAt` reads the path with the flag
+read in its result's `unread` field (`{ verb, signal }`); `unreadMark` prints it as `local <verb> no verdict`. `fileAt`'s `show <commit>:<path>` read is literal by its syntax. `existsAt` reads the path with the flag
 `--literal-pathspecs`. It runs under `literalEnv`, the environment without `GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS`, and `GIT_ICASE_PATHSPECS`, because git refuses those beside the flag.
 A path `:foo` is that file, never pathspec magic. A path `a*` is that file, never a glob. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
 loads when a verb that uses it runs, through an accessor that names the module in a literal `require`, so the
@@ -182,7 +182,7 @@ holds what it uses. `readLedgerHeader`, the per-header ledger-line reader, lives
 and `hooks/scope-prune.js` and `hooks/slicetree-sweep.js` both require it there instead of carrying their own
 regex. `hooks/scope-prune.js` requires `patchInBaseHistory` — the containment probe (ADR 0082) — and
 `commitInBaseHistory` — the third tier (ADR 0248) — from `plugin/lib/containment.js` through a `require` of
-its own. Each answers `true`, `false`, or `null` for a failed git call, so the hook records only a decisive not-contained
+its own. Each takes an optional fourth argument, the per-call read record (`{ unread }`) that holds the first local read a signal ended, and answers `true`, `false`, or `null` for a failed git call or a read a signal ended, so the hook records only a decisive not-contained
 answer (INV-0199). `baseHistoryHasPatch` and `baseCommitHoldsBranch` are their boolean forms, which read `null` as `false`. The tiers fall back differently from the reader. The reader missing stops that hook's sweep outright. A tier missing narrows the containment test to the tiers the hook keeps, silently. A tier is missing when its module cannot load or lacks it. A module requires no entry point, so a `require` of a module runs no CLI code, and `scope.js`
 guards its own CLI entry with `require.main === module`. `hooks/run-trace.js` takes
 the trace writer `appendTrace` from `trace-log.js`,
