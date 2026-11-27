@@ -120,8 +120,8 @@ none) and another file, and its test-path changes are not all deletions.
   the trace or runs its own control.
 - **A range whose test-path changes are all deletions** and that adds behaviour outside the test paths: write a test
   for that behaviour, then run the verb.
-- **Background.** Run the verb in the background when two runs of the range's test files can outlast the ceiling, and
-  wait for its end (`test-selection.md`'s `## The two commands`).
+- **Background.** Run the verb in the background and wait for its end, as every test run (`test-selection.md`'s `## The
+  two commands`).
 - **Exit status.** 0 means the verb read and printed an outcome; inside a run root it appends the line, and a failed
   append is reported on stderr with the status still 0. 1 means the verb refused the range or hit an error: name a test
   file the command left out and run it again. An error blocks nothing.

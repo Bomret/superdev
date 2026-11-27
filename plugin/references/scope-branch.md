@@ -142,7 +142,8 @@ scope checkout` recreates; and the scopetree again at review start. Prepare each
 worktrees under `/tmp` and ship's deploy tree run no test and are not prepared.
 
 **The call.** Applies to every tree to prepare. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <tree>` in
-the controller's own Bash call, its `timeout` set to 600000. The verb runs the **Prepare command** (CONTEXT.md) that
+the background and wait for its end, per `test-selection.md`'s `## The two commands`: it may first wait for a test slot.
+The verb runs the **Prepare command** (CONTEXT.md) that
 `<tree>`'s own `docs/agents/verification.md` states, at `<tree>`'s root, and is no test run.
 
 - **Exit 0** → continue. With no `## Prepare command` section the verb prints one note naming `/superdev:setup`;

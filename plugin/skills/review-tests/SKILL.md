@@ -72,7 +72,7 @@ Applies to the whole run. Apply no finding, fix nothing, write no test, and run 
 
 **The ask.** Applies without `--chained` when a timing command exists. Say that a timing run is a full suite run and costs that suite's wall clock. Ask once with `AskUserQuestion`: proceed with the timing run (the default), or skip to `unmeasured`. This command has no `--unattended` mode.
 
-**The timing run.** Applies once the operator proceeds. Run it in the foreground with Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it. Launch it in the background, and wait for its end, only when the timing run can outlast the ceiling. Build a duration table keyed by test, from per-test durations where the runner prints them and from total wall clock otherwise. Give no duration the timing run did not print.
+**The timing run.** Applies once the operator proceeds. Run it in the background, its exit status written into its output file, and wait for its end with Bash calls that each end within 170 s (`test-selection.md`'s `## The two commands`). Build a duration table keyed by test, from per-test durations where the runner prints them and from total wall clock otherwise. Give no duration the timing run did not print.
 
 | Case | Action |
 |---|---|

@@ -55,22 +55,22 @@ however the call is piped, redirected, backgrounded, or wrapped.
 - **The whole-repo command** is the third command (`## Whole-repo command`). `scope.js suite reusable` reads its runs
   too.
 
-**The Bash ceiling.** Applies to every test run and every `scope.js fail-to-pass` call. Pass the Bash tool's
-`timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and run in the foreground. Run through
-the runner in the background only a run that can outlast the ceiling, and wait for its end before acting on it.
+**The background wait.** Applies to every test run, every `scope.js fail-to-pass` call, and every `scope.js prepare`
+call, in the main session and in a dispatched subagent alike. Run it in the background, redirected to a file outside
+the working tree, with its exit status appended: `<run> > "$f" 2>&1; echo "exit=$?" >> "$f"`. Wait with Bash calls
+that each end within 170 s, `timeout 170 sh -c 'until grep -q "^exit=" "$f"; do sleep 5; done'`, repeated until the
+file holds the `exit=` line, then read the file (ADR 0264, ADR 0291).
 
-- **`scope.js fail-to-pass`** runs its command twice, after a prepare where one is configured. Run it in the
-  background when two runs of the range's test files can outlast the ceiling, and wait for its end before you read
-  its outcome. A verb the ceiling kills writes no outcome line.
-
-**A subagent's runs.** Applies to every test run and fail-to-pass run inside a dispatched subagent. Redirect the run
-to a file outside the working tree and append its exit status: `<run> > "$f" 2>&1; echo "exit=$?" >> "$f"`. When the
-call returns as moved to the background, wait with `timeout 170 sh -c 'until grep -q "^exit=" "$f"; do sleep 5;
-done'`, repeated until the file holds the `exit=` line, then read the file (ADR 0264).
-
-- Claude Code moves a subagent's foreground Bash call to the background after about 180 s, whatever its `timeout`,
-  and stops it when the subagent's run ends.
-- Start no second copy of a moved run, and end no turn while it runs.
+- **A run may first wait for a test slot.** The `test`, `fail-to-pass`, and `prepare` verbs each hold one of the
+  repository's **Test slots** (CONTEXT.md) while their command runs, and wait while none is free. A waiter prints one
+  stderr line naming the run that holds the slot and its record.
+- **The Bash ceiling never ends a run.** The ceiling is 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and a run
+  that waits for a slot, or one whose two runs and preparations outlast it, would end at it in the foreground. Claude
+  Code also moves a subagent's foreground Bash call to the background after about 180 s, whatever its `timeout`, and
+  stops it when the subagent's run ends.
+- **`scope.js fail-to-pass`** runs its command twice, after a prepare where one is configured, and holds one slot for
+  the whole call. A verb the ceiling kills writes no outcome line.
+- Start no second copy of a running run, and end no turn while it runs.
 
 ## Affected form
 

@@ -497,7 +497,7 @@ const MERGE_INVOCATION_PATTERN = /\bgit((?:\s+-[cC]\s+[^\s`]+)*)\s+merge(?![-\w]
 // out. simplicity: the ceiling is the six directory names below.
 const PLUGIN_PREFIX_PATH_PATTERN = /(?<![\w./-])plugin\/(?:hooks|references|scripts|skills|agents|lib)\//g;
 
-// ADR 0232: the background rule names the Bash ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), never
+// ADR 0232, ADR 0291: the background rule names the Bash ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), never
 // "the Bash tool's time limit" or "the tool's limit", which read against the 120000 ms default. Whitespace runs
 // and line wraps are normalized before the match. simplicity: the two spellings below are the ceiling; a
 // paraphrase of the unnamed limit walks past.
