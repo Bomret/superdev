@@ -10,19 +10,9 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
-const { assertSpawnDecided } = require('./spawn-verdict');
+// Every `sh` and `git` child this suite spawns runs through `spawnDecided` (`tests/spawn-verdict.js`).
+const { spawnDecided } = require('./spawn-verdict');
 const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
-
-// Every `sh` and `git` child this suite spawns carries a qualitative ceiling and passes `assertSpawnDecided` before its
-// output is read, so a hung or killed child fails with a decided verdict instead of hanging the suite (AGENTS.md, ADR 0086).
-// A hung child is effectively unbounded, so a loose ceiling still falsifies a hang; a healthy child clears it under any load.
-const SPAWN_CEILING_MS = 120000;
-function spawnDecided(command, args, opts = {}) {
-  const result = spawnSync(command, args, { ...opts, timeout: SPAWN_CEILING_MS, killSignal: 'SIGKILL' });
-  assertSpawnDecided(result, `${command} ${args.slice(0, 2).join(' ')}`.slice(0, 80));
-  return result;
-}
 
 // --- the real `### find` template in docs/agents/knowledge-base.md separates "genuinely absent"
 // from a jq failure that is not absence, and reads every listing page before it answers 3. The runFind-level mapping (exit 3 -> absent, anything else -> unknown) is

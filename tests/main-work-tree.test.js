@@ -3,6 +3,8 @@
 // Suite for plugin/lib/main-work-tree.js's `mainWorkTree` under the local-read bound (ADR 0290, INV-0009): a read a signal
 // ended refuses as no verdict, a real exit and a spawn that never started keep their answers, a caller's own `timeout`
 // replaces the bound, and opts that carry no `timeout` keep it. A fake git (`tests/fake-git.js`) ends the chosen call.
+// The suite takes over 60 s: one case waits out the real local-read bound, since shipped code carries no seam that
+// shortens it (ADR 0154).
 
 const { test, after } = require('node:test');
 require('./fixture-git');
