@@ -62,7 +62,7 @@ const waits = (s) => (s.match(/waiting for a test slot/g) || []).length;
 function gather(child) {
   const out = { stderr: '', child };
   child.stderr.on('data', (d) => { out.stderr += d; });
-  out.done = new Promise((resolve) => child.on('close', (code, signal) => resolve({ code, signal })));
+  out.done = new Promise((resolve) => child.on('close', (code, signal) => { out.ended = true; resolve({ code, signal }); }));
   return out;
 }
 // A `scope.js test` run from the main checkout holding the only slot until `<K>/go` exists; `<K>/held-done` marks its end.
@@ -92,7 +92,9 @@ test('#waits: at one slot, a preparation started while a test run holds the slot
   let p;
   try {
     p = prepare(tree);
-    await waitFor(() => waits(p.stderr) === 1, 'the waiting line');
+    // A verb that runs at once has ended or run its command: that fails the case at once, with no wait for the line.
+    await waitFor(() => waits(p.stderr) === 1 || p.ended || fs.existsSync(path.join(K, 'ran')), 'the waiting line');
+    assert.equal(waits(p.stderr), 1, 'the preparation waits: ' + p.stderr);
     await sleep(500);
     assert.equal(fs.existsSync(path.join(K, 'ran')), false, 'the command waits for the slot');
   } finally {
@@ -112,7 +114,8 @@ test('#interrupt: a waiter sent SIGINT ends at once and leaves no slot record of
   try {
     const p = prepare(tree);
     try {
-      await waitFor(() => waits(p.stderr) === 1, 'the waiting line');
+      await waitFor(() => waits(p.stderr) === 1 || p.ended || fs.existsSync(path.join(K, 'ran')), 'the waiting line');
+      assert.equal(waits(p.stderr), 1, 'the preparation waits: ' + p.stderr);
     } finally {
       p.child.kill('SIGINT');
     }
