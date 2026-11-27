@@ -132,24 +132,30 @@ async function verbPrepare(cwd, args) {
     const parts = runs.length === names.length ? new Map(names.map((name, i) => [name, runs[i].body])) : null;
     return { text, names, parts };
   };
-  const before = tracked();
-  let result;
-  try { result = await runPrepare(sup, prep.command, real); } finally { sup.stop(); slot.release(); }
-  if (!result.ok) {
-    process.stderr.write(`prepare: \`${prep.command}\` did not succeed: ${result.reason}\n`);
-    process.exitCode = PREPARE_FAILED_EXIT;
-  } else {
-    const after = tracked();
-    if (before.text !== after.text) {
-      // Without a pairing on either side, every path either listing names is named.
-      const union = [...new Set([...before.names, ...after.names])];
-      const changed = before.parts && after.parts ? union.filter((name) => before.parts.get(name) !== after.parts.get(name)) : union;
-      process.stderr.write(`prepare: \`${prep.command}\` changed a tracked file: ${changed.sort().join(', ')}\n`);
+  // The slot is held until the post-run checks and the stamp write are done, so a queued preparation of the same tree that
+  // takes it next reads the stamp this one leaves.
+  try {
+    const before = tracked();
+    let result;
+    try { result = await runPrepare(sup, prep.command, real); } finally { sup.stop(); }
+    if (!result.ok) {
+      process.stderr.write(`prepare: \`${prep.command}\` did not succeed: ${result.reason}\n`);
       process.exitCode = PREPARE_FAILED_EXIT;
-    } else if (stampPath && !after.text) {
-      const head = gitSpawn(['rev-parse', '--verify', 'HEAD^{commit}'], real).stdout.trim();
-      if (head) fs.writeFileSync(stampPath, JSON.stringify({ command: prep.command, head, untracked: untracked(real), files: unignoredFiles(real) || [] }) + '\n');
+    } else {
+      const after = tracked();
+      if (before.text !== after.text) {
+        // Without a pairing on either side, every path either listing names is named.
+        const union = [...new Set([...before.names, ...after.names])];
+        const changed = before.parts && after.parts ? union.filter((name) => before.parts.get(name) !== after.parts.get(name)) : union;
+        process.stderr.write(`prepare: \`${prep.command}\` changed a tracked file: ${changed.sort().join(', ')}\n`);
+        process.exitCode = PREPARE_FAILED_EXIT;
+      } else if (stampPath && !after.text) {
+        const head = gitSpawn(['rev-parse', '--verify', 'HEAD^{commit}'], real).stdout.trim();
+        if (head) fs.writeFileSync(stampPath, JSON.stringify({ command: prep.command, head, untracked: untracked(real), files: unignoredFiles(real) || [] }) + '\n');
+      }
     }
+  } finally {
+    slot.release();
   }
 }
 

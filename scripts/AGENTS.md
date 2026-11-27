@@ -392,7 +392,9 @@ after the command, read with `--no-ext-diff --no-textconv` so no diff program of
 tree already held is no such change. An untracked file it writes is no such change either, the
 rule `fail-to-pass` applies. An interrupt ends the command's group with `SIGKILL` and exits 128 plus the signal
 number. A `scope.js prepare` call is no test run: it writes no run line. A call about to run its command, past the stamp check,
-first takes a **Test slot** (ADR 0291, INV-0212); a stamp that holds, a missing section, and `none` take none.
+first takes a **Test slot** (ADR 0291, INV-0212); a stamp that holds, a missing section, and `none` take none. Once it holds
+the slot it reads the stamp again: a stamp that an earlier preparation of the same tree left and that now holds frees the slot
+without running the command. A call that runs its command holds the slot until its post-run checks and its stamp write are done.
 A command that succeeds on a tree with no tracked change from `HEAD` leaves a stamp, `superdev-prepare.json` in the tree's own
 git directory (`git rev-parse --absolute-git-dir`), recording the command, `HEAD`, and the tree's untracked paths
 (`git ls-files --others --directory`). A later call skips the command, prints one `prepare: skipped` note on stderr, and exits

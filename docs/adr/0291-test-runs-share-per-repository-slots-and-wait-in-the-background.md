@@ -25,7 +25,8 @@ fixed ports or one local database. Every run already passes through one choke po
    slot for its whole call, its internal preparation included, and takes it before any of its timers starts. A
    `prepare` call whose stamp skips the command takes no slot. A `prepare` call reads the stamp again once it holds the
    slot, and frees the slot without running the command when a preparation of the same tree that held it first left a
-   stamp that holds.
+   stamp that holds. A `prepare` call that runs its command holds the slot until its post-run checks and its stamp
+   write are done, so the next holder reads the stamp it left.
 2. **No trace of the wait.** A verb takes its slot before it reads the tree state or marks the run trace, so the wait
    lands in no run line's duration or tree state and records no run.
 3. **The count.** The operator configuration's `verification.testSlots` sets the count, a whole number from 1 to 64.
