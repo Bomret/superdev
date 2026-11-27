@@ -5,6 +5,8 @@
 **Amends:** [ADR 0232](0232-the-loop-runs-test-files-and-the-focused-command-once.md), whose foreground rule with
 the Bash ceiling stands.
 
+**Amended by:** [ADR 0291](0291-test-runs-share-per-repository-slots-and-wait-in-the-background.md), which extends this background wait to every test run, fail-to-pass run, and prepare call, in the main session too.
+
 ## Context
 
 ADR 0232 runs every test run in the foreground with Bash's `timeout` at its ceiling, on the premise that such a run
