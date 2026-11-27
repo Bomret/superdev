@@ -42,7 +42,7 @@ function changedSince(verb, ref, top) {
   return [...new Set((diff.stdout + others.stdout).split('\0').filter(Boolean))];
 }
 
-// `test full|whole`, `test focused [<path>…]`, `test path <file>… -- <command>`: runs a test command under `sh`, streaming its output,
+// `test full|whole|timing`, `test focused [<path>…]`, `test path <file>… -- <command>`: runs a test command under `sh`, streaming its output,
 // and appends one `run` line carrying the command's own exit status (an Observed run), its duration in milliseconds, and its command as run. The run root, slice, commit, and
 // tree state are read when the run starts; the line is written when the command finishes, `dirty` when HEAD moved, the tree
 // was dirty at either end, or the trace recorded a change to the slice's files during the run. No option sets a field.
@@ -87,7 +87,7 @@ async function verbTest(cwd, args) {
       command += ' ' + files.map(shellWord).join(' ');
     }
   } else {
-    if (!['full', 'focused', 'whole'].includes(kind) || (kind !== 'focused' && args.length > 1)) fail(`test: unrecognized arguments (${usage().split('\n').find((l) => /^ {2}test /.test(l)).trim()})`);
+    if (!['full', 'focused', 'whole', 'timing'].includes(kind) || (kind !== 'focused' && args.length > 1)) fail(`test: unrecognized arguments (${usage().split('\n').find((l) => /^ {2}test /.test(l)).trim()})`);
     const tree = at ? at.tree : topOf();
     let paths = args.slice(1);
     const ref = sinceRef('focused', paths, tree);
@@ -104,7 +104,7 @@ async function verbTest(cwd, args) {
     if (joined) fail(`test focused: the argument ${JSON.stringify(joined)} holds whitespace and names no file; pass each path as its own argument`);
     runCwd = tree; // the template is read from the tree root, so it runs there
     const template = verificationCommands(tree, true)[kind];
-    if (!template) fail(`test ${kind}: no ${kind} command is configured in docs/agents/verification.md`);
+    if (!template) fail(kind === 'timing' ? 'test timing: no timing command is configured: docs/agents/verification.md holds no backtick span under `## Timing command`' : `test ${kind}: no ${kind} command is configured in docs/agents/verification.md`);
     command = kind === 'focused' ? withPaths(template, paths) : template;
     if (kind === 'focused') files = paths;
   }
@@ -146,6 +146,8 @@ async function verbTest(cwd, args) {
         process.stderr.write(`test: the command ended by ${signal}; no run is recorded\n`);
         process.exit(128 + require('os').constants.signals[signal]);
       }
+      // The timing kind's own run time, from the command's start, so the slot wait reaches it no more than the run line.
+      if (kind === 'timing') process.stderr.write(`test: timing ran ${ms} ms\n`);
       if (at) {
         const [sha1, tree1] = treeState(at.tree);
         // An edit the trace recorded for this slice during the run changed the tree, even one undone

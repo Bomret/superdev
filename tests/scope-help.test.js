@@ -78,7 +78,7 @@ test('`<verb> [<sub>] --help` prints the header and a cut of the usage: the verb
     assert.match(out, /^ {37}files git does not ignore/m, 'test focused --help keeps the continuation lines');
     assert.deepStrictEqual(heads(['unresolved', 'clear', '--help']), ['unresolved add <text>|clear'], 'unresolved clear --help');
     assert.deepStrictEqual(heads(['reviewed', 'bogus', '--help']).length, 3, 'a subcommand naming no entry prints every entry of the verb');
-    assert.deepStrictEqual(heads(['test', 'full', '--help']), ['test full|whole'], 'test full --help prints no test focused entry');
+    assert.deepStrictEqual(heads(['test', 'full', '--help']), ['test full|whole|timing'], 'test full --help prints no test focused entry');
     // Description prose and placeholders are no syntax-head words: `red` only sits inside `<green|red|…>` and the description.
     assert.deepStrictEqual(heads(['suite', 'red', '--help']), entries(full).filter((l) => l.startsWith('suite ')).map((l) => l.split(/ {2,}/)[0]), 'suite red --help prints every suite entry');
 

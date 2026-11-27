@@ -92,6 +92,28 @@ test('#one-slot: with no testSlots set, runs from two worktrees of one repositor
   assert.equal(waits(a.err()) + waits(b.err()), 1, 'one of them waited: ' + a.err() + b.err());
 });
 
+test('#timing: at one slot, a `timing` run and a `full` run from two worktrees of one repository never overlap.', async () => {
+  const { K, script } = fresh();
+  const s = script('o.sh', overlapScript(K));
+  const cfg = '# V\n\n```sh\nsh ' + s + '\n```\n\n```sh\ntrue\n```\n\n## Timing command\n\n`sh ' + s + '`\n';
+  for (const tree of [one.S, W]) fs.writeFileSync(path.join(tree, 'docs', 'agents', 'verification.md'), cfg);
+  const run = (cwd, kind) => {
+    const child = spawn(process.execPath, [scopePath, 'test', kind], { cwd, env: one.env, stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    child.stderr.on('data', (d) => { err += d; });
+    return { err: () => err, done: new Promise((resolve) => child.on('close', (code) => resolve(code))) };
+  };
+  try {
+    const a = run(one.S, 'timing');
+    const b = run(W, 'full');
+    assert.deepStrictEqual(await Promise.all([a.done, b.done]), [0, 0], a.err() + b.err());
+    assert.equal(fs.existsSync(path.join(K, 'overlap')), false, 'the second command starts only after the first ended');
+    assert.equal(waits(a.err()) + waits(b.err()), 1, 'one of them waited: ' + a.err() + b.err());
+  } finally {
+    for (const tree of [one.S, W]) one.sh(tree, ['checkout', '-q', '--', 'docs']);
+  }
+});
+
 test('#two-slots: with testSlots 2, two runs of one repository overlap.', async () => {
   const { K, script } = fresh({ verification: { testSlots: 2 } });
   const s = script('o.sh', overlapScript(K));
@@ -139,6 +161,32 @@ test('#waiting-line: a waiter says once which run holds the slot and where its r
   // The waiter spent at least `held` waiting and its command's own time running, both inside its total wall time, so a duration
   // that excludes the wait fits beside the wait in that total, and one that included it would not.
   assert.ok(Number(w[at + 6]) + held <= rb.total, `the duration ${w[at + 6]} ms excludes the wait of at least ${Math.round(held)} ms (total ${Math.round(rb.total)} ms)`);
+});
+
+test('#timing-wait: a queued `timing` run\'s printed run time excludes its wait for the slot.', async () => {
+  const { K, script } = fresh();
+  fs.writeFileSync(path.join(one.S, 'docs', 'agents', 'verification.md'), '# V\n\n```sh\ntrue\n```\n\n## Timing command\n\n`true`\n');
+  try {
+    const a = start(W, script('h.sh', `touch ${K}/ready; while [ ! -e ${K}/go ]; do sleep 0.05; done`));
+    await waitFor(() => fs.existsSync(path.join(K, 'ready')), 'the holder\'s command');
+    const bStarted = performance.now();
+    const child = spawn(process.execPath, [scopePath, 'test', 'timing'], { cwd: one.S, env: one.env, stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    child.stderr.on('data', (d) => { err += d; });
+    const b = new Promise((resolve) => child.on('close', (code) => resolve({ code, total: performance.now() - bStarted })));
+    await waitFor(() => waits(err) === 1, 'the waiting line');
+    const seen = performance.now();
+    await sleep(2000);
+    fs.writeFileSync(path.join(K, 'go'), '');
+    const held = performance.now() - seen;
+    const [, rb] = await Promise.all([a.done, b]);
+    assert.equal(rb.code, 0, err);
+    const m = /^test: timing ran (\d+) ms$/m.exec(err);
+    assert.ok(m, 'the run time is printed: ' + err);
+    assert.ok(Number(m[1]) + held <= rb.total, `the run time ${m[1]} ms excludes the wait of at least ${Math.round(held)} ms (total ${Math.round(rb.total)} ms)`);
+  } finally {
+    one.sh(one.S, ['checkout', '-q', '--', 'docs']);
+  }
 });
 
 test('#stale-records: a record naming a dead pid with no live group, or a boot stamp of another boot, is reclaimed with no wait.', () => {
@@ -207,7 +255,7 @@ test('#refusals: a malformed call refuses with no wait while another run holds t
   const a = start(W, script('h.sh', `touch ${K}/ready; while [ ! -e ${K}/go ]; do sleep 0.05; done`));
   await waitFor(() => fs.existsSync(path.join(K, 'ready')), 'the holder\'s command');
   try {
-    for (const argv of [['path', '--', 'true'], ['path', '--since', 'nope', '--', 'true'], ['whole']]) {
+    for (const argv of [['path', '--', 'true'], ['path', '--since', 'nope', '--', 'true'], ['whole'], ['timing'], ['timing', 'extra'], ['timing', '--since', 'HEAD']]) {
       const r = one.verb(argv);
       assert.notEqual(r.status, 0, argv.join(' '));
       assert.equal(waits(r.stderr), 0, argv.join(' ') + ': ' + r.stderr);
