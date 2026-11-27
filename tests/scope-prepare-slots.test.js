@@ -7,7 +7,7 @@ require('./fixture-git');
 // Suite for plugin/scripts/scope.js's `prepare <tree>` verb and its Test slot (ADR 0291, INV-0212): the verb waits for a slot
 // only when it is about to run its command, so a waiter says so and runs after the holder, ends at once when interrupted, and a
 // stamp that holds, a missing section, or `none` runs nothing and waits for nothing, and two preparations of one tree queued
-// together run the command once. A `scope.js test` run from the repository's
+// together run the command once, even where the reads before the stamp write outlast the slot poll. A `scope.js test` run from the repository's
 // main checkout holds the only slot. Every case writes only inside its own temporary directory.
 
 const assert = require('node:assert');
@@ -78,7 +78,16 @@ async function hold(K) {
   await waitFor(() => fs.existsSync(path.join(K, 'ready')), 'the holder\'s command');
   return h;
 }
-const prepare = (tree) => gather(spawn(process.execPath, [scopePath, 'prepare', tree], { cwd: repo, stdio: ['ignore', 'ignore', 'pipe'] }));
+const prepare = (tree, env = process.env) => gather(spawn(process.execPath, [scopePath, 'prepare', tree], { cwd: repo, env, stdio: ['ignore', 'ignore', 'pipe'] }));
+// An environment whose `git`, first on PATH, takes a second over every listing of the untracked files git does not ignore,
+// as a tree with very many untracked files does, and passes every call to the real git.
+function slowListing(K) {
+  const real = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  const bin = path.join(K, 'bin');
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh\ncase " $* " in *" --exclude-standard "*) sleep 1;; esac\nexec "${real}" "$@"\n`, { mode: 0o755 });
+  return { ...process.env, PATH: bin + path.delimiter + process.env.PATH };
+}
 const prepareSync = (tree) => {
   const r = spawnSync(process.execPath, [scopePath, 'prepare', tree], { cwd: repo, encoding: 'utf8', timeout: 20000 });
   assertSpawnDecided(r, 'scope.js prepare');
@@ -153,16 +162,18 @@ test('#no-command: a stamp that holds, a missing section, and `none` each run no
   }
 });
 
-test('#queued-twice: two preparations of one tree queued behind a test run holding the only slot run the command once.', async () => {
+test('#queued-twice: two preparations of one tree queued behind a test run holding the only slot run the command once, even where the reads before the stamp write are slow.', async () => {
   const { tree, K } = worktree('');
   fs.writeFileSync(path.join(tree, 'docs', 'agents', 'verification.md'), verification(section(`\`echo x >> ${K}/runs\``)));
   git(tree, ['commit', '-q', '-am', 'prep']);
+  // The slow listing outlasts the slot poll, so a slot freed before the stamp is written lets the second preparation run too.
+  const env = slowListing(K);
   const h = await hold(K);
   let a;
   let b;
   try {
-    a = prepare(tree);
-    b = prepare(tree);
+    a = prepare(tree, env);
+    b = prepare(tree, env);
     await waitFor(() => (waits(a.stderr) === 1 || a.ended) && (waits(b.stderr) === 1 || b.ended), 'both waiting lines');
     assert.equal(waits(a.stderr) + waits(b.stderr), 2, 'both preparations wait: ' + a.stderr + b.stderr);
   } finally {
