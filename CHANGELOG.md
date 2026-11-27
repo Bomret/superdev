@@ -1,3 +1,10 @@
+## [0.125.1](https://github.com/Bomret/superdev/compare/v0.125.0...v0.125.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **bounded-git-reads:** bound the shared local git reads, and refuse a killed read as no verdict ([e612511](https://github.com/Bomret/superdev/commit/e6125111d181c07ba513cbc2ca23a1a44279acdd)), closes [#611](https://github.com/Bomret/superdev/issues/611) [#613](https://github.com/Bomret/superdev/issues/613) [#612](https://github.com/Bomret/superdev/issues/612) [#614](https://github.com/Bomret/superdev/issues/614) [#611](https://github.com/Bomret/superdev/issues/611) [#611](https://github.com/Bomret/superdev/issues/611) [#611](https://github.com/Bomret/superdev/issues/611) [#611](https://github.com/Bomret/superdev/issues/611) [#611](https://github.com/Bomret/superdev/issues/611) [#611](https://github.com/Bomret/superdev/issues/611)
+
 # [0.125.0](https://github.com/Bomret/superdev/compare/v0.124.0...v0.125.0) (2026-11-26)
 
 
