@@ -276,13 +276,7 @@ working tree.
 the run's duration in whole milliseconds (ADR 0182), the raw command (`traceField` of `lib/trace-log.js`), and the **directory field**: the directory the command ran in, relative to the run tree's root, `/`-separated, `.` at the root, and `..` or an absolute path outside the tree (ADR 0232). `scope.js` records the command verbatim, and the run-state ref publishes the trace. Pass a secret through the environment, never through an argument. The verb
 streams the command's output and exits with its status. `full`, `focused`, and `whole` run the command
 `docs/agents/verification.md` configures, as written; `focused` substitutes its shell-quoted paths for `{paths}`
-and, given none, runs the full command and records `full`. `timing` runs the **Timing command** (CONTEXT.md), the first
-backtick span under `## Timing command` outside every fence, from the tree root, and takes no further argument, `--since`
-included. It refuses, naming `## Timing command`, where `verification.md`, the section, or the span is missing. It records the kind
-`timing`, which no gate reader's kind list holds (INV-0017), and the run configuration leaves the span out (ADR 0230). Once its
-command ends it prints `test: timing ran <ms> ms` on stderr, the `<ms>` its run line records, so the slot wait reaches it no more
-than the line. A signal-ended run and a command that could not start print none. `/superdev:review-tests` runs its timing run
-through this kind (ADR 0291). `focused` refuses an empty path argument, and an argument that holds
+and, given none, runs the full command and records `full`. `timing` runs the **Timing command** (CONTEXT.md) from the tree root. The command is the first backtick span under `## Timing command` outside every fence. The kind takes no further argument, `--since` included. It refuses, naming `## Timing command`, where `verification.md`, the section, or the span is missing. It records the kind `timing`, which no gate reader's kind list holds (INV-0017). The run configuration leaves the span out (ADR 0230). Once its command ends, it prints `test: timing ran <ms> ms` on stderr. The slot wait is in neither the printed value nor the run line. Where a run line is recorded, its duration equals the printed `<ms>`. A timing run outside a run tree prints the line and records none. A signal-ended run and a command that could not start print none. `/superdev:review-tests` runs its timing run through this kind (ADR 0291). `focused` refuses an empty path argument, and an argument that holds
 whitespace and names no file relative to the tree root, a path list joined into one word (ADR 0217). `--since <ref>` takes
 the set from git at the tree root instead (ADR 0259): `git diff --name-only --no-renames -z <ref>` against the working tree under
 `diff.relative=false` and `core.quotePath=false`, plus `git ls-files --others --exclude-standard -z`, each path relative to the
