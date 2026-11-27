@@ -53,7 +53,7 @@ function changedSince(verb, ref, top) {
 // and classifies nothing (ADR 0227). The line records the files (`encodePaths`) and the command as typed, which the run state
 // carries to the remote, so a secret belongs in the environment. Outside every run tree the command runs and nothing is written.
 // simplicity: a command that changes its own process group escapes the group kill; upgrade: a cgroup or subreaper if one bites.
-function verbTest(cwd, args) {
+async function verbTest(cwd, args) {
   const { locateStrict, treeState, relDir, isTestPath } = require('./run-tree.js');
   let kind = args[0];
   let command;
@@ -110,64 +110,65 @@ function verbTest(cwd, args) {
   }
   // The test slot is taken after every refusal and before any read of the tree or the trace, so the wait lands in no field of
   // the run line (ADR 0291, INV-0212).
-  return acquireSlot(cwd, { kind: 'test', tree: at ? at.tree : topOf() }).then((slot) => {
-    try { runHeld(slot); } catch (e) { slot.release(); throw e; }
-  });
-
-  function runHeld(slot) {
-  // The run's digest is checked before the run line is written (ADR 0227); the check may append a `tamper` line, so it comes first.
-  if (at) checkRun(at.runRoot);
-  const [sha, tree0] = at ? treeState(at.tree) : [];
-  // Where the trace ends now: a file change it records for this slice past this point happened during the run.
-  const traceFile = at && path.join(at.runRoot, 'trace.log');
-  let traceMark = 0;
-  try { if (at) traceMark = fs.statSync(traceFile).size; } catch { /* no trace yet: from its start */ }
-  // The watcher exists before the command does and starts it: when this process is interrupted or dies by any signal, even
-  // SIGKILL, the watcher's channel closes and it ends the command's group (the process tree on Windows). A verb killed before
-  // the watcher starts the command leaves nothing to end.
-  // The slot's record names each command's group, so on POSIX a command that outlives this verb keeps the slot until its group
-  // is empty; on Windows the verb's pid alone holds it, so an interrupt frees it.
-  const sup = superviseRuns(['inherit', 'inherit', 'inherit'], null, 'SIGTERM', { onStart: slot.setGroup });
-  // An interrupt ends the run the way a SIGKILL of the verb does: the closed channel makes the watcher end the command.
-  const stop = (sig) => () => {
-    sup.detach();
-    if (process.platform === 'win32') slot.release();
-    process.exit(128 + require('os').constants.signals[sig]);
-  };
-  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, stop(sig));
-  const started = performance.now();
-  sup.run(command, runCwd, false).then(({ code, signal, error }) => {
-    const ms = String(Math.round(performance.now() - started));
-    sup.stop();
-    if (error) {
-      slot.release();
-      process.stderr.write(`test: cannot run sh: ${error}\n`);
-      process.exit(127);
-    }
-    if (signal) {
-      process.stderr.write(`test: the command ended by ${signal}; no run is recorded\n`);
-      process.exit(128 + require('os').constants.signals[signal]);
-    }
-    if (at) {
-      const [sha1, tree1] = treeState(at.tree);
-      // An edit the trace recorded for this slice during the run changed the tree, even one undone
-      // before the end. simplicity: a change no hook records (another process writing the tree) shows only at the two ends.
-      let changed = false;
-      try {
-        changed = readTrace(fs.readFileSync(traceFile).subarray(traceMark).toString('utf8'))
-          .some((e) => e.slice === at.slice && e.kind === 'edit');
-      } catch { /* no trace: nothing recorded */ }
-      // The commit and tree state the command ran against: a moved HEAD, a dirty tree at either end, or a recorded change
-      // during the run is `dirty`.
-      const tree = sha1 !== sha || tree0 === 'dirty' || tree1 === 'dirty' || changed ? 'dirty' : tree0 === 'unknown' || tree1 === 'unknown' ? 'unknown' : 'clean';
-      const outcome = code === 0 ? 'pass' : 'fail';
-      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, encodePaths(files), ms, command, relDir(at.tree, runCwd)] })) {
-        process.stderr.write('test: the run line could not be written to the run trace\n');
+  const slot = await acquireSlot(cwd, { kind: 'test', tree: at ? at.tree : topOf() });
+  // A refusal after the slot is held, such as checkRun's, frees it before it propagates.
+  try {
+    // The run's digest is checked before the run line is written (ADR 0227); the check may append a `tamper` line, so it comes first.
+    if (at) checkRun(at.runRoot);
+    const [sha, tree0] = at ? treeState(at.tree) : [];
+    // Where the trace ends now: a file change it records for this slice past this point happened during the run.
+    const traceFile = at && path.join(at.runRoot, 'trace.log');
+    let traceMark = 0;
+    try { if (at) traceMark = fs.statSync(traceFile).size; } catch { /* no trace yet: from its start */ }
+    // The watcher exists before the command does and starts it: when this process is interrupted or dies by any signal, even
+    // SIGKILL, the watcher's channel closes and it ends the command's group (the process tree on Windows). A verb killed before
+    // the watcher starts the command leaves nothing to end.
+    // The slot's record names each command's group, so on POSIX a command that outlives this verb keeps the slot until its group
+    // is empty; on Windows the verb's pid alone holds it, so an interrupt frees it.
+    const sup = superviseRuns(['inherit', 'inherit', 'inherit'], null, 'SIGTERM', { onStart: slot.setGroup });
+    // An interrupt ends the run the way a SIGKILL of the verb does: the closed channel makes the watcher end the command.
+    const stop = (sig) => () => {
+      sup.detach();
+      if (process.platform === 'win32') slot.release();
+      process.exit(128 + require('os').constants.signals[sig]);
+    };
+    for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, stop(sig));
+    const started = performance.now();
+    sup.run(command, runCwd, false).then(({ code, signal, error }) => {
+      const ms = String(Math.round(performance.now() - started));
+      sup.stop();
+      if (error) {
+        slot.release();
+        process.stderr.write(`test: cannot run sh: ${error}\n`);
+        process.exit(127);
       }
-    }
+      if (signal) {
+        process.stderr.write(`test: the command ended by ${signal}; no run is recorded\n`);
+        process.exit(128 + require('os').constants.signals[signal]);
+      }
+      if (at) {
+        const [sha1, tree1] = treeState(at.tree);
+        // An edit the trace recorded for this slice during the run changed the tree, even one undone
+        // before the end. simplicity: a change no hook records (another process writing the tree) shows only at the two ends.
+        let changed = false;
+        try {
+          changed = readTrace(fs.readFileSync(traceFile).subarray(traceMark).toString('utf8'))
+            .some((e) => e.slice === at.slice && e.kind === 'edit');
+        } catch { /* no trace: nothing recorded */ }
+        // The commit and tree state the command ran against: a moved HEAD, a dirty tree at either end, or a recorded change
+        // during the run is `dirty`.
+        const tree = sha1 !== sha || tree0 === 'dirty' || tree1 === 'dirty' || changed ? 'dirty' : tree0 === 'unknown' || tree1 === 'unknown' ? 'unknown' : 'clean';
+        const outcome = code === 0 ? 'pass' : 'fail';
+        if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, encodePaths(files), ms, command, relDir(at.tree, runCwd)] })) {
+          process.stderr.write('test: the run line could not be written to the run trace\n');
+        }
+      }
+      slot.release();
+      process.exit(code);
+    });
+  } catch (e) {
     slot.release();
-    process.exit(code);
-  });
+    throw e;
   }
 }
 

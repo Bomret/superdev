@@ -83,11 +83,9 @@ async function acquireSlot(cwd, { kind, tree }) {
   }
   const count = operatorCount(cwd, 'verification', 'testSlots', 1, 1, 64);
   const record = { pid: process.pid, group: null, boot: bootStamp(), kind, tree };
-  const handlers = ['SIGINT', 'SIGTERM', 'SIGHUP'].map((sig) => {
-    const h = () => process.exit(128 + os.constants.signals[sig]);
-    process.on(sig, h);
-    return [sig, h];
-  });
+  const signals = ['SIGINT', 'SIGTERM', 'SIGHUP'];
+  const onSignal = (sig) => process.exit(128 + os.constants.signals[sig]);
+  for (const sig of signals) process.on(sig, onSignal);
   let said = false;
   try {
     for (;;) {
@@ -125,7 +123,7 @@ async function acquireSlot(cwd, { kind, tree }) {
     process.stderr.write(`${kind}: the test slot pool ${pool} cannot be written (${e.code || e.message}); the run takes no test slot\n`);
     return none;
   } finally {
-    for (const [sig, h] of handlers) process.off(sig, h);
+    for (const sig of signals) process.off(sig, onSignal);
   }
 }
 
