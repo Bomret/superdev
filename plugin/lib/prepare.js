@@ -10,6 +10,7 @@ const { gitSpawn, listWorktrees } = require('./git-spawn.js');
 const { drivePath } = require('./drive-path.js');
 const { prepareCommandOf } = require('./verification.js');
 const { superviseRuns } = require('./run-supervision.js');
+const { acquireSlot } = require('./test-slots.js');
 
 // The exit status of a prepare command that ran and did not succeed, apart from a refusal's 1.
 const PREPARE_FAILED_EXIT = 3;
@@ -93,10 +94,17 @@ async function verbPrepare(cwd, args) {
     process.stderr.write(`prepare: skipped \`${prep.command}\`: it succeeded at ${stamp.head.slice(0, 12)}, and every tracked change since is Markdown\n`);
     return;
   }
+  // A test slot holds the command's run, taken only now that a command will run (ADR 0291, INV-0212). Its record names the
+  // command's group, so on POSIX a command that outlives this verb keeps the slot until its group is empty; on Windows the
+  // verb's pid alone holds it, so an interrupt frees it.
+  const slot = await acquireSlot(cwd, { kind: 'prepare', tree: real });
   if (stampPath) fs.rmSync(stampPath, { force: true });
-  const sup = superviseRuns(['ignore', 2, 2], null, 'SIGKILL');
+  const sup = superviseRuns(['ignore', 2, 2], null, 'SIGKILL', { onStart: slot.setGroup });
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-    process.on(sig, () => sup.detach().then(() => process.exit(128 + os.constants.signals[sig])));
+    process.on(sig, () => sup.detach().then(() => {
+      if (process.platform === 'win32') slot.release();
+      process.exit(128 + os.constants.signals[sig]);
+    }));
   }
   // The tracked diff against HEAD, staged and unstaged, read with none of the user's external diff or textconv programs: its
   // whole text, which decides the exit, and each path's part of it, which names the paths. Both listings run in path order with
@@ -118,7 +126,7 @@ async function verbPrepare(cwd, args) {
   };
   const before = tracked();
   let result;
-  try { result = await runPrepare(sup, prep.command, real); } finally { sup.stop(); }
+  try { result = await runPrepare(sup, prep.command, real); } finally { sup.stop(); slot.release(); }
   if (!result.ok) {
     process.stderr.write(`prepare: \`${prep.command}\` did not succeed: ${result.reason}\n`);
     process.exitCode = PREPARE_FAILED_EXIT;
