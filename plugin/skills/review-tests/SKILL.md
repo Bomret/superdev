@@ -67,12 +67,13 @@ Applies to the whole run. Apply no finding, fix nothing, write no test, and run 
 
 - **No such file or section** → the run is `unmeasured`. Say so, and rank by the auditor's judgment.
 - **The section is fenced in a backtick block** → it is a hand-written mistake, not a configured command. Report it, pointing at `test-selection.md`'s rule. That rule reserves a fence for the full and focused commands, and a fenced timing section lands in the focused slot every caller runs where no focused command is recorded yet.
+- **A section holding prose and no backtick span outside every fence** → the run is `unmeasured`. Say so, naming that the section names no command.
 
 **The chained skip.** Applies under `--chained` when a timing command exists. Ask nothing and run no timing run: the run is `unmeasured`. Say so.
 
 **The ask.** Applies without `--chained` when a timing command exists. Say that a timing run is a full suite run and costs that suite's wall clock. Ask once with `AskUserQuestion`: proceed with the timing run (the default), or skip to `unmeasured`. This command has no `--unattended` mode.
 
-**The timing run.** Applies once the operator proceeds. Run it in the background, its exit status written into its output file, and wait for its end with Bash calls that each end within 170 s (`test-selection.md`'s `## The two commands`). Build a duration table keyed by test, from per-test durations where the runner prints them and from total wall clock otherwise. Give no duration the timing run did not print.
+**The timing run.** Applies once the operator proceeds. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test timing` in the background, its exit status written into its output file, and wait for its end with Bash calls that each end within 170 s (`test-selection.md`'s `## The two commands`). The verb runs the section's command under a test slot; the section's command itself runs only through it. Build a duration table keyed by test, from per-test durations where the runner prints them, and otherwise from the total wall clock the verb's `test: timing ran <ms> ms` line reports, never from a clock measured around the background call. Give no duration the timing run did not print.
 
 | Case | Action |
 |---|---|
@@ -80,7 +81,7 @@ Applies to the whole run. Apply no finding, fix nothing, write no test, and run 
 | No parseable duration, and the run did not hit the timeout | `unmeasured`. Say so. |
 | The run hit the timeout before printing a parseable duration | `unmeasured`. Say that the budget ran out, rather than that the output failed to parse. |
 
-**The machine.** Applies where the duration table is printed. Say once that the numbers are this machine's and do not hold across machines.
+**The machine.** Applies where the duration table is printed. Say once that the numbers are this machine's and do not hold across machines. Say also that they may include other runs where `.superdev/info.json`'s `verification.testSlots` reads above 1, or where the output holds the slot module's `the run takes no test slot` stderr line.
 
 ## 3. Dispatch the auditors
 

@@ -158,8 +158,10 @@ check**s (`CONTEXT.md`) that together run the full suite on every pull request, 
 
 **The section.** Applies to an optional `## Timing command` section of `docs/agents/verification.md`. It holds one
 command, in a backtick span and never in a fence, that reports what the suite's tests cost: per-test durations where
-the runner gives them, total wall clock otherwise. `/superdev:review-tests` is its only reader and ranks its findings
-by the measured cost.
+the runner gives them, total wall clock otherwise. `/superdev:review-tests` is its reader and ranks its findings by
+the measured cost. `scope.js test timing` is its runner: it runs the command from the tree root under a test slot,
+records a `timing` run line inside a run tree, and prints `test: timing ran <ms> ms`, the command's own run time with
+the slot wait excluded. No gate counts a `timing` run line as a full, focused, or whole-repo run.
 
 - **An absent section** leaves the audit `unmeasured`, ranking by judgment instead. A repository states the reason
   it configures none as prose beside the section's absence.
