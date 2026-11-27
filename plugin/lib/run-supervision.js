@@ -83,7 +83,7 @@ function withWorktreeLock(cwd, fn) {
 // first starts nothing. It reports `{code, signal}` or `{error}`, and sends nothing once the channel is closed. The closed
 // channel is the one way a run ends when its verb goes: an interrupted verb closes it and exits, and any other death of the
 // verb, SIGKILL included, closes it too. A command message the verb sent is read before the close, so the watcher knows
-// every command it started. On the close it sends the running command's group the signal the argv names (`test` sends
+// every command it started. It reports `{started: <pid>}` as it starts each command. On the close it sends the running command's group the signal the argv names (`test` sends
 // SIGTERM, so a runner that traps it finishes its cleanup; `fail-to-pass` sends SIGKILL), repeats that signal on the group
 // once the leader is gone until the group is empty (at most 5 s), and removes the worktree the argv names (fail-to-pass).
 function watchMain() {
@@ -135,6 +135,7 @@ function watchMain() {
     } catch (e) { return send({ error: e.code || e.message }); }
     run = child;
     last = child.pid;
+    if (child.pid) send({ started: child.pid });
     child.on('error', (e) => { run = null; send({ error: e.code || e.message }); });
     child.on('exit', (code, signal) => {
       // A sweep ends what the command left behind in its group, so nothing outlives a run whose worktree goes next.
@@ -149,15 +150,17 @@ function watchMain() {
 
 // Starts the watcher. `stdio` is the command's own three descriptors; `cleanup` is `{cwd, dir, noHooks}` for a worktree to
 // remove, `noHooks` the git config arguments that run no hook while the watcher removes it;
-// `signal` is what the watcher sends the command's group when the verb dies.
+// `signal` is what the watcher sends the command's group when the verb dies; `onStart(pid)`, where given, is called as the watcher
+// starts each command, with the command's pid, which is its process group on POSIX.
 // `run(command, cwd, sweep)` resolves `{code, signal}` or `{error}`. `detach()` closes the channel, which hands the running
 // command to the watcher as a dead verb does; no run settles after it, and the promise it returns resolves once the watcher
 // has exited, which is after it removed the worktree.
-function superviseRuns(stdio, cleanup, signal) {
+function superviseRuns(stdio, cleanup, signal, { onStart } = {}) {
   const cp = require('child_process');
   const src = `const {spawnSync}=require('child_process');const endRun=${endRun};const withWorktreeLock=${withWorktreeLock};(${watchMain})()`;
   const watcher = cp.spawn(process.execPath, ['-e', src, ...(cleanup ? [cleanup.cwd, cleanup.dir] : ['', '']), signal, JSON.stringify(cleanup ? cleanup.noHooks : [])], { stdio: [...stdio, 'ipc'], detached: true, windowsHide: true });
   watcher.on('error', () => {});
+  watcher.on('message', (m) => { if ('started' in m && onStart) onStart(m.started); });
   let detached = false;
   const sup = {
     end: () => { try { watcher.send({ end: true }); } catch { /* the channel is closed */ } },
@@ -169,7 +172,7 @@ function superviseRuns(stdio, cleanup, signal) {
       if (watcher.connected) watcher.disconnect();
     }),
     run: (command, cwd, sweep) => new Promise((resolve) => {
-      const settle = (m) => { watcher.off('message', settle); watcher.off('exit', onExit); if (!detached) resolve(m); };
+      const settle = (m) => { if ('started' in m) return; watcher.off('message', settle); watcher.off('exit', onExit); if (!detached) resolve(m); };
       const onExit = () => settle({ error: 'watcher-exited' });
       watcher.on('message', settle);
       watcher.on('exit', onExit);

@@ -625,7 +625,7 @@ function main() {
       throw e;
     };
     try {
-      if (argv[0] === 'test') libTestVerb().verbTest(process.cwd(), argv.slice(1));
+      if (argv[0] === 'test') libTestVerb().verbTest(process.cwd(), argv.slice(1)).catch(settle);
       else if (argv[0] === 'fail-to-pass') libFailToPass().verbFailToPass(process.cwd(), argv.slice(1)).catch(settle);
       else if (argv[0] === 'prepare') libPrepare().verbPrepare(process.cwd(), argv.slice(1)).catch(settle);
       else if (ciWait) libCi().verbCiWait(process.cwd(), argv.slice(1)).catch(settle);

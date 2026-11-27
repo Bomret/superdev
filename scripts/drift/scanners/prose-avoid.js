@@ -242,7 +242,7 @@ function scanMergeMessageRequired(root) {
   return gaps;
 }
 
-// ADR 0232: no shipped skill, agent, or reference, and no shipped AGENTS.md at any depth beside them, states the
+// ADR 0232, ADR 0291: no shipped skill, agent, or reference, and no shipped AGENTS.md at any depth beside them, states the
 // background rule against an unnamed Bash limit. Fences are masked and whitespace runs, line wraps included, are
 // normalized before the match. No shipped AGENTS.md at all is one gap, so a moved or renamed one is never passed over.
 function scanBackgroundRuleNamesLimit(root) {
@@ -258,7 +258,7 @@ function scanBackgroundRuleNamesLimit(root) {
         source: rel,
         expectation:
           `name the Bash ceiling in the background rule (\`timeout\` at 600000 ms, or the higher \`BASH_MAX_TIMEOUT_MS\`) — ` +
-          `\`${hit[0]}\` names no limit (ADR 0232)`,
+          `\`${hit[0]}\` names no limit (ADR 0232, ADR 0291)`,
       });
     }
   }

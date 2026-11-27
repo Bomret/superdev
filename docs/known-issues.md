@@ -352,6 +352,14 @@ calls ran past 185 s and none moved at 180 s. The documentation read that day
 (`https://code.claude.com/docs/en/tools-reference.md`, `https://code.claude.com/docs/en/sub-agents.md`,
 `https://code.claude.com/docs/en/env-vars.md`) names no 180 s limit.
 
+Verified 2026-11-27, on Claude Code 2.1.330, in a main session: the wait command
+`timeout 170 sh -c 'until grep -q "^exit=" "$f"; do sleep 5; done'` returned exit 0 once a background run appended its
+`exit=` line, across repeated calls over several minutes of runs, and a foreground call with `timeout` 170000 that
+outlasted it was moved to the background at that timeout ("Command did not complete within its 170s timeout and was
+moved to the background"). ADR 0291 extends the mitigation to the main session: every test run, `scope.js fail-to-pass`
+call, and `scope.js prepare` call runs in the background and is waited out this way, since a run may first wait for a
+test slot.
+
 ## No alert on a pending AskUserQuestion
 
 A command that stops on an `AskUserQuestion` waits for an operator who may have walked away. Claude Code's own

@@ -10,6 +10,7 @@ const { gitSpawn, listWorktrees } = require('./git-spawn.js');
 const { drivePath } = require('./drive-path.js');
 const { prepareCommandOf } = require('./verification.js');
 const { superviseRuns } = require('./run-supervision.js');
+const { acquireSlot } = require('./test-slots.js');
 
 // The exit status of a prepare command that ran and did not succeed, apart from a refusal's 1.
 const PREPARE_FAILED_EXIT = 3;
@@ -87,16 +88,31 @@ async function verbPrepare(cwd, args) {
   if (prep.state === 'none') return;
   const gitDir = gitSpawn(['rev-parse', '--absolute-git-dir'], real).stdout.trim();
   const stampPath = gitDir ? path.join(drivePath(gitDir), STAMP) : null;
-  let stamp = null;
-  if (stampPath) try { stamp = JSON.parse(fs.readFileSync(stampPath, 'utf8')); } catch { /* no stamp: prepare */ }
-  if (stillPrepared(stamp, real, prep.command)) {
+  // Whether the stamp holds; prints the skip note when it does.
+  const skipped = () => {
+    let stamp = null;
+    if (stampPath) try { stamp = JSON.parse(fs.readFileSync(stampPath, 'utf8')); } catch { /* no stamp: prepare */ }
+    if (!stillPrepared(stamp, real, prep.command)) return false;
     process.stderr.write(`prepare: skipped \`${prep.command}\`: it succeeded at ${stamp.head.slice(0, 12)}, and every tracked change since is Markdown\n`);
+    return true;
+  };
+  if (skipped()) return;
+  // A test slot holds the command's run, taken only now that a command will run (ADR 0291, INV-0212). Its record names the
+  // command's group, so on POSIX a command that outlives this verb keeps the slot until its group is empty; on Windows the
+  // verb's pid alone holds it, so an interrupt frees it. A preparation of the same tree that held the slot first may have
+  // left a stamp that holds, so the stamp is read again once the slot is held.
+  const slot = await acquireSlot(cwd, { kind: 'prepare', tree: real });
+  if (skipped()) {
+    slot.release();
     return;
   }
   if (stampPath) fs.rmSync(stampPath, { force: true });
-  const sup = superviseRuns(['ignore', 2, 2], null, 'SIGKILL');
+  const sup = superviseRuns(['ignore', 2, 2], null, 'SIGKILL', { onStart: slot.setGroup });
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-    process.on(sig, () => sup.detach().then(() => process.exit(128 + os.constants.signals[sig])));
+    process.on(sig, () => sup.detach().then(() => {
+      if (process.platform === 'win32') slot.release();
+      process.exit(128 + os.constants.signals[sig]);
+    }));
   }
   // The tracked diff against HEAD, staged and unstaged, read with none of the user's external diff or textconv programs: its
   // whole text, which decides the exit, and each path's part of it, which names the paths. Both listings run in path order with
@@ -116,24 +132,30 @@ async function verbPrepare(cwd, args) {
     const parts = runs.length === names.length ? new Map(names.map((name, i) => [name, runs[i].body])) : null;
     return { text, names, parts };
   };
-  const before = tracked();
-  let result;
-  try { result = await runPrepare(sup, prep.command, real); } finally { sup.stop(); }
-  if (!result.ok) {
-    process.stderr.write(`prepare: \`${prep.command}\` did not succeed: ${result.reason}\n`);
-    process.exitCode = PREPARE_FAILED_EXIT;
-  } else {
-    const after = tracked();
-    if (before.text !== after.text) {
-      // Without a pairing on either side, every path either listing names is named.
-      const union = [...new Set([...before.names, ...after.names])];
-      const changed = before.parts && after.parts ? union.filter((name) => before.parts.get(name) !== after.parts.get(name)) : union;
-      process.stderr.write(`prepare: \`${prep.command}\` changed a tracked file: ${changed.sort().join(', ')}\n`);
+  // The slot is held until the post-run checks and the stamp write are done, so a queued preparation of the same tree that
+  // takes it next reads the stamp this one leaves.
+  try {
+    const before = tracked();
+    let result;
+    try { result = await runPrepare(sup, prep.command, real); } finally { sup.stop(); }
+    if (!result.ok) {
+      process.stderr.write(`prepare: \`${prep.command}\` did not succeed: ${result.reason}\n`);
       process.exitCode = PREPARE_FAILED_EXIT;
-    } else if (stampPath && !after.text) {
-      const head = gitSpawn(['rev-parse', '--verify', 'HEAD^{commit}'], real).stdout.trim();
-      if (head) fs.writeFileSync(stampPath, JSON.stringify({ command: prep.command, head, untracked: untracked(real), files: unignoredFiles(real) || [] }) + '\n');
+    } else {
+      const after = tracked();
+      if (before.text !== after.text) {
+        // Without a pairing on either side, every path either listing names is named.
+        const union = [...new Set([...before.names, ...after.names])];
+        const changed = before.parts && after.parts ? union.filter((name) => before.parts.get(name) !== after.parts.get(name)) : union;
+        process.stderr.write(`prepare: \`${prep.command}\` changed a tracked file: ${changed.sort().join(', ')}\n`);
+        process.exitCode = PREPARE_FAILED_EXIT;
+      } else if (stampPath && !after.text) {
+        const head = gitSpawn(['rev-parse', '--verify', 'HEAD^{commit}'], real).stdout.trim();
+        if (head) fs.writeFileSync(stampPath, JSON.stringify({ command: prep.command, head, untracked: untracked(real), files: unignoredFiles(real) || [] }) + '\n');
+      }
     }
+  } finally {
+    slot.release();
   }
 }
 

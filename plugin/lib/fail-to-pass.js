@@ -18,6 +18,7 @@ const { treeState, gitOut, rootRelative, lazyToplevel } = require('./run-tree.js
 const { superviseRuns, withWorktreeLock } = require('./run-supervision.js');
 const { shellWord } = require('./test-verb.js');
 const { operatorBoundMs } = require('./operator-config.js');
+const { acquireSlot } = require('./test-slots.js');
 
 // The floor of the bound on the run with the files put back (ADR 0142): 10 000 ms, or the operator configuration's
 // `verification.failToPassFloorMs` (ADR 0207), read from the main working tree of `cwd`, whichever checkout that is.
@@ -213,6 +214,10 @@ async function verbFailToPass(cwd, args) {
     }
     return console.log(`fail-to-pass ${SETTLED_FROM_TRACE}`);
   }
+  // One test slot holds the whole call, its preparations included, taken after every refusal and settlement and before the
+  // worktree, the first preparation, and every run bound, so the wait counts toward no bound and no duration (ADR 0291,
+  // INV-0212). It frees with the worktree's removal.
+  const slot = await acquireSlot(cwd, { kind: 'fail-to-pass', tree: at ? at.tree : lazyToplevel(cwd)() || cwd });
   const main = at ? null : mainWorkTree(cwd) || cwd;
   const home = at ? at.runRoot : path.join(main, '.superdev');
   const madeHome = !at && !fs.existsSync(home);
@@ -227,7 +232,7 @@ async function verbFailToPass(cwd, args) {
   // The worktree outlives no exit. The watcher holds a channel from this process and takes over when it closes, on an
   // interrupt or a kill past the signal handlers: it ends the running command's group (the process tree on Windows), then
   // removes the worktree.
-  const sup = superviseRuns(['ignore', 2, 2], { cwd, dir, noHooks }, 'SIGKILL');
+  const sup = superviseRuns(['ignore', 2, 2], { cwd, dir, noHooks }, 'SIGKILL', { onStart: slot.setGroup });
   let removed = false;
   const cleanup = () => {
     if (removed) return;
@@ -242,6 +247,7 @@ async function verbFailToPass(cwd, args) {
     });
     // `rmdir` takes an empty directory only, so a `.superdev/` that holds anything else stays.
     if (madeHome) try { fs.rmdirSync(home); } catch { /* not empty, or already gone */ }
+    slot.release();
   };
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
     // The watcher ends the run as it does for a SIGKILLed verb, with SIGKILL, not SIGTERM: a runner that traps SIGTERM keeps

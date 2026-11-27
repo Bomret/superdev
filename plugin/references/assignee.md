@@ -36,15 +36,16 @@ optional, and a missing file, role, or key takes its default.
 | `code-host` | `pushTimeoutMs` | the bound of each network git call: the `scope.js push` fetch and push, the `scope.js contained` refetch, the `scope.js open` refetch at plan's cut, the run-state ref's send, fetch, and delete, and `/superdev:setup`'s push offer, in milliseconds | `60000` | a whole number, 1 to 2147483647 |
 | `verification` | `failToPassFloorMs` | the floor of the `fail-to-pass` run bound, in milliseconds | `10000` | a whole number, 1 to 2147483647 |
 | `verification` | `failToPassControlMs` | the bound of the `fail-to-pass` control run, the run against the changed code, in milliseconds | `300000` | a whole number, 1 to 2147483647 |
+| `verification` | `testSlots` | the test-slot count: how many `test`, `fail-to-pass`, and `prepare` runs of the repository run at once on this machine (ADR 0291) | `1` | a whole number, 1 to 64 |
 | `knowledge-base` | `timeoutMs` | the bound of each knowledge-base backend command, in milliseconds | `30000` | a whole number, 1 to 2147483647 |
 | `knowledge-base` | `teaLogin` | the `tea` login a Forgejo wiki's commands use | absent: one matching login is used, several stop the command | a login name `tea login list` reports |
 
 - **A `/superdev:setup` write** → merges the key into the file, so every key already there stays.
-- **A time bound outside its range** → it reads as absent and is named once on stderr.
+- **A time bound or the test-slot count outside its range** → it reads as absent and is named once on stderr.
 - **A knowledge-base backend command** reads the whole `knowledge-base` section as `operator` in its `$1` values file.
 
 **The file is untracked.** Applies to the file itself. `.superdev/` is git-ignored, so the file never reaches the
-repository. It holds identifiers, display names, and time bounds, never credentials.
+repository. It holds identifiers, display names, time bounds, and the test-slot count, never credentials.
 
 - **A token** → stays in the environment variable the active `docs/agents/issue-tracker.md` names.
 
