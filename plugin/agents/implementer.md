@@ -147,7 +147,7 @@ Run only the tests that verify your work, and make each run answer a question no
 - On an inline fix dispatch, run any revert, each test run, and the restore as separate Bash calls.
 - Ship's runs: `test full`, `test whole`, and a `test focused` with neither a path nor a ref, which runs the full command.
 - Where the focused fence of `docs/agents/verification.md` repeats the full fence, each increment runs its one test file through `scope.js test path <file> -- <command>`, and your final run is one `scope.js test path --since <range-start> -- <command>` from the tree root, which appends every test file your range changed. Pass the fail-to-pass verb the command that run recorded, its files appended. Each failed test file a red-evidence finding on your list names gets its own `scope.js test path` run. You make no whole-set run, a red-evidence finding on your list included: that final `test path` run and the fail-to-pass run are the runs you make before your report.
-- A `run full` or `run whole` line recorded in your dispatch window is a Minor review finding, so run only the commands above.
+- A `run full`, `run whole`, or `run timing` line recorded in your dispatch window is a Minor review finding, so run only the commands above.
 
 ### Edit tools
 
