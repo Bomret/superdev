@@ -25,7 +25,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
   | `verification.md` | the optional **test commands**: a full one and, for every repository with a suite, a required focused one, which the implement chain's test runs read, an optional **timing command**, which a test audit reads, the **prepare command**, which every test worktree runs first, and the **verify skill**'s path or `none` |
   | `deployment.md` | the repository's **deploy posture** (`none` / `manual` / `auto`) and its **deploy targets**, which `/superdev:ship` reads once a feature's pull request has merged |
 
-- **The operator file**: `.superdev/info.json`, the **operator configuration** (`CONTEXT.md`). It is no config document. It holds the slice store's assignee and display name under `issue-tracker`, a Forgejo knowledge base's tea login under `knowledge-base`, and the time bounds an operator sets (`assignee.md` → *Assignee* lists every key). It is git-ignored.
+- **The operator file**: `.superdev/info.json`, the **operator configuration** (`CONTEXT.md`). It is no config document. It holds the slice store's assignee and display name under `issue-tracker`, a Forgejo knowledge base's tea login under `knowledge-base`, and the time bounds and test-slot count an operator sets (`assignee.md` → *Assignee* lists every key). It is git-ignored.
 - **An operator-file write**: merge into the operator file and keep each key already there. First ensure `.superdev/` is in `.gitignore`, adding it when absent.
 - **A remote backend**: a knowledge base on software (Confluence, a Forgejo, Gitea, or GitHub wiki, an "other" wiki). A local `docs/kb/` and none are not remote.
 - **A seed gap** and **`## Seed deviations`**: as §0's **Seed gaps** defines them.
@@ -355,6 +355,11 @@ hook. A shallow clone, or one with fewer commits, works from what it has.
 - **`none`** runs nothing and is written on the operator's confirmation.
 - A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
 
+**The test-slot count.** Applies once decision E leaves `verification.md` configuring a full command or a prepare command, a prepare command alone included. Ask once per setup run how many test runs of this repository may run at once on this machine, recommending 1. Say what the count limits: the `test`, `fail-to-pass`, and `prepare` verbs of every checkout and worktree of this repository share that many **Test slots** (`CONTEXT.md`), and a run waits while none is free. Name the risk of more than one slot: runs again clash on fixed ports, databases, or containers they share. Write the answer as `verification.testSlots`, a whole number from 1 to 64, by an operator-file write (`assignee.md` → *Assignee*).
+
+- A repository left with neither command gets no question.
+- A re-run asks only when the operator file lacks `verification.testSlots`. One holding the key asks nothing.
+
 **The named CI checks.** Applies to decision E, in every repository. Read `references/test-selection.md`'s `## CI`, which owns the contract. Look for CI workflow files under `.github/workflows/`, `.forgejo/workflows/`, and `.gitea/workflows/`.
 
 - **Workflow files found** → read the head commit of the most recent pull request on the code host decision B configured, and take `docs/agents/code-management.md`'s `## Check status` read for that commit. Propose the check names it reports, each once. With no pull request, a document with no `## Check status` section, or a read that fails, propose names derived from the workflow files (the jobs' names, or the workflow's own name where a job names none) and label them **unverified**: the code host reports a check under its own name, which only a read of a real commit confirms.
@@ -616,6 +621,6 @@ The focused command selects every test a changed path can affect.
 - **A refused commit**, a hook whose tooling the fresh worktree lacks included, is reported with git's output per `references/commit-messages.md`'s `## A refused commit or merge`. The files stay uncommitted: in the checkout on the current branch, and in the worktree on a new branch, which is kept, not removed, with its path and the files in it named to the operator.
 - **A failed push** is reported with git's output. The commit stays local, and a new branch's worktree is removed with the branch kept.
 
-**Secrets.** Applies to every write. Record only env-var **names** for secrets, never token values. The operator file holds identifiers, display names, and time bounds only.
+**Secrets.** Applies to every write. Record only env-var **names** for secrets, never token values. The operator file holds identifiers, display names, time bounds, and the test-slot count only.
 
 **No hierarchy.** Applies when §1 found no `AGENTS.md` hierarchy. Point the user at `/superdev:document`, whose bootstrap mode seeds the initial hierarchy and glossary from the existing code.
