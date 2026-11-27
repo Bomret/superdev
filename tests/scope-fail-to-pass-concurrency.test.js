@@ -15,7 +15,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { f2pFixture, verif } = require('./scope-setup');
+const { f2pFixture, verif, writeOperatorConfig } = require('./scope-setup');
 
 
 const { D, CMD, scenario, checkout, leftover, drive, done } = f2pFixture();
@@ -29,6 +29,8 @@ test('Two runs at the same time in one run root do not collide: each runs in a w
     base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
     tip: { 'src.txt': 'b\n', 'tests/t.sh': 'mkdir -p "$F2P_BARRIER"; touch "$F2P_BARRIER/$$"; for i in $(seq 200); do [ "$(ls "$F2P_BARRIER" | wc -l)" -ge 2 ] && break; sleep 0.1; done\npwd >> "$F2P_LOG"\ngrep -q b src.txt\n' },
   });
+  // Two slots, so both controls run at once and the barrier in the test file meets (ADR 0291).
+  writeOperatorConfig(s.repo, { verification: { testSlots: 2 } });
   before = [checkout(s.repo), checkout(s.tree)];
   both = drive({ mode: 'parallel', cwd: s.tree, range: s.range, cmd: s.cmd, root: s.root, env: { F2P_LOG: s.log, F2P_BARRIER: path.join(path.dirname(s.repo), 'barrier') } });
   assert.deepEqual(both.map((e) => e.code), [0, 0], 'both runs end with an outcome: ' + JSON.stringify(both));
