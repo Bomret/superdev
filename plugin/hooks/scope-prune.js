@@ -174,8 +174,9 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 //
 // It answers `true`, `false`, or `null`. `false` is decisive: a `merge-tree` that exited 0 or 1, and every
 // tier present answering a decisive `false`, so the same two commits always give it. `null` is a not
-// contained that decided nothing: a `merge-tree` that exited otherwise, a failed `rev-parse`, or a tier
-// whose git call failed. Only `false` is recorded (`testRecorded` below).
+// contained that decided nothing: a `merge-tree` that exited otherwise, a failed `rev-parse`, a tier
+// whose git call failed, or any containment read a signal ended, this hook's own or a tier's, whatever a
+// later tier would answer (ADR 0290). Only `false` is recorded (`testRecorded` below).
 //
 // The mirror stops at the local test. That section's second pass fetches the base and retests against
 // `FETCH_HEAD` before it answers not contained, and names this hook as the one caller that never does
@@ -183,11 +184,16 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 // seven-day TTL has already delayed — the same direction every other failure here falls.
 function containedInBase(branch, cwd) {
   const merged = localRead(['merge-tree', '--write-tree', 'HEAD', branch], cwd);
+  if (ended(merged)) return null;
   if (merged.status !== 0) {
     let decided = merged.status === 1;
+    // The tiers record a read a signal ended in `reads.unread`: such a read carries no verdict, so the test answers `null`
+    // whatever a later tier would say (ADR 0290).
+    const reads = { unread: null };
     for (const tier of [patchInBaseHistory, commitInBaseHistory]) {
       if (!tier) continue;
-      const held = tier(cwd, 'HEAD', branch);
+      const held = tier(cwd, 'HEAD', branch, reads);
+      if (reads.unread) return null;
       if (held === true) return true;
       if (held !== false) decided = false;
     }
@@ -234,9 +240,16 @@ function testRecorded(ref, cwd, runRoot) {
 
 // `--write-tree` needs git 2.38 (2022-10-02). Probing costs one `merge-tree` of `HEAD` with itself,
 // whose result tree already exists, so the probe writes no object of its own. An older git's
-// `merge-tree` takes three tree-ish arguments and rejects the flag, which is the nonzero this reads.
+// `merge-tree` takes three tree-ish arguments and rejects the flag, which is the nonzero this reads. A probe a signal ended
+// answers `null`: no verdict on support, so no git older than 2.38 either.
 function supportsWriteTree(cwd) {
-  return localRead(['merge-tree', '--write-tree', 'HEAD', 'HEAD'], cwd).status === 0;
+  const probe = localRead(['merge-tree', '--write-tree', 'HEAD', 'HEAD'], cwd);
+  return ended(probe) ? null : probe.status === 0;
+}
+
+// Whether a signal ended a local read (INV-0009): it carries no verdict.
+function ended(result) {
+  return result.status === null && result.signal != null;
 }
 
 // The branch predicate `selectPrunable` calls, built lazily so nothing here runs until a scope has
@@ -257,10 +270,12 @@ function supportsWriteTree(cwd) {
 // skips it, because `git branch --merged` never lists a remote-tracking ref by any name at all, qualified
 // or not.
 function makeContainmentTest(cwd, qualify, scopesRoot) {
-  let supported = null;
+  let supported;
   let mergedSet = null;
   return (branch, scope) => {
-    if (supported === null) supported = supportsWriteTree(cwd);
+    if (supported === undefined) supported = supportsWriteTree(cwd);
+    // A probe with no verdict (ADR 0290) reaps nothing this Stop: neither test can run on a git whose support is unknown.
+    if (supported === null) return false;
     if (supported) {
       try {
         return testRecorded(qualify(branch), cwd, path.join(scopesRoot, scope));

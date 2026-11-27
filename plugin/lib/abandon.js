@@ -18,7 +18,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { gitSpawn, listWorktrees, LOCAL_READ_TIMEOUT_MS } = require('./git-spawn.js');
+const { localRead, listWorktrees } = require('./git-spawn.js');
 const { fail, readPresent } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
 const { CHANGE_TYPES, STAGES, SLUG_RE, readLedgerHeader } = require('./ledger.js');
@@ -39,12 +39,7 @@ const sha = (data) => crypto.createHash('sha256').update(data).digest('hex');
 const clean = (s) => String(s).replace(/[\u0000-\u001f\u007f]/g, '?');
 
 function localCall(args, cwd) {
-  return gitSpawn(args, cwd, {
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' },
-    stdio: ['ignore', 'pipe', 'pipe'],
-    timeout: LOCAL_READ_TIMEOUT_MS,
-    killSignal: 'SIGKILL',
-  });
+  return localRead(args, cwd, { env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' }, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
 // Why a git call read nothing, for an `unknown` mark.
@@ -101,7 +96,7 @@ function parseArgs(sub, args) {
 // it fetches and writes nothing; a squash-merged branch whose base was not pulled reads uncontained, which keeps its commits.
 function containmentMarks(cwd, base, tip) {
   const judged = judgeContainment(cwd, base, tip, null);
-  if (judged.unread) return [unknown(judged.unread)];
+  if (judged.unread) return [unknown(`${judged.unread.verb} signal ${judged.unread.signal}`)];
   if (judged.verdict === 'contained') return [];
   if (judged.verdict === 'could-not-resolve') return [unknown('the tip does not resolve to a commit here')];
   const count = localCall(['rev-list', '--count', '--end-of-options', `${base}..${tip}`], cwd);

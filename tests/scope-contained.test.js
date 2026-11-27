@@ -227,7 +227,7 @@ test('#read-only: the verb changes no ref, index, or working tree, and creates n
 
 
 // The no-verdict reads (ADR 0290, INV-0009, INV-0003): a fake git ends one local read with SIGKILL and runs every other call.
-const { fakeGit: killGit } = require('./fake-git.js');
+const { fakeGit: killGit, calls: killCalls } = require('./fake-git.js');
 
 test('#unread-merge-tree: a killed local merge-tree answers not-contained for a branch base holds, and prints the `local merge-tree no verdict` mark.', () => {
   const repo = fixture();
@@ -243,4 +243,26 @@ test('#unread-ref: a killed rev-parse of the branch answers not-contained, never
   assert.strictEqual(r.lines[0], 'not-contained', `a killed ref read is no absent branch: ${r.out}`);
   assert.strictEqual(r.lines[r.lines.length - 1], 'local rev-parse no verdict', `the mark names the read: ${r.out}`);
   assert.strictEqual(r.status, 3, 'exits 3');
+});
+
+test('#unread-probe: a killed --write-tree probe is no git without --write-tree: no `fallback ancestor` line, and no read runs after it.', () => {
+  const repo = fixture();
+  const fake = killGit({ match: '^merge-tree --write-tree --end-of-options HEAD HEAD' });
+  const r = contained(repo, ['main', 'fix/squashed'], { PATH: fake.env.PATH });
+  assert.strictEqual(r.lines[0], 'not-contained', `a killed probe never answers contained: ${r.out}`);
+  assert.strictEqual(r.lines.includes('fallback ancestor'), false, `the killed probe claims no missing --write-tree: ${r.out}`);
+  assert.strictEqual(r.lines[r.lines.length - 1], 'local merge-tree no verdict', `the mark names the read: ${r.out}`);
+  const seen = killCalls(fake.log);
+  const probe = seen.findIndex((c) => c.startsWith('merge-tree --write-tree --end-of-options HEAD HEAD'));
+  assert.deepStrictEqual(seen.slice(probe + 1).filter((c) => /^(merge-tree|merge-base|rev-list|diff|log|patch-id|fetch)\b/.test(c)), [], 'no containment read runs after the killed probe');
+});
+
+test('#unread-early: a killed local merge-tree runs no history tier, since the answer is already not contained.', () => {
+  const repo = fixture();
+  const fake = killGit({ match: '^merge-tree --write-tree --end-of-options main ' });
+  const r = contained(repo, ['main', 'fix/squashed'], { PATH: fake.env.PATH });
+  assert.strictEqual(r.lines[r.lines.length - 1], 'local merge-tree no verdict', `the mark names the read: ${r.out}`);
+  const seen = killCalls(fake.log);
+  const killed = seen.findIndex((c) => c.startsWith('merge-tree --write-tree --end-of-options main '));
+  assert.deepStrictEqual(seen.slice(killed + 1).filter((c) => /^(merge-tree|merge-base|rev-list|diff|log|patch-id|fetch)\b/.test(c)), [], 'no tier read runs after the killed read');
 });
