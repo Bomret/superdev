@@ -239,6 +239,9 @@ test('suite: the suite record, the last full-suite run\'s result and the commit 
   traceRun(noSuiteRoot, 'focused', 'pass', exactTip, 'clean');
   r = callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo);
   assert.ok(!r.ok && /no suite record/.test(r.err), 'a focused run at the tip backs no reuse: ' + (r.err || ''));
+  traceRun(noSuiteRoot, 'timing', 'pass', exactTip, 'clean');
+  r = callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo);
+  assert.ok(!r.ok && /no suite record/.test(r.err), 'a passing timing run at the tip settles no suite record (INV-0017): ' + (r.err || ''));
   traceRun(noSuiteRoot, 'full', 'pass', exactTip, 'dirty');
   assert.ok(!callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo).ok, 'a full run on a dirty tree at the tip is not reusable');
   traceRun(noSuiteRoot, 'full', 'pass', exactTip, 'clean');

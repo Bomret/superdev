@@ -578,7 +578,7 @@ Paths: plugin/lib/verification.js, plugin/skills/review-tests/SKILL.md, plugin/s
 
 Class: process
 Concepts: Test audit, Unattended run
-Statement: A test audit runs only on operator invocation. Unchained, its only writes are its intent — an intent record in the slice store, or the local intent file when that write fails (ADR 0199) — the `.gitignore` entry, and an observation's triage record. Chained, it writes nothing, and returns an observation to its caller.
+Statement: A test audit runs only on operator invocation. Unchained, its only writes are its intent — an intent record in the slice store, or the local intent file when that write fails (ADR 0199) — the `.gitignore` entry, an observation's triage record, and, run inside a run tree, the timing run's own run line, which the test verb writes. Chained, it writes nothing, and returns an observation to its caller.
 Breaks: silently
 Check: none — no absence scan exists
 Paths: plugin/skills/review-tests/**

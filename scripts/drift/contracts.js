@@ -601,14 +601,14 @@ const IMPLEMENT_NO_FULL_RUN_DOCS = [
   [path.join('references', 'implement-full-minor-sweep.md'), null],
   [path.join('references', 'implement-lite.md'), null],
 ];
-// A `scope.js test full|whole` call, the bare `test full|whole` verb in a code span, a `test focused` call with no path
+// A `scope.js test full|whole|timing` call, the bare `test full|whole|timing` verb in a code span, a `test focused` call with no path
 // after it, a run, rerun, execution, or invocation of the full or whole-repo command or suite, a gate on one, and the full
 // or whole-repo command or suite as the subject of `runs` up to two words later ("the full suite run-handoff runs").
 // simplicity: shape-based, and its ceiling is those shapes, read in unfenced prose. A paraphrase ("kick off every
 // suite", "start the complete run") walks past, and so does a subject more than two words ahead of `runs`.
 const IMPLEMENT_NO_FULL_RUN_PATTERNS = [
-  /scope\.js["'`]?\s+test\s+(?:full|whole)\b/gi,
-  /`test\s+(?:full|whole)`/gi,
+  /scope\.js["'`]?\s+test\s+(?:full|whole|timing)\b/gi,
+  /`test\s+(?:full|whole|timing)`/gi,
   /scope\.js["'`]?\s+test\s+focused(?=\s*(?:`|$|[.,;:)]))/gim,
   /`test\s+focused`/gi,
   /\b(?:(?:re-?)?run(?:s|ning)?|execut(?:e|es|ing)|invok(?:e|es|ing))\s+(?:the\s+|a\s+|an\s+)?(?:configured\s+)?(?:full|whole-repo)\b[^.\n]{0,25}?\b(?:test\s+)?(?:command|suite)\b/gi,
