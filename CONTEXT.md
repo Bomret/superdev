@@ -571,7 +571,7 @@ _Avoid: "auto-invoked" (that names implicit activation by description match, a d
 _Avoid: "the plugin" (that names the product, not the tree), "dist", "build output" (there is no build step)_
 
 **Test slot**: one place in a repository's pool of concurrent test runs, kept in the git common dir and shared by the main checkout and every worktree. The `test`, `fail-to-pass`, and `prepare` verbs each hold one while their command runs and wait while none is free. The count is the **Operator configuration**'s `verification.testSlots`, 1 when absent. A slot whose holder died is free again (ADR 0291, INV-0212).
-_Avoid: "lock" (a lock has one holder; a pool has a count), "semaphore" (the mechanism, not the domain term)_
+_Avoid: "lock" (a lock has one holder, and a pool has a count), "semaphore" (the mechanism, not the domain term)_
 
 **Test seam**: code in the **Shipped tree** that exists only so superdev's own suites in `tests/` can drive it: an environment variable only a test sets, a parameter or default value only a test passes or relies on, an option only a test uses, an export nothing requires, or a comment that names a suite. The shipped tree carries none (ADR 0154). The exports a suite requires and the `require.main` guards are the module interface ADR 0059 chose, not test seams. A test reaches a branch a seam used to expose by substituting on its own side.
 _Avoid: "test hook" (a hook is a Claude Code event handler), "test mode", "debug flag"_

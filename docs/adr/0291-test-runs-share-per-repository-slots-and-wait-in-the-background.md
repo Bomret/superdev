@@ -55,14 +55,14 @@ fixed ports or one local database. Every run already passes through one choke po
 - **FIFO tickets.** Deferred: polling waiters rarely starve at a handful of runs, and tickets add state that needs its
   own stale cleanup.
 - **Pid plus process start time** as the holder's identity. Lost: it needs a platform-specific spawn (`ps`,
-  PowerShell) on every poll; a reused pid inside one boot stays a residual risk the waiting line lets the operator
+  PowerShell) on every poll. A reused pid inside one boot stays a residual risk the waiting line lets the operator
   clear.
 - **A foreground wait with a rerun rule** for the main session. Lost: a slot that frees late lets the run start and
   the ceiling end it midway, which loses the run's work.
 
 ## Consequences
 
-- One run at a time is the default for every adopter on upgrade; a full-tier wave's runs queue. `/superdev:setup`'s
+- One run at a time is the default for every adopter on upgrade. A full-tier wave's runs queue. `/superdev:setup`'s
   re-run asks for the count, and the release notes name the default.
 - The main session spends one Bash call per 170 s of every long run.
 - A session still on an older plugin version takes no slot until it restarts.

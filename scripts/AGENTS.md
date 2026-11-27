@@ -298,14 +298,15 @@ before `checkRun`, `treeState`, and the trace mark, so the wait reaches no field
 
 `lib/test-slots.js`'s `acquireSlot(cwd, { kind, tree })` resolves once the caller holds a slot, to `{ release, setGroup }`. The pool
 is `superdev-test-slots/<n>/` in the repository's git common dir, so every checkout and worktree shares it, `<n>` from 1 to the count.
-A slot is claimed by an atomic `mkdir` and holds `record.json`: the verb's pid, its command's process group (`setGroup`, called
-through `superviseRuns`'s `onStart` as the watcher starts each command), the boot stamp, the verb, and the tree. A slot is free
-when its record names another boot (a stamp more than 10 minutes off), or a dead pid whose group, on POSIX, has no member; on
-Windows the pid alone decides. A slot with no record, or with a record that does not parse, is free once 10 s old. A waiter takes a
-stale record by renaming it to a name of its own, as `withWorktreeLock` does, polls every 200 ms, prints one stderr line naming the
-holder and the record path, and ends at once on SIGINT, SIGTERM, or SIGHUP, holding nothing. Outside a repository, or where the pool
-cannot be written, the caller runs with no slot and one stderr line says so. A verb removes its record when its run ends with an exit status; one
-interrupted or killed while its command runs leaves the record, so on POSIX the slot frees once the command's group is empty.
+A claim is an atomic `mkdir`. The slot then holds `record.json`. It names the verb's pid, its command's process group
+(`setGroup`, called through `superviseRuns`'s `onStart` as the watcher starts each command), the boot stamp, the verb, and the tree.
+A slot is free when its record names another boot (a stamp more than 10 minutes off). It is also free when the record names a dead
+pid whose group has no member on POSIX. On Windows the pid alone decides. A slot with no record, or with a record that does not
+parse, is free once 10 s old. A waiter takes a stale record by renaming it to a name of its own, as `withWorktreeLock` does.
+It polls every 200 ms and prints one stderr line naming the holder and the record path. It ends at once on SIGINT, SIGTERM, or
+SIGHUP, holding nothing. Outside a repository, or where the pool cannot be written, the caller runs with no slot and one stderr
+line says so. A verb removes its record when its run ends with an exit status. A verb interrupted or killed while its command
+runs leaves the record, so on POSIX the slot frees once the command's group is empty.
 Outside every run tree the command runs and nothing is written. The verb takes no option that sets an outcome,
 kind, slice, or tree state. `lib/test-verb.js` requires `lib/run-tree.js` (`locate`, `treeState`, and `relDir`, which writes the run line's directory field) at call time, the locator it shares with the
 run-trace hook, and `lib/run-check.js`, whose digest check runs before the run line is written. `lib/run-tree.js` also holds the path helpers
@@ -392,7 +393,7 @@ after the command, read with `--no-ext-diff --no-textconv` so no diff program of
 tree already held is no such change. An untracked file it writes is no such change either, the
 rule `fail-to-pass` applies. An interrupt ends the command's group with `SIGKILL` and exits 128 plus the signal
 number. A `scope.js prepare` call is no test run: it writes no run line. A call about to run its command, past the stamp check,
-first takes a **Test slot** (ADR 0291, INV-0212); a stamp that holds, a missing section, and `none` take none. Once it holds
+first takes a **Test slot** (ADR 0291, INV-0212). A stamp that holds, a missing section, and `none` take none. Once it holds
 the slot it reads the stamp again: a stamp that an earlier preparation of the same tree left and that now holds frees the slot
 without running the command. A call that runs its command holds the slot until its post-run checks and its stamp write are done.
 A command that succeeds on a tree with no tracked change from `HEAD` leaves a stamp, `superdev-prepare.json` in the tree's own

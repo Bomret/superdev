@@ -58,8 +58,8 @@ however the call is piped, redirected, backgrounded, or wrapped.
 **The background wait.** Applies to every test run, every `scope.js fail-to-pass` call, and every `scope.js prepare`
 call, in the main session and in a dispatched subagent alike. Run it in the background, redirected to a file outside
 the working tree, with its exit status appended: `<run> > "$f" 2>&1; echo "exit=$?" >> "$f"`. Wait with Bash calls
-that each end within 170 s, `timeout 170 sh -c 'until grep -q "^exit=" "$f"; do sleep 5; done'`, repeated until the
-file holds the `exit=` line, then read the file (ADR 0264, ADR 0291).
+that each end within 170 s: `timeout 170 sh -c 'until grep -q "^exit=" "$f"; do sleep 5; done'`. Repeat the call until the
+file holds the `exit=` line. Then read the file (ADR 0264, ADR 0291).
 
 - **A run may first wait for a test slot.** The `test`, `fail-to-pass`, and `prepare` verbs each hold one of the
   repository's **Test slots** (CONTEXT.md) while their command runs, and wait while none is free. A waiter prints one
