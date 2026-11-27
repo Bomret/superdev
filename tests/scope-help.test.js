@@ -123,7 +123,7 @@ test('A `-h` / `--help` that is a flag\'s value or a bullet\'s text is data, not
   {
     const r = spawnScope(['test', 'bogus'], '');
     assertSpawnDecided(r, 'test bogus');
-    assert.match(r.stderr, /test: unrecognized arguments \(test full\|whole /, 'test refusal names its usage line: ' + r.stderr);
+    assert.match(r.stderr, /test: unrecognized arguments \(test full\|whole\|timing /, 'test refusal names its usage line: ' + r.stderr);
   }
 
   let res = spawnScope(['dod-line', '--match-file', 'match-x.txt', '--verdict', 'met', '--note-file', '-h'], '- [ ] x — 01\n');
