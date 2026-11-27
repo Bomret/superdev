@@ -220,3 +220,20 @@ test('existsAt and fileAt answer null on a killed read, and fileAt makes no seco
   assert.equal(fileAt('HEAD', 'a.txt', dir), 'x\n', 'a file at a commit answers its text');
   assert.equal(fileAt('HEAD', 'none.txt', dir), '', 'an absent file answers the empty string');
 });
+
+test('listWorktrees answers { failure } naming the signal where a listing overflows spawnSync\'s default maxBuffer', () => {
+  const { listWorktrees } = require('../plugin/lib/git-spawn.js');
+  // A git that prints 2 MiB, twice spawnSync's 1 MiB default maxBuffer, for any `worktree list`; the bound's kill signal ends it.
+  const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-flood-')));
+  made.push(d);
+  fs.writeFileSync(path.join(d, 'git'), '#!/bin/sh\nhead -c 2097152 /dev/zero | tr \'\\0\' x\nexit 0\n', { mode: 0o755 });
+  const saved = process.env.PATH;
+  process.env.PATH = `${d}${path.delimiter}${saved}`;
+  let listed;
+  try {
+    listed = listWorktrees(dir);
+  } finally {
+    process.env.PATH = saved;
+  }
+  assert.deepEqual(listed, { failure: 'worktree list was ended by signal SIGKILL' }, 'an overflowing listing is no verdict, naming the signal');
+});
