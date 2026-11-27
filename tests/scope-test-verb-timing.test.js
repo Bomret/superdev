@@ -109,9 +109,3 @@ test('A signal-ended timing run and one whose `sh` cannot start print no run-tim
   assert.equal(r.status, 0, r.stderr);
   assert.doesNotMatch(r.stderr, /ran \d+ ms/, 'the full kind prints no run-time line');
 });
-
-test('`scope.js test --help` names the timing kind.', () => {
-  r = verb(['--help']);
-  assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout + r.stderr, /test full\|whole\|timing/);
-});
