@@ -9,7 +9,8 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+// Every `sh` and `git` child this suite spawns runs through `spawnDecided` (`tests/spawn-verdict.js`).
+const { spawnDecided } = require('./spawn-verdict');
 const { publishKbPath, FAKE_BACKEND, shq, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
 
 const { classifyBackend, hashBody } = require(publishKbPath);
@@ -415,7 +416,7 @@ test('no `sh` on PATH: the reason names the missing `sh` and Git for Windows (AD
     // A PATH holding `git` alone: publish-kb.js's own git calls still run, while no `sh` resolves.
     const gitOnly = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-nosh-'));
     made.push(gitOnly);
-    const gitBin = spawnSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+    const gitBin = spawnDecided('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
     fs.symlinkSync(gitBin, path.join(gitOnly, 'git'));
     const origPath = process.env.PATH;
     process.env.PATH = gitOnly;

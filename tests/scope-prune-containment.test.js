@@ -18,6 +18,7 @@ after(() => {
 
 const {
   hook,
+  hookPath,
   gitTest,
   makeRepo,
   makeScope,
@@ -379,3 +380,89 @@ test('Containment end to end: the branch is still present locally, and base hold
   fs.rmSync(oldGitDir, { recursive: true, force: true });
 });
 
+
+// The no-verdict reads (ADR 0290, INV-0009, INV-0199): a fake git ends one read with SIGKILL and runs every other call.
+const { fakeGit } = require('./fake-git.js');
+// A repository holding two closed, stale scopes whose branches base took by squash, so both read contained.
+function twoContained() {
+  const repo = makeRepo();
+  made.push(repo);
+  // Both branches land before either scope is made: `makeWorkBranch` commits the whole tree, a run root included.
+  for (const name of ['a', 'b']) {
+    makeWorkBranch(repo, `fix/${name}`, `${name}.txt`, `${name}\n`);
+    gitTest(['merge', '--squash', `fix/${name}`], repo);
+    gitTest(['commit', '-q', '-m', `fix: ${name} (#1)`], repo);
+  }
+  const dirs = {};
+  for (const name of ['a', 'b']) dirs[name] = makeScope(repo, name, `**Stage:** closed\n**Branch:** fix/${name}\n`);
+  return { repo, dirs };
+}
+
+test('#no-verdict-scope: a killed ref read skips only its own scope; the other scope whose reads answered is still reaped.', () => {
+  const { repo, dirs } = twoContained();
+  const killed = fakeGit({ match: '^rev-parse --verify --quiet --end-of-options fix/a' });
+  assert.doesNotThrow(() => killed.withPath(() => main(repo)), 'the Stop keeps its quiet fallback');
+  assert.equal(fs.existsSync(dirs.a), true, 'the scope whose read had no verdict stands');
+  assert.equal(fs.existsSync(path.join(dirs.a, 'not-contained')), false, 'and carries no not-contained record');
+  assert.equal(refExists(repo, 'refs/heads/fix/a'), true, 'its branch stands');
+  assert.equal(fs.existsSync(dirs.b), false, 'the other scope is reaped');
+});
+
+test('#no-verdict-start: a killed mainWorkTree read skips the whole Stop.', () => {
+  const { repo, dirs } = twoContained();
+  const killed = fakeGit({ match: '^rev-parse --git-common-dir' });
+  assert.doesNotThrow(() => killed.withPath(() => main(repo)), 'the Stop keeps its quiet fallback');
+  assert.equal(fs.existsSync(dirs.a) && fs.existsSync(dirs.b), true, 'no scope is reaped');
+  const cp = require('node:child_process');
+  const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL', env: killed.env });
+  require('./spawn-verdict').assertSpawnDecided(r, 'scope-prune');
+  assert.equal(r.status, 0, 'the hook exits 0');
+  assert.equal(r.stderr, '', 'nothing reaches stderr');
+});
+
+test('#no-verdict-tier: a containment read a signal ended writes no not-contained record (INV-0199).', () => {
+  for (const match of ['^merge-tree --write-tree HEAD ', '^merge-base ']) {
+    const repo = makeRepo();
+    made.push(repo);
+    fs.writeFileSync(path.join(repo, 'app.txt'), 'l1\nl2\nl3\n');
+    gitTest(['add', '.'], repo);
+    gitTest(['commit', '-q', '-m', 'app'], repo);
+    makeWorkBranch(repo, 'fix/unheld', 'app.txt', 'l1\nBRANCH\nl3\n');
+    fs.writeFileSync(path.join(repo, 'app.txt'), 'l1\nBASE\nl3\n');
+    gitTest(['commit', '-q', '-am', 'base writes its own line'], repo);
+    const scopeDir = makeScope(repo, 'unheld', '**Stage:** closed\n**Branch:** fix/unheld\n');
+    fakeGit({ match }).withPath(() => main(repo));
+    assert.equal(fs.existsSync(scopeDir), true, `a not-contained scope stands (${match})`);
+    assert.equal(fs.existsSync(path.join(scopeDir, 'not-contained')), false, `a killed read writes no record (${match})`);
+  }
+});
+
+test('#no-verdict-reap: a containment read a signal ended reaps nothing, though a later tier would read the branch contained.', () => {
+  // The hook's own merge-tree ended, on a branch base took by squash: the patch tier alone would answer contained.
+  const own = twoContained();
+  fakeGit({ match: '^merge-tree --write-tree HEAD fix/a' }).withPath(() => main(own.repo));
+  assert.equal(fs.existsSync(own.dirs.a), true, 'the scope whose merge-tree had no verdict stands');
+  assert.equal(refExists(own.repo, 'refs/heads/fix/a'), true, 'its branch stands');
+  assert.equal(fs.existsSync(path.join(own.dirs.a, 'not-contained')), false, 'and carries no record');
+  assert.equal(fs.existsSync(own.dirs.b), false, 'the other scope is reaped');
+
+  // The patch tier's first read ended, on a conflicting squash: the commit tier alone would answer contained.
+  const repo = makeConflictingSquashRepo('fix/took-it');
+  made.push(repo);
+  const scopeDir = makeScope(repo, 'took-it', '**Stage:** closed\n**Branch:** fix/took-it\n');
+  fakeGit({ match: '^merge-base ', nth: 1 }).withPath(() => main(repo));
+  assert.equal(fs.existsSync(scopeDir), true, 'the scope whose tier read had no verdict stands');
+  assert.equal(refExists(repo, 'refs/heads/fix/took-it'), true, 'its branch stands');
+  assert.equal(fs.existsSync(path.join(scopeDir, 'not-contained')), false, 'and carries no record');
+});
+
+test('#no-verdict-probe: a killed --write-tree probe is no git without --write-tree, so the ancestry fallback reaps nothing.', () => {
+  const repo = makeRepo();
+  made.push(repo);
+  makeWorkBranch(repo, 'fix/merged', 'm.txt', 'm\n');
+  gitTest(['merge', '-q', '--no-ff', '-m', 'merge', 'fix/merged'], repo);
+  const scopeDir = makeScope(repo, 'merged', '**Stage:** closed\n**Branch:** fix/merged\n');
+  fakeGit({ match: '^merge-tree --write-tree HEAD HEAD' }).withPath(() => main(repo));
+  assert.equal(fs.existsSync(scopeDir), true, 'the scope stands');
+  assert.equal(refExists(repo, 'refs/heads/fix/merged'), true, 'its branch stands');
+});

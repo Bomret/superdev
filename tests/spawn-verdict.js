@@ -1,5 +1,9 @@
 'use strict';
 
+// spawn-verdict.js: `assertSpawnDecided`, `boundFromSamples`, `spawnDecided`, and `shq`, each stated below.
+
+const { spawnSync } = require('node:child_process');
+
 // No verdict (INV-0009, ADR 0086): a spawnSync result ended by its own bound decided nothing.
 // Call this right after a bounded spawnSync/execFileSync-style result, before asserting on it —
 // a hit bound then fails naming the kill, instead of the assertion that follows misreading
@@ -34,6 +38,16 @@ function boundFromSamples(sample) {
   return Math.max(1000, 10 * slowest);
 }
 
+// A spawnSync under a qualitative ceiling, passed through `assertSpawnDecided` before the caller reads its output, so a
+// hung or killed child fails with a decided verdict instead of hanging the suite (AGENTS.md, ADR 0086). A hung child is
+// effectively unbounded, so a loose ceiling still falsifies a hang; a healthy child clears it under any load.
+const SPAWN_CEILING_MS = 120000;
+function spawnDecided(command, args, opts = {}) {
+  const result = spawnSync(command, args, { ...opts, timeout: SPAWN_CEILING_MS, killSignal: 'SIGKILL' });
+  assertSpawnDecided(result, `${command} ${args.slice(0, 2).join(' ')}`.slice(0, 80));
+  return result;
+}
+
 // One literal `sh` word: single-quoted, so a `$`, a backtick, a quote, or a space in a path (a TMPDIR, a checkout)
 // reaches the shell as written. Every helper that puts a path into a `sh -c` command or a shell script goes through it
 // (triage #1380).
@@ -41,4 +55,4 @@ function shq(s) {
   return `'${String(s).replace(/'/g, `'\\''`)}'`;
 }
 
-module.exports = { assertSpawnDecided, boundFromSamples, shq };
+module.exports = { assertSpawnDecided, boundFromSamples, spawnDecided, shq };

@@ -269,12 +269,13 @@ function reusableOnRerun(g, root, branch, recordedSha, kind, whole, base) {
   if (lastFocused.fields[1] !== 'pass' || lastFocused.fields[3] !== 'clean') return 'the latest focused run at the failed run\'s commit failed or ran on a dirty tree';
   if (!decodePaths(lastFocused.fields[4]).length) return 'the latest focused run at the failed run\'s commit carries no recorded path set';
   if (!base) return 'the scope\'s range cannot be judged without --base <base-branch>';
-  // A range base `base resolve` cannot name is this route's refusal, so the repaired-failure carry is still tried.
+  // A range base `base resolve` cannot name is this route's refusal, so the repaired-failure carry is still tried. A read
+  // with no verdict (ADR 0290) is no such reason: it refuses the whole verb.
   let from;
   try {
     from = rangeBase(g, root, branch, base);
   } catch (err) {
-    if (!err.isRefusal) throw err;
+    if (!err.isRefusal || err.noVerdict) throw err;
     return err.message;
   }
   const changed = g.changed(from, recordedSha);

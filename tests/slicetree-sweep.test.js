@@ -746,3 +746,25 @@ for (const below of ['', 'sub']) {
   });
 }
 
+
+test('#no-verdict: a killed mainWorkTree read (ADR 0290) sweeps nothing and throws nothing; the spawned hook exits 0 with nothing on stderr.', () => {
+  const { fakeGit } = require('./fake-git.js');
+  const cp = require('node:child_process');
+  const repo = makeRepo();
+  git(['branch', 'scope/demo'], repo);
+  makeScope(repo, 'demo', '**Branch:** scope/demo\n');
+  const wt = path.join(repo, '.superdev/scopes/demo/slicetrees/1');
+  git(['worktree', 'add', '-q', '-b', 'slice/demo/1', wt], repo);
+  fs.writeFileSync(path.join(wt, 's1.txt'), 'y\n');
+  git(['add', '.'], wt);
+  git(['commit', '-q', '-m', 's1'], wt);
+  fold(repo, 'scope/demo', 'slice/demo/1');
+  const killed = fakeGit({ match: '^rev-parse --git-common-dir' });
+  assert.doesNotThrow(() => killed.withPath(() => main(repo)), 'main() keeps its quiet fallback');
+  assert.ok(fs.existsSync(wt), 'a read with no verdict sweeps nothing');
+  const r = cp.spawnSync(process.execPath, [require.resolve('../plugin/hooks/slicetree-sweep.js')], { input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL', env: killed.env });
+  require('./spawn-verdict').assertSpawnDecided(r, 'slicetree-sweep');
+  assert.equal(r.status, 0, 'the hook exits 0');
+  assert.equal(r.stderr, '', 'nothing reaches stderr');
+  assert.ok(fs.existsSync(wt), 'the spawned hook sweeps nothing either');
+});

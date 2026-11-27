@@ -11,7 +11,8 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+// Every `sh` and `git` child this suite spawns runs through `spawnDecided` (`tests/spawn-verdict.js`).
+const { spawnDecided } = require('./spawn-verdict');
 const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
 
 after(() => {
@@ -60,7 +61,7 @@ function run(verb, env = {}, values = {}) {
   fs.writeFileSync(bodyFile, '<p>Grüße — ok</p>');
   const valuesFile = path.join(dir, 'values.json');
   fs.writeFileSync(valuesFile, JSON.stringify({ title: 'Missing Page', bodyFile, found: { id: '123', version: 4 }, operator: {}, ...values }));
-  const res = spawnSync('/bin/sh', ['-c', templates[verb].replace(/<base>/g, 'https://x.test/wiki')
+  const res = spawnDecided('/bin/sh', ['-c', templates[verb].replace(/<base>/g, 'https://x.test/wiki')
     .replace(/<space-id>/g, '99').replace(/<SPACE>/g, 'KEY').replace(/<parent-id>/g, ''), 'sh', valuesFile], {
     env: {
       ...process.env,

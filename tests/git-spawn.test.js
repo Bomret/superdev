@@ -192,4 +192,48 @@ test('`listWorktrees` reads each registered working tree as one `{ path, branch,
   fs.rmSync(base, { recursive: true, force: true });
 });
 
+// The no-verdict reads (ADR 0290, INV-0009): a fake git ends the matching call with SIGKILL and runs every other call.
+const { fakeGit, calls } = require('./fake-git.js');
+const noVerdict = (verb, signal = 'SIGKILL') => (e) =>
+  e.isRefusal === true && e.message.includes(verb) && e.message.includes(signal) && e.message.includes('no verdict');
 
+test('resolveCommit and refResolves refuse as no verdict on a killed rev-parse, and answer as before on a real exit', () => {
+  const { resolveCommit, refResolves } = require('../plugin/lib/git-spawn.js');
+  const head = gitThrow(['rev-parse', 'HEAD'], dir);
+  const killed = fakeGit({ match: '^rev-parse' });
+  assert.throws(() => killed.withPath(() => resolveCommit('HEAD', dir)), noVerdict('rev-parse'), 'a killed rev-parse refuses, naming the verb, the signal, and no verdict');
+  assert.throws(() => killed.withPath(() => refResolves('HEAD', dir)), noVerdict('rev-parse'), 'refResolves refuses the same way');
+  assert.equal(resolveCommit('HEAD', dir), head, 'a present ref answers its commit');
+  assert.equal(resolveCommit('no-such-ref', dir), null, 'an absent ref answers null');
+  assert.equal(refResolves('no-such-ref', dir), false, 'an absent ref does not resolve');
+});
+
+
+
+test('existsAt and fileAt answer null on a killed read, and fileAt makes no second spawn after a killed show', () => {
+  const { existsAt, fileAt } = require('../plugin/lib/git-spawn.js');
+  const lsTree = fakeGit({ match: 'ls-tree' });
+  assert.equal(lsTree.withPath(() => existsAt('HEAD', 'a.txt', dir)), null, 'a killed ls-tree answers git cannot say');
+  const show = fakeGit({ match: '^show' });
+  assert.equal(show.withPath(() => fileAt('HEAD', 'a.txt', dir)), null, 'a killed show answers git cannot say');
+  assert.deepEqual(calls(show.log), ['show HEAD:a.txt'], 'a killed show makes no existsAt probe');
+  assert.equal(fileAt('HEAD', 'a.txt', dir), 'x\n', 'a file at a commit answers its text');
+  assert.equal(fileAt('HEAD', 'none.txt', dir), '', 'an absent file answers the empty string');
+});
+
+test('listWorktrees answers { failure } naming the signal where a listing overflows spawnSync\'s default maxBuffer', () => {
+  const { listWorktrees } = require('../plugin/lib/git-spawn.js');
+  // A git that prints 2 MiB, twice spawnSync's 1 MiB default maxBuffer, for any `worktree list`; the bound's kill signal ends it.
+  const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-flood-')));
+  made.push(d);
+  fs.writeFileSync(path.join(d, 'git'), '#!/bin/sh\nhead -c 2097152 /dev/zero | tr \'\\0\' x\nexit 0\n', { mode: 0o755 });
+  const saved = process.env.PATH;
+  process.env.PATH = `${d}${path.delimiter}${saved}`;
+  let listed;
+  try {
+    listed = listWorktrees(dir);
+  } finally {
+    process.env.PATH = saved;
+  }
+  assert.deepEqual(listed, { failure: 'worktree list was ended by signal SIGKILL' }, 'an overflowing listing is no verdict, naming the signal');
+});

@@ -518,3 +518,15 @@ test('No review writes a verdict line (ADR 0197): a background review\'s hand-ba
   assert.ok(/\bverdict v1 pass approved\b/.test(shown.stdout) && /\bfinal-verdict v2 yes\b/.test(shown.stdout), 'an old trace\'s verdict lines still print');
 });
 
+
+test('A killed mainWorkTree read is no verdict (ADR 0290): runsOf falls back to cwd, so the dispatch still ends, and the hook exits 0 with nothing on stderr.', () => {
+  reset();
+  const { fakeGit } = require('./fake-git.js');
+  run(agentPre(`Work in ${A}/slicetrees/04 please`, 'nv1'));
+  const killed = fakeGit({ match: '^rev-parse --git-common-dir' });
+  const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify(agentPost('nv1', { status: 'completed' })), encoding: 'utf8', timeout: GIT_SPAWN_BOUND_MS, env: killed.env });
+  assertSpawnDecided(r, 'run-trace.js');
+  assert.equal(r.status, 0, 'the hook exits 0');
+  assert.equal(r.stderr, '', 'nothing reaches stderr');
+  assert.deepEqual(trace(A)[1], ['04', 'main', 'dispatch-end', 'superdev:implementer', 'nv1', 'completed'], 'the dispatch ends through the cwd fallback');
+});

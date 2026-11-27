@@ -5,16 +5,17 @@
 // remote-tracking ref is deleted only once the remote branch reads deleted or gone.
 
 const fs = require('fs');
-const { gitSpawn, resolveCommit } = require('./git-spawn.js');
+const { localRead, refuseKilled, resolveCommit } = require('./git-spawn.js');
 const { fail } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
 const { readLines, getHeader } = require('./ledger.js');
-const { judgeContainment, refetchMark } = require('./containment.js');
+const { judgeContainment, refetchMark, unreadMark } = require('./containment.js');
 const { resolveRemote } = require('./remote.js');
 const { gitCall, lastLine, shownRemote, boundEnded, pushTimeoutMs, CREDENTIAL_RE } = require('./push.js');
 
 // A gate refusal (not contained, undecidable, nothing to judge) deletes nothing and exits 3. A ref kept or failed exits
-// 4. A usage refusal exits 1 through `fail`.
+// 4. A usage refusal exits 1 through `fail`, and so does a read with no verdict (ADR 0290): its one stderr line follows the
+// local deletion's line where that deletion already ran.
 const GATE_EXIT = 3;
 const KEPT_EXIT = 4;
 const DONE_WORDS = ['deleted', 'gone', 'not-reached'];
@@ -45,8 +46,11 @@ function namesBase(branch, base, remote) {
   return Boolean(remote) && (s === `${remote}/${b}` || b === `${remote}/${s}`);
 }
 
+// Whether `remote` names a configured remote. The read carries the local-read bound, and a read a signal ended refuses as
+// no verdict, never as an unnamed remote (ADR 0290).
 function isNamedRemote(cwd, remote) {
-  const r = gitSpawn(['remote'], cwd);
+  const r = localRead(['remote'], cwd);
+  refuseKilled('remote', r);
   return r.status === 0 && r.stdout.split('\n').map((l) => l.trim()).includes(remote);
 }
 
@@ -79,7 +83,8 @@ function verbBranchDelete(cwd, args) {
   if (judged.fallback) head.push('fallback ancestor');
   if (judged.verdict !== 'contained') {
     const mark = refetchMark(judged);
-    console.log([...head, ...(mark ? [mark] : []), 'nothing deleted'].join('\n'));
+    const unread = unreadMark(judged);
+    console.log([...head, ...(mark ? [mark] : []), ...(unread ? [unread] : []), 'nothing deleted'].join('\n'));
     process.exitCode = GATE_EXIT;
     return;
   }
@@ -87,7 +92,15 @@ function verbBranchDelete(cwd, args) {
   // The remote goes first, so the tracking ref is deleted only once the remote branch reads deleted or gone. A kept
   // remote branch keeps its tracking ref as the clone's pointer to it. The printed order stays local, tracking, remote.
   const local = deleteLocal(cwd, branch, localTip);
-  const { tracking, remoteLine } = deleteOnRemote(cwd, remote, named, branch, tested, 'remote not-reached no remote is configured or given');
+  let onRemote;
+  try {
+    onRemote = deleteOnRemote(cwd, remote, named, branch, tested, 'remote not-reached no remote is configured or given');
+  } catch (e) {
+    // A read with no verdict after the local deletion (ADR 0290): report what was deleted, then refuse.
+    if (e.noVerdict) console.log([...head, local].join('\n'));
+    throw e;
+  }
+  const { tracking, remoteLine } = onRemote;
   const lines = [local, tracking, remoteLine];
   console.log([...head, ...lines].join('\n'));
   if (!lines.every((l) => DONE_WORDS.includes(l.split(' ')[1]))) process.exitCode = KEPT_EXIT;

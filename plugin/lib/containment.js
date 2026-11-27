@@ -2,7 +2,7 @@
 
 // containment.js: the containment test (ADR 0053, ADR 0065), whether `<base>` already holds `<branch>`'s work, judged on content rather than ancestry.
 
-const { gitSpawn, refResolves } = require('./git-spawn.js');
+const { gitSpawn, localRead, refResolves } = require('./git-spawn.js');
 
 // `references/scope-branch.md` `## Containment`. Exported for any hook, script, or module that judges containment; the
 // `contained` verb prints it, and this touches no ledger.
@@ -23,11 +23,14 @@ const { gitSpawn, refResolves } = require('./git-spawn.js');
 //
 // Every git call here is a real answer to read off its exit status (a conflict, an unresolved ref, a git
 // without `--write-tree`), not an error to propagate. A git call that cannot even start (no git on PATH)
-// reads as `status !== 0` exactly like a real nonzero exit, which keeps the fail-closed direction: this
-// function never throws, and every path that cannot answer falls toward 'not-contained' or
-// 'could-not-resolve', never toward 'contained'. The refetch alone also carries a `timeout` (below): a
-// dropped VPN or a firewalled host leaves `git fetch` itself blocked on the network with nothing to read
-// off, so the fail-closed exit status this comment describes never arrives on its own there.
+// reads as `status !== 0` exactly like a real nonzero exit, which keeps the fail-closed direction: every
+// path that cannot answer falls toward 'not-contained' or 'could-not-resolve', never toward 'contained'.
+// Every local read carries the local-read bound (`read` below, ADR 0290). A local read a signal ended
+// carries no verdict (INV-0009): the test answers 'not-contained' and names that read in the result's
+// `unread` field, never 'contained' or 'could-not-resolve' (INV-0003). The refetch carries its own, shorter
+// `timeout` (below): a dropped VPN or a firewalled host leaves `git fetch` itself blocked on the network
+// with nothing to read off, so the fail-closed exit status this comment describes never arrives on its
+// own there.
 //
 // `--end-of-options` opens every args array below, ahead of `base`/`ref`/`branch` — every one of them a
 // revision-shaped string, and nothing here requires it came from trusted config. Git's own option parser
@@ -39,14 +42,26 @@ const { gitSpawn, refResolves } = require('./git-spawn.js');
 // never in the minutes a kernel TCP timeout would otherwise take.
 const FETCH_TIMEOUT_MS = 5000;
 
+// The record of one containment test's local reads: `unread` holds the first read a signal ended, as `{ verb, signal }`, or
+// null. `judgeContainment` makes one per call, and `hooks/scope-prune.js` makes one per branch it runs the tiers on.
+const newReads = () => ({ unread: null });
+
+// A local read with the local-read bound. A read a signal ended is recorded in `reads.unread`, and its result still reads as
+// a failed call to the code below, which falls toward not contained.
+function read(reads, args, cwd, opts) {
+  const result = localRead(args, cwd, opts);
+  if (result.status === null && result.signal != null && reads.unread === null) reads.unread = { verb: args[0], signal: result.signal };
+  return result;
+}
+
 // Bare name -> the ref `merge-tree`/`merge-base` can actually resolve: the bare name itself when a
 // local `refs/heads/<name>` exists (gitrevisions(7) already walks to it), and `<remote>/<name>` for a
 // name that survives only as a remote-tracking ref — mirroring `hooks/scope-prune.js`'s
 // `qualifyBranchRefs`, because a bare name only ever resolves the unqualified `refs/remotes/<name>`
 // shape on its own, never `refs/remotes/<remote>/<name>` (ADR 0053).
-function qualifyBranch(branch, cwd) {
+function qualifyBranch(reads, branch, cwd) {
   if (refResolves(branch, cwd)) return branch;
-  const refs = gitSpawn(['for-each-ref', '--format=%(refname)', 'refs/remotes'], cwd);
+  const refs = read(reads, ['for-each-ref', '--format=%(refname)', 'refs/remotes'], cwd);
   if (refs.status !== 0) return branch;
   for (const raw of refs.stdout.split('\n')) {
     const ref = raw.trim();
@@ -60,9 +75,10 @@ function qualifyBranch(branch, cwd) {
 }
 
 // `--write-tree` needs git 2.38 (2022-10-02). Probing costs one `merge-tree` of `HEAD` with itself,
-// whose result tree already exists, so the probe writes no object of its own.
-function supportsWriteTree(cwd) {
-  return gitSpawn(['merge-tree', '--write-tree', '--end-of-options', 'HEAD', 'HEAD'], cwd).status === 0;
+// whose result tree already exists, so the probe writes no object of its own. A probe a signal ended answers no support
+// either, and the caller reads `reads.unread` before it reads the answer.
+function supportsWriteTree(reads, cwd) {
+  return read(reads, ['merge-tree', '--write-tree', '--end-of-options', 'HEAD', 'HEAD'], cwd).status === 0;
 }
 
 // One local test against whatever `base` the caller hands (a branch name on the first pass,
@@ -76,19 +92,19 @@ function supportsWriteTree(cwd) {
 //                    though its history still may
 //   'inconclusive' — the comparison could not settle it: a failed `merge-tree`, an unreadable tree, or the
 //                    ancestry fallback, which a squash-merge defeats by construction
-function containedAgainst(ref, base, cwd, writeTreeSupported) {
+function containedAgainst(reads, ref, base, cwd, writeTreeSupported) {
   if (writeTreeSupported) {
-    const merged = gitSpawn(['merge-tree', '--write-tree', '--end-of-options', base, ref], cwd);
+    const merged = read(reads, ['merge-tree', '--write-tree', '--end-of-options', base, ref], cwd);
     if (merged.status === 1) return 'conflict';
     if (merged.status !== 0) return 'inconclusive';
     // `--verify` ahead of `--end-of-options`: bare `rev-parse` echoes an unrecognized flag back on
     // stdout instead of treating it as the end-of-options marker, which would corrupt the tree-hash
     // comparison below for every caller, not only an option-shaped `base`.
-    const baseTree = gitSpawn(['rev-parse', '--verify', '--quiet', '--end-of-options', base + '^{tree}'], cwd);
+    const baseTree = read(reads, ['rev-parse', '--verify', '--quiet', '--end-of-options', base + '^{tree}'], cwd);
     if (baseTree.status !== 0) return 'inconclusive';
     return merged.stdout.trim() === baseTree.stdout.trim() ? 'contained' : 'differs';
   }
-  return gitSpawn(['merge-base', '--is-ancestor', '--end-of-options', ref, base], cwd).status === 0
+  return read(reads, ['merge-base', '--is-ancestor', '--end-of-options', ref, base], cwd).status === 0
     ? 'contained'
     : 'inconclusive';
 }
@@ -104,10 +120,10 @@ const PROBE_MAX_BUFFER = 256 * 1024 * 1024;
 // `git patch-id --stable` over `input`, returning the set of patch ids it hashed. One id per commit
 // for a `git log -p` stream, and exactly one for a plain diff. Empty on an empty diff, which reads as
 // "no id to match" at both call sites, and `null` on a failed call, which answers nothing.
-function patchIds(input, cwd) {
+function patchIds(reads, input, cwd) {
   // stdin is `pipe` here alone: `gitSpawn`'s own default ignores it, and every other call in this
   // module writes nothing to git.
-  const hashed = gitSpawn(['patch-id', '--stable'], cwd, {
+  const hashed = read(reads, ['patch-id', '--stable'], cwd, {
     input,
     stdio: ['pipe', 'pipe', 'ignore'],
     maxBuffer: PROBE_MAX_BUFFER,
@@ -126,15 +142,15 @@ function patchIds(input, cwd) {
 // tier reads as `false`. `null` on a failed `merge-base` or `rev-list --count`, or an unreadable count:
 // no answer, which each tier passes on as `null` and its boolean form reads as `false` (INV-0003).
 const NO_RANGE = Symbol('no range');
-function cappedRange(cwd, base, branch) {
-  const found = gitSpawn(['merge-base', '--end-of-options', base, branch], cwd);
+function cappedRange(reads, cwd, base, branch) {
+  const found = read(reads, ['merge-base', '--end-of-options', base, branch], cwd);
   if (found.status !== 0) return null;
   const mergeBase = found.stdout.trim();
   if (!mergeBase) return null;
 
   // The range leads with the merge-base hash, so it is option-shaped under no `base` at all.
   const range = `${mergeBase}..${base}`;
-  const counted = gitSpawn(['rev-list', '--count', '--end-of-options', range], cwd);
+  const counted = read(reads, ['rev-list', '--count', '--end-of-options', range], cwd);
   if (counted.status !== 0) return null;
   const gained = Number(counted.stdout.trim());
   if (!Number.isInteger(gained)) return null;
@@ -151,28 +167,31 @@ function cappedRange(cwd, base, branch) {
 //
 // `--end-of-options` opens every revision-taking call for the same reason the rest of this module carries
 // it — neither ref is required to have come from trusted config.
-function patchInBaseHistory(cwd, base, branch) {
-  const capped = cappedRange(cwd, base, branch);
+//
+// `reads` records a read a signal ended, which answers `null`: `judgeContainment` passes its own record, and
+// `hooks/scope-prune.js` passes one per branch so it can tell such a `null` from a failed call.
+function patchInBaseHistory(cwd, base, branch, reads = newReads()) {
+  const capped = cappedRange(reads, cwd, base, branch);
   if (capped === NO_RANGE) return false;
   if (!capped) return null;
   const { mergeBase, range } = capped;
 
-  const diffed = gitSpawn(['diff', '--end-of-options', mergeBase, branch], cwd, {
+  const diffed = read(reads, ['diff', '--end-of-options', mergeBase, branch], cwd, {
     maxBuffer: PROBE_MAX_BUFFER,
   });
   if (diffed.status !== 0) return null;
-  const ids = patchIds(diffed.stdout, cwd);
+  const ids = patchIds(reads, diffed.stdout, cwd);
   if (!ids) return null;
   const [wanted] = ids;
   if (!wanted) return false;
 
   // One `log -p` piped into one `patch-id`, never a subprocess pair per commit: measured at 0.12s
   // against 1.0s over a 64-commit range (ADR 0082).
-  const walked = gitSpawn(['log', '-p', '--no-color', '--end-of-options', range], cwd, {
+  const walked = read(reads, ['log', '-p', '--no-color', '--end-of-options', range], cwd, {
     maxBuffer: PROBE_MAX_BUFFER,
   });
   if (walked.status !== 0) return null;
-  const held = patchIds(walked.stdout, cwd);
+  const held = patchIds(reads, walked.stdout, cwd);
   return held ? held.has(wanted) : null;
 }
 
@@ -180,8 +199,8 @@ function patchInBaseHistory(cwd, base, branch) {
 // `rev-list`, or `log`, an unreadable count, or a range past the cap each answer `false`, leaving the
 // first tier's verdict standing. `hooks/scope-prune.js` is the second caller, which is why the tiers are
 // exported rather than kept private to `testContainment`.
-function baseHistoryHasPatch(cwd, base, branch) {
-  return patchInBaseHistory(cwd, base, branch) === true;
+function baseHistoryHasPatch(cwd, base, branch, reads = newReads()) {
+  return patchInBaseHistory(cwd, base, branch, reads) === true;
 }
 
 // The third tier, answering `true`, `false`, or `null` as the second does. Whether a commit base gained
@@ -192,15 +211,15 @@ function baseHistoryHasPatch(cwd, base, branch) {
 // gates it, so a range past the cap compares no candidate, and the candidates run oldest first, so the
 // squash commit, which sits near the merge base, is compared before the later commits that edit the same
 // paths. A candidate whose `merge-tree` conflicts (exit 1) does not hold the branch; any other failure,
-// or an unreadable tree, answers `null`. Exported for `hooks/scope-prune.js`, which calls it only where
-// `--write-tree` runs.
-function commitInBaseHistory(cwd, base, branch) {
-  const capped = cappedRange(cwd, base, branch);
+// or an unreadable tree, answers `null`, and a read a signal ended answers `null` at once, comparing no further
+// candidate. Exported for `hooks/scope-prune.js`, which calls it only where `--write-tree` runs.
+function commitInBaseHistory(cwd, base, branch, reads = newReads()) {
+  const capped = cappedRange(reads, cwd, base, branch);
   if (capped === NO_RANGE) return false;
   if (!capped) return null;
   const { mergeBase, range } = capped;
 
-  const changed = gitSpawn(['diff', '--name-only', '--no-renames', '-z', '--end-of-options', mergeBase, branch], cwd, {
+  const changed = read(reads, ['diff', '--name-only', '--no-renames', '-z', '--end-of-options', mergeBase, branch], cwd, {
     maxBuffer: PROBE_MAX_BUFFER,
   });
   if (changed.status !== 0) return null;
@@ -208,7 +227,8 @@ function commitInBaseHistory(cwd, base, branch) {
   if (paths.length === 0) return false;
 
   // `:(literal)` keeps a changed path that looks like a pathspec pattern from matching other paths.
-  const listed = gitSpawn(
+  const listed = read(
+    reads,
     ['rev-list', '--reverse', '--end-of-options', range, '--', ...paths.map((p) => `:(literal)${p}`)],
     cwd,
     { maxBuffer: PROBE_MAX_BUFFER }
@@ -217,7 +237,8 @@ function commitInBaseHistory(cwd, base, branch) {
   const candidates = listed.stdout.split('\n').map((line) => line.trim()).filter(Boolean);
   let decided = true;
   for (const commit of candidates) {
-    const answer = containedAgainst(branch, commit, cwd, true);
+    const answer = containedAgainst(reads, branch, commit, cwd, true);
+    if (reads.unread) return null;
     if (answer === 'contained') return true;
     if (answer === 'inconclusive') decided = false;
   }
@@ -226,13 +247,17 @@ function commitInBaseHistory(cwd, base, branch) {
 
 // The third tier as a boolean, failing closed the same way: a failed `merge-base`, `diff`, `rev-list`,
 // or comparison answers `false`.
-function baseCommitHoldsBranch(cwd, base, branch) {
-  return commitInBaseHistory(cwd, base, branch) === true;
+function baseCommitHoldsBranch(cwd, base, branch, reads = newReads()) {
+  return commitInBaseHistory(cwd, base, branch, reads) === true;
 }
 
-// The second tier, then the third where `--write-tree` runs: the answer a conflicted or inconclusive comparison takes.
-function heldInHistory(cwd, base, ref, writeTreeSupported) {
-  return baseHistoryHasPatch(cwd, base, ref) || (writeTreeSupported && baseCommitHoldsBranch(cwd, base, ref));
+// The second tier, then the third where `--write-tree` runs and no read of the second was ended: the answer a conflicted or
+// inconclusive comparison takes.
+function heldInHistory(reads, cwd, base, ref, writeTreeSupported) {
+  return (
+    baseHistoryHasPatch(cwd, base, ref, reads) ||
+    (!reads.unread && writeTreeSupported && baseCommitHoldsBranch(cwd, base, ref, reads))
+  );
 }
 
 // The exported test. `remote` is the configured or explicit remote, or null for none (INV-0203). Never throws, and
@@ -248,19 +273,43 @@ function testContainment(cwd, base, branch, remote) {
 // INV-0009): `verdict`, `refetch` (the refetch's spawn result, or null when no refetch ran), `judgedBase`
 // (the base the verdict was judged against: `base`, or the commit id the refetch brought), and `fallback` (true when
 // the git lacks `--write-tree` and the ancestry fallback judged). `fetchTimeoutMs` replaces the refetch's bound. A
-// `remote` of null, or none passed, runs no refetch and answers from the local base alone (INV-0203).
-function judgeContainment(cwd, base, branch, remote, { fetchTimeoutMs = FETCH_TIMEOUT_MS } = {}) {
+// `remote` of null, or none passed, runs no refetch and answers from the local base alone (INV-0203). `unread` names
+// the first local read a signal ended as `{ verb, signal }`, or is null: a result that carries one answers
+// 'not-contained', whatever the other reads said, and the test runs no further read once one was ended.
+function judgeContainment(cwd, base, branch, remote, opts = {}) {
+  const reads = newReads();
+  try {
+    return judgeOnce(reads, cwd, base, branch, remote, opts);
+  } catch (e) {
+    // `refResolves` refuses a ref read a signal ended (ADR 0290): no verdict, so not contained, naming that read.
+    if (!e.noVerdict) throw e;
+    const unread = reads.unread || { verb: e.noVerdict.verb, signal: e.noVerdict.signal };
+    return { verdict: 'not-contained', refetch: null, judgedBase: base, fallback: false, unread };
+  }
+}
+
+function judgeOnce(reads, cwd, base, branch, remote, { fetchTimeoutMs = FETCH_TIMEOUT_MS } = {}) {
   let fallback = false;
-  const result = (verdict, refetch = null, judgedBase = base) => ({ verdict, refetch, judgedBase, fallback });
-  const ref = qualifyBranch(branch, cwd);
+  const result = (verdict, refetch = null, judgedBase = base) => ({
+    verdict: reads.unread ? 'not-contained' : verdict,
+    refetch,
+    judgedBase,
+    fallback,
+    unread: reads.unread,
+  });
+  const ref = qualifyBranch(reads, branch, cwd);
+  if (reads.unread) return result('not-contained');
   if (!refResolves(ref, cwd)) return result('could-not-resolve');
 
-  const writeTreeSupported = supportsWriteTree(cwd);
+  // A probe a signal ended is no git without `--write-tree`, so it sets no `fallback`.
+  const writeTreeSupported = supportsWriteTree(reads, cwd);
+  if (reads.unread) return result('not-contained');
   fallback = !writeTreeSupported;
-  const local = containedAgainst(ref, base, cwd, writeTreeSupported);
+  const local = containedAgainst(reads, ref, base, cwd, writeTreeSupported);
+  if (reads.unread) return result('not-contained');
   if (local === 'contained') return result('contained');
-  if (local !== 'differs' && heldInHistory(cwd, base, ref, writeTreeSupported)) return result('contained');
-  if (remote == null) return result('not-contained');
+  if (local !== 'differs' && heldInHistory(reads, cwd, base, ref, writeTreeSupported)) return result('contained');
+  if (remote == null || reads.unread) return result('not-contained');
 
   // Not contained against the local base — refetch before answering (ADR 0065). A fetch that fails
   // (no remote configured, an unreachable host, a rejected credential) leaves the local verdict
@@ -291,11 +340,13 @@ function judgeContainment(cwd, base, branch, remote, { fetchTimeoutMs = FETCH_TI
     return result('not-contained', fetched);
   }
   // The fetched base as a commit id, read before anything else can overwrite FETCH_HEAD.
-  const head = gitSpawn(['rev-parse', '--verify', '--quiet', 'FETCH_HEAD^{commit}'], cwd);
+  const head = read(reads, ['rev-parse', '--verify', '--quiet', 'FETCH_HEAD^{commit}'], cwd);
   const fetchedBase = head.status === 0 ? head.stdout.trim() : 'FETCH_HEAD';
-  const fresh = containedAgainst(ref, fetchedBase, cwd, writeTreeSupported);
+  if (reads.unread) return result('not-contained', fetched, fetchedBase);
+  const fresh = containedAgainst(reads, ref, fetchedBase, cwd, writeTreeSupported);
+  if (reads.unread) return result('not-contained', fetched, fetchedBase);
   if (fresh === 'contained') return result('contained', fetched, fetchedBase);
-  if (fresh !== 'differs' && heldInHistory(cwd, fetchedBase, ref, writeTreeSupported)) return result('contained', fetched, fetchedBase);
+  if (fresh !== 'differs' && heldInHistory(reads, cwd, fetchedBase, ref, writeTreeSupported)) return result('contained', fetched, fetchedBase);
   return result('not-contained', fetched, fetchedBase);
 }
 
@@ -307,10 +358,18 @@ function refetchMark(judged) {
   return judged.refetch.signal != null ? 'refetch timed-out' : 'refetch failed';
 }
 
+// The mark a `judgeContainment` result carries where a local read a signal ended left it without a verdict (ADR 0290,
+// INV-0009): `local <verb> no verdict`, or null where every local read answered. `contained`, `open`, `push`, and
+// `branch delete` print it beside a not-contained answer, as they print `refetchMark`'s.
+function unreadMark(judged) {
+  return judged.unread ? `local ${judged.unread.verb} no verdict` : null;
+}
+
 module.exports = {
   testContainment,
   judgeContainment,
   refetchMark,
+  unreadMark,
   baseHistoryHasPatch,
   baseCommitHoldsBranch,
   patchInBaseHistory,

@@ -174,26 +174,32 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 //
 // It answers `true`, `false`, or `null`. `false` is decisive: a `merge-tree` that exited 0 or 1, and every
 // tier present answering a decisive `false`, so the same two commits always give it. `null` is a not
-// contained that decided nothing: a `merge-tree` that exited otherwise, a failed `rev-parse`, or a tier
-// whose git call failed. Only `false` is recorded (`testRecorded` below).
+// contained that decided nothing: a `merge-tree` that exited otherwise, a failed `rev-parse`, a tier
+// whose git call failed, or any containment read a signal ended, this hook's own or a tier's, whatever a
+// later tier would answer (ADR 0290). Only `false` is recorded (`testRecorded` below).
 //
 // The mirror stops at the local test. That section's second pass fetches the base and retests against
 // `FETCH_HEAD` before it answers not contained, and names this hook as the one caller that never does
 // (ADR 0065): a `Stop` hook fires on every finished turn, and a stale base only defers a reap ADR 0007's
 // seven-day TTL has already delayed — the same direction every other failure here falls.
 function containedInBase(branch, cwd) {
-  const merged = gitSpawn(['merge-tree', '--write-tree', 'HEAD', branch], cwd);
+  const merged = localRead(['merge-tree', '--write-tree', 'HEAD', branch], cwd);
+  if (ended(merged)) return null;
   if (merged.status !== 0) {
     let decided = merged.status === 1;
+    // The tiers record a read a signal ended in `reads.unread`: such a read carries no verdict, so the test answers `null`
+    // whatever a later tier would say (ADR 0290).
+    const reads = { unread: null };
     for (const tier of [patchInBaseHistory, commitInBaseHistory]) {
       if (!tier) continue;
-      const held = tier(cwd, 'HEAD', branch);
+      const held = tier(cwd, 'HEAD', branch, reads);
+      if (reads.unread) return null;
       if (held === true) return true;
       if (held !== false) decided = false;
     }
     return decided ? false : null;
   }
-  const baseTree = gitSpawn(['rev-parse', 'HEAD^{tree}'], cwd);
+  const baseTree = localRead(['rev-parse', 'HEAD^{tree}'], cwd);
   if (baseTree.status !== 0) return null;
   return merged.stdout.trim() === baseTree.stdout.trim();
 }
@@ -234,9 +240,16 @@ function testRecorded(ref, cwd, runRoot) {
 
 // `--write-tree` needs git 2.38 (2022-10-02). Probing costs one `merge-tree` of `HEAD` with itself,
 // whose result tree already exists, so the probe writes no object of its own. An older git's
-// `merge-tree` takes three tree-ish arguments and rejects the flag, which is the nonzero this reads.
+// `merge-tree` takes three tree-ish arguments and rejects the flag, which is the nonzero this reads. A probe a signal ended
+// answers `null`: no verdict on support, so no git older than 2.38 either.
 function supportsWriteTree(cwd) {
-  return gitSpawn(['merge-tree', '--write-tree', 'HEAD', 'HEAD'], cwd).status === 0;
+  const probe = localRead(['merge-tree', '--write-tree', 'HEAD', 'HEAD'], cwd);
+  return ended(probe) ? null : probe.status === 0;
+}
+
+// Whether a signal ended a local read (INV-0009): it carries no verdict.
+function ended(result) {
+  return result.status === null && result.signal != null;
 }
 
 // The branch predicate `selectPrunable` calls, built lazily so nothing here runs until a scope has
@@ -257,18 +270,28 @@ function supportsWriteTree(cwd) {
 // skips it, because `git branch --merged` never lists a remote-tracking ref by any name at all, qualified
 // or not.
 function makeContainmentTest(cwd, qualify, scopesRoot) {
-  let supported = null;
+  let supported;
   let mergedSet = null;
   return (branch, scope) => {
-    if (supported === null) supported = supportsWriteTree(cwd);
-    if (supported) return testRecorded(qualify(branch), cwd, path.join(scopesRoot, scope));
+    if (supported === undefined) supported = supportsWriteTree(cwd);
+    // A probe with no verdict (ADR 0290) reaps nothing this Stop: neither test can run on a git whose support is unknown.
+    if (supported === null) return false;
+    if (supported) {
+      try {
+        return testRecorded(qualify(branch), cwd, path.join(scopesRoot, scope));
+      } catch (e) {
+        // A ref read with no verdict (ADR 0290) skips this scope alone: no reap and no record.
+        if (e.noVerdict) return false;
+        throw e;
+      }
+    }
     if (mergedSet === null) mergedSet = readMergedSet(cwd);
     return mergedSet.has(branch);
   };
 }
 
 function readMergedSet(cwd) {
-  const listed = gitSpawn(['branch', '--merged'], cwd);
+  const listed = localRead(['branch', '--merged'], cwd);
   if (listed.status !== 0) return new Set();
   return parseBranchList(listed.stdout);
 }
@@ -312,23 +335,24 @@ try {
   // Left null. main() checks it before doing anything below.
 }
 
-// `lib/git-spawn.js` owns the git calls (the status-reading spawn, the throwing call, the `git branch` list
-// parse, the commit a ref resolves to). No fallback: a hook that cannot run git must never conclude a scope is
-// finished with, so a failed load, or a module missing any of the four, leaves all four null and main() prunes
+// `lib/git-spawn.js` owns the git calls (the status-reading spawn, the bounded local read, the throwing call, the
+// `git branch` list parse, the commit a ref resolves to). No fallback: a hook that cannot run git must never conclude a
+// scope is finished with, so a failed load, or a module missing any of them, leaves every one null and main() prunes
 // nothing, silently. The names are taken only once the module carries every one, so a partial module reads as
 // an unloaded one.
 let gitSpawn = null;
+let localRead = null;
 let gitThrow = null;
 let parseBranchList = null;
 let resolveCommit = null;
 try {
   const gitModule = require('../lib/git-spawn.js');
   if (
-    [gitModule.gitSpawn, gitModule.gitThrow, gitModule.parseBranchList, gitModule.resolveCommit].every(
+    [gitModule.gitSpawn, gitModule.localRead, gitModule.gitThrow, gitModule.parseBranchList, gitModule.resolveCommit].every(
       (f) => typeof f === 'function'
     )
   ) {
-    ({ gitSpawn, gitThrow, parseBranchList, resolveCommit } = gitModule);
+    ({ gitSpawn, localRead, gitThrow, parseBranchList, resolveCommit } = gitModule);
   }
 } catch {
   // Left null. main() checks these before doing anything below.
@@ -457,11 +481,17 @@ const RESOLVE_BOUND_MS = 5000;
 
 function main(sessionCwd) {
   // shared reader, git module, or resolver unavailable → prune nothing, say nothing
-  if (!readLedgerHeader || !shapeMatches || !parseBranchRefs || !gitSpawn || !gitThrow || !parseBranchList || !resolveCommit || typeof mainWorkTree !== 'function') return;
+  if (!readLedgerHeader || !shapeMatches || !parseBranchRefs || !gitSpawn || !localRead || !gitThrow || !parseBranchList || !resolveCommit || typeof mainWorkTree !== 'function') return;
   // The main working tree is the root of every git call below, `HEAD` included, so a session standing in a
   // scopetree does not read the scope branch as `HEAD`. `cwd` names it for the rest of this function.
-  const cwd = mainWorkTree(sessionCwd, { timeout: RESOLVE_BOUND_MS });
-  if (!cwd) return; // not inside a git repository, or no verdict → prune nothing
+  let cwd;
+  try {
+    cwd = mainWorkTree(sessionCwd, { timeout: RESOLVE_BOUND_MS });
+  } catch (e) {
+    if (e.noVerdict) return; // a read with no verdict (ADR 0290) → prune nothing, say nothing
+    throw e;
+  }
+  if (!cwd) return; // not inside a git repository → prune nothing
   const scopesRoot = path.join(cwd, '.superdev', 'scopes');
   reapEmptyStagedDirs(path.join(cwd, '.superdev', 'kb-pending'), scopesRoot);
   if (!fs.existsSync(scopesRoot)) return; // no superdev runs in this repo

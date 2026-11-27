@@ -212,3 +212,20 @@ test('Without the complete-selector declaration the record stays red.', () => {
   assert.ok(!r.ok && /complete-selector/.test(r.err), 'no declaration stays red: ' + (r.err || ''));
 });
 
+
+test('A ref read with no verdict on the rerun route refuses as no verdict, never as the reason a carry is refused (ADR 0290).', () => {
+  const { fakeGit } = require('./fake-git.js');
+  g(['checkout', '-q', '-B', 'md2', f.R], f.repo);
+  fs.writeFileSync(path.join(f.repo, 'notes2.md'), 'n\n');
+  g(['add', 'notes2.md'], f.repo);
+  g(['commit', '-q', '-m', 'notes2'], f.repo);
+  const M = g(['rev-parse', 'HEAD'], f.repo);
+  g(['checkout', '-qf', 'feat'], f.repo);
+  rt = f.root([FAILED(f.R), ALONE(f.R, 'tests/a.test.js'), FOCUSED(f.R), ALONE(M, 'tests/a.test.js'), FOCUSED(M, 'pass', 'clean', ['notes2.md'])]);
+  // `main~0` spells the recorded base so that only the range base's own read asks git for it.
+  fs.writeFileSync(path.join(rt, 'ledger.md'), ledgerOf(rt).replace('**Anchor:**', `**Rerun:** tests/a.test.js @ ${f.R} #1\n**Base:** main~0\n**Anchor:**`));
+  const killed = fakeGit({ match: '^rev-parse --verify --quiet --end-of-options main~0' });
+  r = killed.withPath(() => callIn(['suite', 'reusable', '--branch', 'md2', '--base', 'main', '--root', rt], f.repo));
+  assert.ok(require('./fake-git.js').calls(killed.log).some((c) => c.includes('main~0')), 'the route reached the range base read');
+  assert.deepStrictEqual(r, { ok: false, err: 'git rev-parse was ended by signal SIGKILL — no verdict' }, 'the refusal is the no-verdict line');
+});

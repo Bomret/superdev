@@ -3,7 +3,7 @@
 // main-work-tree.js: the resolver of a repository's main working tree (ADR 0080) and of the paths under its `.superdev/`.
 
 const path = require('path');
-const { gitSpawn } = require('./git-spawn.js');
+const { localRead, refuseKilled } = require('./git-spawn.js');
 const { fail } = require('./refusal.js');
 
 // Every run root lives under the repository's main working tree, whatever checkout the command was
@@ -23,15 +23,17 @@ const { fail } = require('./refusal.js');
 // a `null` into a refusal — a bare path with no git repository behind it answers a question `root`'s one
 // caller (`references/run-init.md`, `skills/plan/SKILL.md`) never asks outside a checkout.
 //
-// `opts.timeout` bounds each git spawn (a hook must not hang, INV-0009); a spawn killed at the bound
-// carries no verdict and gives `null`.
+// Each git spawn carries the local-read bound (ADR 0290), and `opts.timeout` replaces it for a caller that needs a
+// shorter one, such as a hook. A spawn a signal ended carries no verdict (INV-0009): it refuses through `refuseKilled`,
+// never `null`, which would read as no repository, and never the parent-directory guess. A hook catches the refusal and
+// keeps its quiet fallback.
 function mainWorkTree(cwd, opts) {
-  const commonDir = gitSpawn(['rev-parse', '--git-common-dir'], cwd, opts);
+  const commonDir = localRead(['rev-parse', '--git-common-dir'], cwd, opts);
+  refuseKilled('rev-parse', commonDir);
   if (commonDir.status !== 0) return null;
   const gitDir = path.resolve(cwd, commonDir.stdout.trim());
-  const configured = gitSpawn(['config', '--file', path.join(gitDir, 'config'), '--get', 'core.worktree'], cwd, opts);
-  // A spawn killed at its bound carries no verdict: no answer, never the parent-directory guess.
-  if (configured.status === null) return null;
+  const configured = localRead(['config', '--file', path.join(gitDir, 'config'), '--get', 'core.worktree'], cwd, opts);
+  refuseKilled('config', configured);
   return configured.status === 0 && configured.stdout.trim() ? path.resolve(gitDir, configured.stdout.trim()) : path.dirname(gitDir);
 }
 

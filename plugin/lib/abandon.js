@@ -6,7 +6,9 @@
 //
 // An item line is tab-separated: `<kind>\t<subject>\t<tip>\t<mark>...`. The tip is a commit id, a content hash, or `-`. A mark
 // is `dirty`, `status=<hash>`, `uncontained <n>`, `loss`, `pages=<n>`, `files=<n>`, `kept-checked-out`, `stale`, `stage=<stage>`, or
-// `unknown <reason>`: a read that failed or timed out never reads as safe (INV-0009). Items print in removal order.
+// `unknown <reason>`: a read that failed or timed out never reads as safe (INV-0009). A containment test with a local read a
+// signal ended marks its branch `unknown <verb> signal <signal>`, and a `git remote` read with no verdict lists the tracking ref
+// at tip `-`, marked `unknown remote not read: <reason>` (ADR 0290). Items print in removal order.
 //
 // A run root is one target. The other two have no run root: an intent file (`--intent-file`, one `intent-file` item) and named
 // prototype branches (`--prototype prototype/<slug>`, a `prototype-worktree` item where git registers
@@ -16,7 +18,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { gitSpawn, listWorktrees } = require('./git-spawn.js');
+const { localRead, listWorktrees } = require('./git-spawn.js');
 const { fail, readPresent } = require('./refusal.js');
 const { takeOption, takeRootOption } = require('./options.js');
 const { CHANGE_TYPES, STAGES, SLUG_RE, readLedgerHeader } = require('./ledger.js');
@@ -30,19 +32,14 @@ const { namesBase, isNamedRemote } = require('./branch-delete.js');
 const { gitCall, lastLine, shownRemote, boundEnded } =require('./push.js');
 const { configuredRemote, refName, seenRef } = require('./run-state-ref.js');
 
-// Every read made through `localCall` carries a bound and a kill signal (INV-0009): a read that is ended carries no verdict.
-const LOCAL_TIMEOUT_MS = 60000;
+// Every read made through `localCall` carries the local-read bound and a kill signal (INV-0009, ADR 0290): a read that is
+// ended carries no verdict.
 const sha = (data) => crypto.createHash('sha256').update(data).digest('hex');
 // A subject or mark on an item line holds no tab or line break.
 const clean = (s) => String(s).replace(/[\u0000-\u001f\u007f]/g, '?');
 
 function localCall(args, cwd) {
-  return gitSpawn(args, cwd, {
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' },
-    stdio: ['ignore', 'pipe', 'pipe'],
-    timeout: LOCAL_TIMEOUT_MS,
-    killSignal: 'SIGKILL',
-  });
+  return localRead(args, cwd, { env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' }, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
 // Why a git call read nothing, for an `unknown` mark.
@@ -95,10 +92,11 @@ function parseArgs(sub, args) {
 }
 
 // The marks of one branch tip: `uncontained <n>` where base lacks commits of it, `unknown <reason>` where the test could not
-// judge. The test runs against the local base alone, so it fetches and writes nothing; a squash-merged branch whose base was
-// not pulled reads uncontained, which keeps its commits.
+// judge, a local read a signal ended included (its `unread` field, ADR 0290). The test runs against the local base alone, so
+// it fetches and writes nothing; a squash-merged branch whose base was not pulled reads uncontained, which keeps its commits.
 function containmentMarks(cwd, base, tip) {
   const judged = judgeContainment(cwd, base, tip, null);
+  if (judged.unread) return [unknown(`${judged.unread.verb} signal ${judged.unread.signal}`)];
   if (judged.verdict === 'contained') return [];
   if (judged.verdict === 'could-not-resolve') return [unknown('the tip does not resolve to a commit here')];
   const count = localCall(['rev-list', '--count', '--end-of-options', `${base}..${tip}`], cwd);
@@ -300,7 +298,15 @@ function computeInventory(cwd, { root: rootArg, base, remote: given, intentFile,
   const run = checkRun(cwd, rootArg, base, given);
   const { mwt, root, scope, stage, branch, remote, lock } = run;
   const items = [];
-  const named = remote ? isNamedRemote(mwt, remote) : false;
+  // A `git remote` read with no verdict (ADR 0290) leaves the tracking ref unread: it is listed at tip `-`, marked unknown.
+  let named = false;
+  let remoteUnread = null;
+  try {
+    named = remote ? isNamedRemote(mwt, remote) : false;
+  } catch (e) {
+    if (!e.noVerdict) throw e;
+    remoteUnread = e.message;
+  }
 
   // Worktrees: every one git registers under the run root, the scopetree last; the others elsewhere only hold branches.
   const listed = listWorktrees(mwt);
@@ -353,9 +359,10 @@ function computeInventory(cwd, { root: rootArg, base, remote: given, intentFile,
   const local = readTip(mwt, localRef);
   if (local.tip) items.push(makeItem('scope-branch', localRef, local.tip, branchMarks(branch, local.tip)));
   else if (local.why) items.push(makeItem('scope-branch', localRef, null, [unknown(local.why)]));
-  const trackingRef = named ? `refs/remotes/${remote}/${branch}` : null;
-  const tracking = trackingRef ? readTip(mwt, trackingRef) : {};
-  if (tracking.tip) items.push(makeItem('scope-tracking', trackingRef, tracking.tip, containmentMarks(mwt, base, tracking.tip)));
+  const trackingRef = named || remoteUnread ? `refs/remotes/${remote}/${branch}` : null;
+  const tracking = named ? readTip(mwt, trackingRef) : {};
+  if (remoteUnread) items.push(makeItem('scope-tracking', trackingRef, null, [unknown(`remote not read: ${remoteUnread}`)]));
+  else if (tracking.tip) items.push(makeItem('scope-tracking', trackingRef, tracking.tip, containmentMarks(mwt, base, tracking.tip)));
   else if (tracking.why) items.push(makeItem('scope-tracking', trackingRef, null, [unknown(tracking.why)]));
   if (remote) {
     const ref = `refs/heads/${branch}`;
