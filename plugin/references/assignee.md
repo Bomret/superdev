@@ -89,7 +89,7 @@ and the operator is none of them. An unassigned anchor is unclaimed.
 - **`issue-tracker.assignee`** from `.superdev/info.json`, read per **Read it from the main checkout** above → that
   identifier is the operator.
 - **No file, no key, `"none"`, malformed JSON, an empty value, or a value the store document names as no person (a store document may name none, and only Jira's `"-1"` exists today)** →
-  the store's **Resolve the operator** call answers. `"none"` opts out of assigning, never out of being someone.
+  the store's `## Claim` **Resolve the operator** call answers. `"none"` opts out of assigning, never out of being someone.
 
 **Comparing identities.** Applies to every match of the operator against an assignee. Compare in the store's native
 identifier form: a login case-insensitively, an id exactly.

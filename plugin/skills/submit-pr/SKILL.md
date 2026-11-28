@@ -17,7 +17,7 @@ Applies to every start. You open a pull request for a run whose slices are on th
 - **An unattended block**: a stop that counts as a block under `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
 - **The body**: the pull request body §5 builds.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc. A repository document an older seed wrote can lack a cited heading, and `section` then refuses: find the cited call by its bold name in that document, and name `/superdev:setup` in the run's report, whose re-run offers the missing section.
 
 ## The closing message
 
@@ -83,7 +83,7 @@ Applies to every start past §1. Find the scope checkout.
 
 ## 5. Pull request
 
-**The remote.** Applies before §5's push. No `Remote:` value in `docs/agents/code-management.md` → refuse before any push: run `step block`, name the missing `Remote:` value, open no pull request, and point at `/superdev:setup`.
+**The remote.** Applies before §5's push. Read the remote with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config remote`. `absent` → refuse before any push: run `step block`, name the missing `Remote:` value, open no pull request, and point at `/superdev:setup`.
 
 **The open.** Applies to every run past §4. Per `docs/agents/code-management.md`, push the scope branch, then open the pull request at the configured posture, with a body built from the Definition of Done and the slice list.
 

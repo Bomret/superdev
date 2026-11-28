@@ -920,3 +920,49 @@ test('#no-verdict-main-tree: a killed mainWorkTree read refuses with the no-verd
   assert.notStrictEqual(r.status, 0);
   assert.deepStrictEqual(r.err.trim().split('\n'), ['git rev-parse was ended by signal SIGKILL — no verdict']);
 });
+
+// A code-management.md that exists but cannot be read (INV-0213, triage #602): a directory in its place.
+const unreadableDoc = (f) => {
+  const doc = path.join(f.repo, 'docs', 'agents', 'code-management.md');
+  fs.rmSync(doc);
+  fs.mkdirSync(doc);
+};
+
+test('an unreadable code-management.md with no --remote refuses the inventory and the apply, naming the failure, and removes nothing', () => {
+  const f = fixture();
+  unreadableDoc(f);
+  const r = inv(f, { extra: [] });
+  assert.strictEqual(r.status, 1, r.out);
+  assert.match(r.err, /abandon: docs\/agents\/code-management\.md cannot be read \(EISDIR\)/);
+  assert.strictEqual(r.out, '', 'no item line and no token');
+  const a = abandonCall(f, 'apply', ['--root', f.root, '--base', 'main', '--token', 'x']);
+  assert.strictEqual(a.status, 1, a.out);
+  assert.match(a.err, /cannot be read \(EISDIR\)/);
+  assert.ok(fs.existsSync(f.root) && fs.existsSync(f.scopetree), 'the run root and its scopetree stay');
+  assert.strictEqual(git(['ls-remote', 'origin', `refs/superdev/${SCOPE}`], f.repo).length > 0, true, 'the run-state ref stays on the remote');
+  const d = detour(f);
+  const t = abandonCall(f, 'inventory', ['--base', 'main', '--intent-file', '.superdev/brainstorm/x.md', '--prototype', 'prototype/y']);
+  assert.strictEqual(t.status, 1, t.out);
+  assert.match(t.err, /cannot be read \(EISDIR\)/, 'the detour inventory refuses the same way');
+  assert.ok(fs.existsSync(d.intent), 'the intent file stays');
+});
+
+test('with an explicit --remote an unreadable code-management.md still inventories, and lists the run-state ref unknown naming the failure', () => {
+  const f = fixture();
+  unreadableDoc(f);
+  const r = inv(f);
+  assert.strictEqual(r.status, 0, r.err);
+  assert.ok(find(r, 'scope-remote', 'origin'), 'the explicit remote is read');
+  const state = find(r, 'run-state-ref');
+  assert.ok(state, 'the run-state ref is listed, never dropped');
+  assert.match(state[3], /^unknown docs\/agents\/code-management\.md cannot be read \(EISDIR\)$/);
+});
+
+test('no code-management.md and no --remote keeps the no-remote inventory: no remote branch and no run-state ref', () => {
+  const f = fixture();
+  fs.rmSync(path.join(f.repo, 'docs'), { recursive: true });
+  const r = inv(f, { extra: [] });
+  assert.strictEqual(r.status, 0, r.err);
+  assert.strictEqual(find(r, 'scope-remote'), undefined);
+  assert.strictEqual(find(r, 'run-state-ref'), undefined);
+});

@@ -58,7 +58,7 @@ function verbBranchDelete(cwd, args) {
   const { root, base, remote: given } = parseArgs(args);
   const branch = getHeader(readLines(root), 'Branch');
   if (!branch) fail(`branch delete: the ledger under ${root} carries no **Branch:** line`);
-  const remote = resolveRemote(cwd, given);
+  const remote = resolveRemote(cwd, given, 'branch delete');
   if (namesBase(branch, base, remote)) fail(`branch delete: the **Branch:** line names the base branch ${base}; branch delete never deletes base`);
 
   const localRef = `refs/heads/${branch}`;

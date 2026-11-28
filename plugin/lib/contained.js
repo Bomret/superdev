@@ -38,7 +38,7 @@ function parseArgs(args) {
 // index, or working tree: the test writes tree objects and the refetch writes fetched commit objects and `FETCH_HEAD`.
 function verbContained(cwd, args) {
   const { base, branch, remote: given } = parseArgs(args);
-  const remote = resolveRemote(cwd, given);
+  const remote = resolveRemote(cwd, given, 'contained');
   const judged = judgeContainment(cwd, base, branch, remote, { fetchTimeoutMs: pushTimeoutMs(cwd) });
   const refetched = judged.refetch !== null && judged.refetch.status === 0;
   const lines = [

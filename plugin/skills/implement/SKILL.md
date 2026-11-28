@@ -16,7 +16,7 @@ Applies to every start. You are the **controller**: you drive a plan's slices to
 - **The publish**: the snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It runs twice: right after the entry's write of `**Stage:** implementing` (`init` or `stage set`), and as the last act of the exit that ends the run, after run handoff's `merged` stage write, or after the `step clear` or `step block` of an earlier exit. No other write site publishes.
 - **A block**: a stop under `--unattended`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc. A repository document an older seed wrote can lack a cited heading, and `section` then refuses: find the cited call by its bold name in that document, and name `/superdev:setup` in the run's report, whose re-run offers the missing section.
 
 ## The closing message
 
@@ -85,7 +85,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 **The config.** Applies to every start. Read `docs/agents/issue-tracker.md` (slice store), `docs/agents/code-management.md` (code host), `docs/agents/documentation.md` (documentation convention), `docs/agents/knowledge-base.md` (optional KB), and `docs/agents/verification.md` (test command).
 
 - **Slice store or code host missing** → call the Skill tool with `superdev:setup` (no argument: the full setup), then continue. Under `--unattended`, block.
-- **`docs/agents/verification.md` carrying one fenced block** → the focused command was never recorded. Call the Skill tool with `superdev:setup` (no argument), then continue. Under `--unattended`, block. No file, or zero fenced blocks, needs no such command.
+- **`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config commands` printing `full`** → the focused command was never recorded. Call the Skill tool with `superdev:setup` (no argument), then continue. Under `--unattended`, block. `absent`, `none`, `focused`, and `full focused` need no such command.
 - **The verify skill** → read `docs/agents/verification.md`'s `## Verify skill` section once per run, per `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## The section`, and read it again after a compaction or a resume rather than from memory. The playbook hands its path, or `none`, wherever it builds or fixes a `behavior` slice, and to the Minor sweep's fix and re-review. An absent section or `none` calls no setup and blocks nothing, `--unattended` included.
 - **`docs/agents/toolchain.md` absent while the repo has build manifests** (`package.json`, `*.csproj`/`*.sln`, `pom.xml`/`build.gradle*`, `pyproject.toml`, `Cargo.toml`, `go.mod`, …) → suggest **`/superdev:setup`** and continue.
 

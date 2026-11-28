@@ -18,10 +18,10 @@ Applies to every start. You merge the pull request `/superdev:submit-pr` opened,
 - **The read script**: the one fenced block of `docs/agents/code-management.md`'s `## Check status` section. A section holding exactly one fenced block carries it; a section holding none or two or more carries none.
 - **The CI read**: `docs/agents/code-management.md`'s `## Check status` read for one commit, its lines read into a file, then fed to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <sha> --root <run-root>/scopetree`. The verb prints `ci: <verdict> <sha>` and one line per check that is not green, and exits 0 (green), 3 (not yet green: pending, missing, or finished not green), 4 (failed), or 2 (cannot judge). A read that fails passes nothing to the verb. The CI read writes no suite record, and a local suite record neither blocks nor permits a merge on the CI path.
 - **The PR read**: the `pr` field of the `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call §2 makes, then the pull request read by that number per `docs/agents/code-management.md`'s `## Merge` section: its `state`, `merged`, `merge_commit_sha`, `head.sha`, and `mergeable`.
-- **The deployment document**: `docs/agents/deployment.md`. Its posture is its `## Posture` section's `Posture:` line. A missing document, or one with no such line, reads as posture `none`.
+- **The deployment document**: `docs/agents/deployment.md`. Its posture is the value `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config posture --at <commit>` prints, the first valid `Posture:` line anywhere in the document at that commit; `absent` reads as posture `none`.
 - **`<range-base>`**: per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc. A repository document an older seed wrote can lack a cited heading, and `section` then refuses: find the cited call by its bold name in that document, and name `/superdev:setup` in the run's report, whose re-run offers the missing section.
 
 ## Start conditions
 
@@ -130,7 +130,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 **The local suite gate.** Applies on the local path.
 
-- **No `docs/agents/verification.md` at the tip, or one with no fenced command** → run nothing, write no record, and proceed. The report says no test command is configured.
+- **`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config commands --at <branch>` printing `absent` or `none`** → run nothing, write no record, and proceed. The report says no test command is configured.
 - **Otherwise** → run `suite reusable` on `<branch>`, with `--whole` when **The whole-repo gate** applies. **Exits 0** → proceed. **Exits 1** → take the carry; a carried tip proceeds, and a failing carry run takes **A failing carry**. **No carry, or no record** → take **The base-move test**.
 
 **The base-move test.** Applies on the local path to a tip with no reusable green result and no carry, before **The local run**. Run `git -C <run-root>/scopetree merge-base --is-ancestor <base> <branch>`.
@@ -144,7 +144,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 **The local run.** Applies on the local path to a tip with no reusable green result and no carry: the tip **The base-move test** keeps, §4's merged tip, and §4's push.
 
-- **No `docs/agents/verification.md` at that tip, or one with no fenced command** → **The local suite gate**'s first bullet decides it.
+- **`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config commands --at <tip>` printing `absent` or `none`** → **The local suite gate**'s first bullet decides it.
 - **The `suite` field of `scope.js state --root <run-root>` prints `none <sha>`, and its `unresolved` field prints any bullet** → refuse: name every standing bullet, merge nothing, and point at `/superdev:review <scope>`. That record is the invalidation `/superdev:review` left, and a run here would overwrite it.
 - **Any other tip** → run the full command over the tip in the scope checkout through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`, or the whole-repo command through `test whole` under **The whole-repo gate**, in the background, waiting for its end with Bash calls that each end within 170 s (`test-selection.md`'s `## The two commands`).
   - **Green, red, or denied** → record it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied> <tip> --root <run-root>`, with `--whole` for the whole-repo command. **Green** → proceed. **Red or denied** → take the red exit. A red full run takes `test-selection.md`'s `## The recorded rerun` first: the triage record quoting the failure, then the rerun record, the failing test file alone, and the focused run; an unattributable failure stays red.
@@ -157,7 +157,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 ## 4. Base moved, then the merge
 
-**The remote.** Applies before §4's first step. `<remote>` in every push and fetch below is the `Remote:` value of `docs/agents/code-management.md`. No `Remote:` value → refuse before any push or fetch: run `step block`, name the missing `Remote:` value, merge nothing, and point at `/superdev:setup`.
+**The remote.** Applies before §4's first step. `<remote>` in every push and fetch below is the value `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config remote` prints. `absent` → refuse before any push or fetch: run `step block`, name the missing `Remote:` value, merge nothing, and point at `/superdev:setup`.
 
 **The pre-merge tip.** Applies before the merge. Capture the tip as `<pre-merge-tip>`; §3's deploy gate read the deployment document at this commit.
 
@@ -201,13 +201,13 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 **The equality check.** Applies before the merge. The freshest `head.sha`, from the read after a push or from §3 without one, must equal the tip: on the local path, the tip `suite reusable` accepted, the carry covered, or the local run passed; on the CI path, the local tip. They differ → refuse: name both shas, and merge nothing.
 
-**The draft gate.** Applies once the equality check passes, after every gate before the merge, and before the merge call. Read the pull request's draft state through the code-management document's **Read the draft state** call. ADR 0249 states the rule.
+**The draft gate.** Applies once the equality check passes, after every gate before the merge, and before the merge call. Read the pull request's draft state through the code-management document's `## Merge` **Read the draft state** call. ADR 0249 states the rule.
 
 - **Not a draft** → go to **The CI gate**.
 - **A draft, and the document states a Mark ready call** → run that call under the merge consent already given, with no further question, then go to **The CI gate**. On the CI path the call comes before the CI read, so a check that skips drafts runs and cannot hold the merge forever. A Forgejo merge title carries no `WIP:` or `[WIP]` prefix. A refusal or stop earlier in this command leaves the draft a draft.
 - **A draft, and the document states no Mark ready call or no draft-state read** → refuse: name that the pull request is a draft and the document lacks the call, point at `/superdev:setup`, and merge nothing.
 - **A Mark ready call the permission classifier denies** → take the denial stop of **The merge**: merge nothing, try no other route, run `step block`, name the denial and its mitigation.
-- **A Mark ready call that fails otherwise** (an auth, network, or host error) → relay its error and merge nothing. Read the draft state again through the **Read the draft state** call and report whether the pull request is still a draft or now ready: a call that timed out can have taken effect on the host.
+- **A Mark ready call that fails otherwise** (an auth, network, or host error) → relay its error and merge nothing. Read the draft state again through the `## Merge` **Read the draft state** call and report whether the pull request is still a draft or now ready: a call that timed out can have taken effect on the host.
 
 **The CI gate.** Applies once **The draft gate** passes. On the local path, go to **The merge**. On the CI path, judge the tip, the SHA the equality check matched: through **The CI wait** where the code-management document carries **the read script**, and through one CI read where it carries none. The session itself reads check status only through these two, and `scope.js ci --wait` is the only wait (INV-0192).
 
@@ -237,7 +237,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 **The merge.** Applies once **The CI gate** passes. Print the pull request, its head, the base, and the CI verdict, the suite result, or the carry outcome. Then squash-merge it into the base branch through the host's merge API, pinned to the tip, per `docs/agents/code-management.md`'s `## Merge` section: the one write this plugin makes straight onto base, and the only merge this contract admits.
 
 - The pinned sha is the local tip, never a value read from the host. Never send a force or bypass option.
-- The squash commit's title is the pull request's own title, read right before the merge call through that section's **Read the pull request** call, which `/superdev:submit-pr` composed per `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md`.
+- The squash commit's title is the pull request's own title, read right before the merge call through the `## Merge` section's **Read the pull request** call, which `/superdev:submit-pr` composed per `${CLAUDE_PLUGIN_ROOT}/references/commit-messages.md`.
 - **A host refusal** (an unmet approval, branch protection, or a head that moved since) → relay its message and merge nothing. Where **The draft gate** marked the pull request ready, add that it is now ready.
 - **A merge call the permission classifier denies** (the tool result names a denial by Claude Code's permission classifier, auto mode's included) → merge nothing further, and try no other route to merge: no switch between `gh` and the host's API, no retry in another form. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`. Name the denial, and name the operator's mitigation: an allow rule for the merge command in the permission settings, or `/superdev:ship <scope>` run in a mode that prompts for it.
 
@@ -250,7 +250,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 **The stage write.** Applies after the merge commit is found. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>` unless the stage already reads `shipped`.
 
-**The deploy posture.** Applies after the stage write. Only ship runs a target's command, only under `auto`, only after the merge, only in a tree detached at the merge commit. Read the posture and the anchor's `**Deploy:**` line fresh here, never reused from §3 or §4, at the merge commit, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`. Read through the scope checkout: `git -C <run-root>/scopetree fetch <remote> <base>` when the commit is missing, then `git -C <run-root>/scopetree show <merge-commit-sha>:docs/agents/deployment.md`.
+**The deploy posture.** Applies after the stage write. Only ship runs a target's command, only under `auto`, only after the merge, only in a tree detached at the merge commit. Read the posture and the anchor's `**Deploy:**` line fresh here, never reused from §3 or §4, at the merge commit, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`. Read through the scope checkout: `git -C <run-root>/scopetree fetch <remote> <base>` when the commit is missing, then `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config posture --at <merge-commit-sha>` from `<run-root>/scopetree`; `absent` reads as `none`.
 
 - **`none`, a `**Deploy:** none` line, or no `**Deploy:**` line** → deploy nothing. Say so in one line and go to **Hand off**.
 - **`manual`** → print each listed target's command not already recorded `deployed`, in listed order. Record each with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy set <target> pending --root <run-root>`, and go to **Hand off**.

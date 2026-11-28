@@ -333,7 +333,7 @@ the rerun is recorded and passed, and step 1 records the failing test files of e
    tree, from the tree root, through the runner. A failing or dirty rerun stays red.
 5. **Run the focused command over the scope's range.** Run `scope.js test focused --since <range-base>` at the tip on
    a clean tree. `<range-base>` is what `scope.js base resolve --branch <branch> --base <base> --root <run-root>`
-   prints, `<base>` being the base branch `docs/agents/code-management.md` names.
+   prints, `<base>` being the value `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config base` prints, `absent` reading as `main`.
 6. **Check reuse.** Run `scope.js suite reusable --branch <branch> --base <base> --root <run-root>`; without `--base`
    the verb refuses. Exit 0 → the gate takes its green exit, and the suite record stays `red` at T. Exit 1 → the gate
    takes the failing-run exit.
@@ -434,10 +434,11 @@ focused --since <ref>` refuses an empty set and runs nothing.
 
 ## Stop on a missing focused command
 
-**One fence.** Applies to a prose caller that finds exactly one fenced block in `docs/agents/verification.md`. Report
+**One fence.** Applies to a prose caller whose `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config commands` prints `full`: `docs/agents/verification.md` holds
+the full command and no focused one. Report
 the missing focused command, name `/superdev:setup`, and run no command. Record the stop as a **degraded pass**, the
 "pass that cannot complete its own work" shape of `scope-findings.md`'s `## Degraded passes`. A caller with no run
 root, such as a standalone `/superdev:review`, takes only that shape's report half and says so in its own output.
 
-**Zero fences.** Applies to a `verification.md` carrying no fenced block, prose-only or gutted by a hand edit. Read it
-as an absent file: the repository has no suite to run.
+**Zero fences.** Applies to a `config commands` that prints `none`, a `verification.md` prose-only or gutted by a hand
+edit. Read it as `absent`, an absent file: the repository has no suite to run.

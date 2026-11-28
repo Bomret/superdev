@@ -16,7 +16,7 @@ Applies to every start. You chain four read-only surfaces into one **sweep** (CO
 - **A judgment**: a call about what is worth acting on. §3 lists which findings are judgments.
 - **The intent file**: `.superdev/brainstorm/sweep-<date>-<swept-slug>.md`. `<swept-slug>` is the path argument with each `/` turned into `-`, or `all` when the swept path is `.`.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc. A repository document an older seed wrote can lack a cited heading, and `section` then refuses: find the cited call by its bold name in that document, and name `/superdev:setup` in the run's report, whose re-run offers the missing section.
 
 ## Read-only on the repository
 

@@ -69,7 +69,7 @@ production visibility. Each applies only to a **deploying feature**. Every other
 that reason.
 
 - **A recorded posture** → a deploying feature's deploy answer lists a recorded deploy target.
-- **No recorded posture** (no `docs/agents/deployment.md`, or one with no `Posture:` line) → a deploying feature's
+- **No recorded posture** (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config posture` prints `absent`) → a deploying feature's
   answer to plan's once-per-plan question is that it reaches a running production system.
 
 **The categories.** Applies to each category's own criterion.

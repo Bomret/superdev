@@ -190,7 +190,7 @@ absent line reads as no repair link.
 an absent line reads as no absorbed records, never as an error.
 
 - `/superdev:plan` writes it when the operator absorbs records. An append that absorbs more revises the line in place.
-- `/superdev:plan`'s connect step then writes to each record the line newly names, through the plan document's
+- `/superdev:plan`'s connect step then writes to each record the line newly names, through the plan document's `## Absorbed records`
   **Connect an absorbed record** call. Append mode's single-slice promotion connects every record the moved line names
   to the new epic.
 - **Reading it** → a body holding several such lines reads the first. Each entry is trimmed and read on its own: a

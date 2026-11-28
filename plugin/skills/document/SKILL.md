@@ -20,7 +20,7 @@ Applies to every start. You bring the docs and the knowledge base into agreement
 - **A writer dispatch**: dispatch `superdev:doc-writer` with an **explicit `model`** (`sonnet`).
 - **A reader dispatch**: dispatch `superdev:doc-reader` with an **explicit `model`** (`sonnet`).
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc. A repository document an older seed wrote can lack a cited heading, and `section` then refuses: find the cited call by its bold name in that document, and name `/superdev:setup` in the run's report, whose re-run offers the missing section.
 
 ## The closing message
 

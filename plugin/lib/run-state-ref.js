@@ -9,6 +9,7 @@ const path = require('path');
 const { gitSpawn } = require('./git-spawn.js');
 const { gitCall, lastLine, boundEnded } = require('./push.js');
 const { parseRemote } = require('./remote.js');
+const { readDocFile } = require('./config-doc.js');
 const { mergeDod } = require('./dod-merge.js');
 const { readBytes, stateOf, readSide, writeSide, withRunLock } = require('./run-digest.js');
 
@@ -24,14 +25,14 @@ function refName(scope) {
   return scope && !scope.startsWith('-') && gitCall(['check-ref-format', ref], process.cwd()).status === 0 ? ref : null;
 }
 
-// The `Remote:` value of the repository's `docs/agents/code-management.md`: `{ remote }`, or `{ note }` naming why none.
+// The `Remote:` value of the repository's `docs/agents/code-management.md`: `{ remote }`, or `{ note }` naming why none. A
+// document that exists but cannot be read is `{ note, unreadable: true }`, the note naming the failure, never the
+// no-remote result (INV-0213).
 function configuredRemote(repo) {
-  let text;
-  try {
-    text = fs.readFileSync(path.join(repo, 'docs', 'agents', 'code-management.md'), 'utf8');
-  } catch {
-    return { note: 'no docs/agents/code-management.md' };
-  }
+  const read = readDocFile(repo, 'code-management.md');
+  if (read.failure) return { note: read.failure, unreadable: true };
+  const text = read.text;
+  if (text === null) return { note: 'no docs/agents/code-management.md' };
   // The same reader the containment check uses: it takes both `**Remote:**` and the seeds' `**Remote**:`.
   const remote = parseRemote(text);
   return remote ? { remote } : { note: 'docs/agents/code-management.md has no Remote: value' };

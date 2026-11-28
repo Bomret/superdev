@@ -11,7 +11,7 @@ Review a change end to end. §1 decides the mode.
 - **Ad-hoc**: a spot-check, a pre-PR pass, a second opinion on someone else's branch, or `/superdev:sweep`'s code leg under `--chained`. No plan stands behind it, and §3 keeps it read-only, except the inline fix the operator agrees to.
 - **Scope**: the range is a live superdev scope branch, the whole-scope review gate of the implement chain. It reviews against that run's Definition of Done, the whole scope range or, on a repeat invocation, the delta since the last clean verdict's reviewed tip, drives the fix loop over every finding, asking only fix-or-accept per broken criterion, and hands off to `/superdev:document`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` owns everything that differs.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc. A repository document an older seed wrote can lack a cited heading, and `section` then refuses: find the cited call by its bold name in that document, and name `/superdev:setup` in the run's report, whose re-run offers the missing section.
 
 **The closing message.** Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
@@ -24,7 +24,7 @@ Review a change end to end. §1 decides the mode.
 
 **The config reads.** Applies to every run. Every file below is optional. A missing file costs the command only its hint.
 
-- `docs/agents/code-management.md` → the **base branch** to diff against, default `main`.
+- `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config base` → the **base branch** to diff against; `absent` reads as `main`.
 - `docs/agents/verification.md`'s `## Verify skill` → the **verify skill**'s path a live scope's fix loop hands (`${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 0. Config`).
 - `docs/agents/verification.md` → the **test command**. The controller runs it and hands `final-reviewer` the result and never the command: §2's focused run states the ad-hoc run.
 

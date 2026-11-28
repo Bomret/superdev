@@ -37,6 +37,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'retired-scope-terms',
     'no-ci-wait',
     'unterminated-fence',
+    'call-citations',
   ]);
   const empty = fixture({ '.keep': '' });
   for (const check of CHECKS) {
@@ -112,6 +113,10 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'unterminated-fence': [
       { source: 'plugin/references/x.md', line: 3 },
       'plugin/references/x.md:3 opens a fenced code block that never closes — every fence-masking drift check reads nothing below it',
+    ],
+    'call-citations': [
+      { source: 'plugin/skills/x/SKILL.md', line: 4, call: 'Close it', named: [] },
+      'plugin/skills/x/SKILL.md:4 cites the **Close it** call with no `## ` heading — name the seed heading that holds it, so `scope.js section` fetches it',
     ],
   };
   for (const [id, [gap, line]] of Object.entries(OWN_LINES)) {

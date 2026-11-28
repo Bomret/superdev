@@ -41,7 +41,7 @@
 
 **Prepare, then run the focused command.** Applies once the inline work is done. In `<tree>`, by `## 4. The work`'s subshell form, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <tree>` when `<tree>`'s `docs/agents/verification.md` sets a `## Prepare command`. Then run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused --since <cut>`, which takes committed, uncommitted, and untracked changes alike. Run each in the background, its exit status written into its output file, and wait for its end with Bash calls that each end within 170 s (`test-selection.md`'s `## The two commands`).
 
-- **No `docs/agents/verification.md`, no focused fence, or no path changed since `<cut>`** → run no test and record `not run: <reason>`.
+- **`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config commands` run in `<tree>` printing `absent`, `none`, or `full` (no focused command), or no path changed since `<cut>`** → run no test and record `not run: <reason>`.
 - **A failed preparation** → record `not run: <the command and its reason>`.
 
 ## 6. The exit report

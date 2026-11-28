@@ -44,3 +44,18 @@ test('resolveRemote reads the top-level document from a subdirectory, and answer
   fs.rmSync(repo, { recursive: true, force: true });
 });
 
+
+test('resolveRemote refuses a code-management.md that exists but cannot be read, unless the caller passes a remote (INV-0213)', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'remote-'));
+  made.push(repo);
+  execFileSync('git', ['init', '-q'], { cwd: repo });
+  fs.mkdirSync(path.join(repo, 'docs', 'agents', 'code-management.md'), { recursive: true });
+  assert.throws(
+    () => resolveRemote(repo, undefined, 'contained'),
+    (e) => e.isRefusal === true && /^contained: docs\/agents\/code-management\.md cannot be read \(EISDIR\)$/.test(e.message),
+    'an unreadable document refuses, naming the caller and the failure'
+  );
+  assert.equal(resolveRemote(repo, 'other', 'contained'), 'other', 'an explicit remote wins, and the document is not read');
+  fs.rmSync(path.join(repo, 'docs'), { recursive: true });
+  assert.equal(resolveRemote(repo, undefined, 'contained'), null, 'no document -> null, the no-remote result');
+});

@@ -1610,8 +1610,8 @@ Class: architecture
 Concepts: Scope branch, Containment, Code host
 Statement: Every superdev step that reaches a remote, a push of the scope branch, a fetch of base, or a containment refetch, names the `Remote:` value of `docs/agents/code-management.md` or a remote its caller passed explicitly. With neither, the step reaches no remote; no step falls back to a remote named `origin`.
 Breaks: silently
-Check: tests/scope-open.test.js — `open` with no `--remote` refetches from the configured remote, and with no `Remote:` value refetches nothing; tests/remote.test.js — the top-level `Remote:` value from a subdirectory, and null with none; tests/scope-contained.test.js — the configured remote and the no-remote local verdict
-Paths: plugin/lib/plan-open.js, plugin/lib/contained.js, plugin/lib/containment.js, plugin/lib/remote.js, plugin/lib/branch-delete.js, plugin/skills/ship/SKILL.md, plugin/references/shipped-run.md, plugin/references/scope-branch.md, plugin/references/code-management-*.md
+Check: tests/scope-open.test.js — `open` with no `--remote` refetches from the configured remote, and with no `Remote:` value refetches nothing; tests/remote.test.js — the top-level `Remote:` value from a subdirectory, and null with none; tests/scope-contained.test.js — the configured remote and the no-remote local verdict; tests/scope-config.test.js — `config remote` prints what `resolveRemote` returns; tests/run-state-ref.test.js — the run-state push names the configured remote, and with none sends nothing
+Paths: plugin/lib/plan-open.js, plugin/lib/contained.js, plugin/lib/containment.js, plugin/lib/remote.js, plugin/lib/run-state-ref.js, plugin/lib/config.js, plugin/lib/branch-delete.js, plugin/skills/ship/SKILL.md, plugin/references/shipped-run.md, plugin/references/scope-branch.md, plugin/references/code-management-*.md
 
 ### INV-0204
 
@@ -1694,3 +1694,12 @@ Statement: The `test`, `fail-to-pass`, and `prepare` verbs start no command with
 Breaks: silently
 Check: tests named for the verbs — two runs from two worktrees at one slot never overlap, a dead holder's slot is reclaimed, and a queued run's line carries no wait time
 Paths: plugin/lib/test-slots.js, plugin/lib/test-verb.js, plugin/lib/fail-to-pass.js, plugin/lib/prepare.js, plugin/scripts/scope.js
+
+### INV-0213
+
+Class: architecture
+Concepts: No verdict
+Statement: A read of a configuration value of `docs/agents/` reads as absent only where the document, line, or bullet is missing. A document that exists but cannot be read, a commit the repository does not hold, or a document git cannot read at a held commit is a reported failure, never an absent value. This holds for the `config` verb, for every library reader of the `Remote:` value of `code-management.md`, and for `route`'s read of the deploy posture at a commit.
+Breaks: silently
+Check: tests named for the `config` verb and for `run-state-ref.js` — an unreadable document and an unheld commit refuse with nothing on stdout, and a missing bullet prints `absent`
+Paths: plugin/lib/config.js, plugin/lib/config-doc.js, plugin/lib/remote.js, plugin/lib/route.js, plugin/lib/run-state-ref.js, plugin/scripts/scope.js

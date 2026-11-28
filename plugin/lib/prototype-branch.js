@@ -158,7 +158,7 @@ function verbPrototypeDelete(cwd, root, given) {
   const scope = scopeOf(root);
   checkPrototypeRecord(lines, scope, `prototype push --delete: the ledger under ${root}`);
   const { deleteOnRemote, isNamedRemote, KEPT_EXIT } = require('./branch-delete.js');
-  const remote = resolveRemote(cwd, given);
+  const remote = resolveRemote(cwd, given, 'prototype push');
   // A read with no verdict (ADR 0290) leaves its branch `unknown <branch> <reason>`, and every other branch is still tried.
   let named = false;
   let unread = null;
