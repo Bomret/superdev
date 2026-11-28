@@ -7,10 +7,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
 const { fail, readPresent } = require('./refusal.js');
 const { takeOption } = require('./options.js');
-const { fileAt } = require('./git-spawn.js');
+const { readConfigDoc } = require('./config-doc.js');
 const { parseDodLineReadings, dodCriterionLines, collapseWhitespace } = require('./dod-line.js');
 const { readCriterion } = require('./dod-open.js');
 const { readDeployRecord } = require('./ledger-records.js');
@@ -46,16 +45,21 @@ function parseFlags(args) {
   return out;
 }
 
+// The deploy posture of `docs/agents/deployment.md`, the value of its first valid `Posture:` line anywhere in the document, at `at`
+// where given and at the working tree's top level otherwise, or null where the document or the line is absent. `route`'s posture at
+// the merge commit and the `config posture` verb share this one reader, so both refuse the same commit and the same document
+// (`lib/config-doc.js`, INV-0213).
+function readPosture(cwd, at, verb) {
+  const text = readConfigDoc(cwd, 'deployment.md', at, verb);
+  const m = text === null ? null : POSTURE_RE.exec(text);
+  return m ? m[1] : null;
+}
+
 // The posture at the merge commit: `none` with no commit, no deployment.md there, or no `Posture:` line. A commit git does not hold is
 // refused, since reading it as `none` would route a manual run to wrap-up.
 function postureAt(cwd, merge) {
   if (!merge) return 'none';
-  const has = spawnSync('git', ['cat-file', '-e', `${merge}^{commit}`], { cwd, encoding: 'utf8' });
-  if (has.error || has.status !== 0) fail(`route: merge commit ${merge} is not in this repository; fetch base first`);
-  const text = fileAt(merge, 'docs/agents/deployment.md', cwd);
-  if (text === null) fail(`route: git cannot read docs/agents/deployment.md at ${merge}`);
-  const m = POSTURE_RE.exec(text);
-  return m ? m[1] : 'none';
+  return readPosture(cwd, merge, 'route') || 'none';
 }
 
 // True when a listed target is not recorded `deployed`: an absent or unreadable record counts as not recorded.
@@ -126,4 +130,4 @@ function verbRoute(cwd, root, args, anchorText) {
   console.log(out.join('\n'));
 }
 
-module.exports = { verbRoute };
+module.exports = { verbRoute, readPosture };

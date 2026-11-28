@@ -8,6 +8,14 @@ const path = require('path');
 const { gitSpawn } = require('./git-spawn.js');
 const { drivePath } = require('./drive-path.js');
 
+// The trimmed value of a document's first `- **<label>:** <value>` bullet, in either the `**<label>:**` or the
+// `**<label>**:` spelling, or null where the document holds no such bullet. `label` is a literal word or phrase.
+function bulletValue(docText, label) {
+  if (!docText) return null;
+  const m = docText.match(new RegExp('^-\\s*\\*\\*' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':?\\*\\*:?\\s*(.+)$', 'm'));
+  return m ? m[1].trim() : null;
+}
+
 // `docs/agents/code-management.md`'s `- **Remote:** <value>` bullet, in either the `**Remote:**` or the `**Remote**:`
 // spelling, with backticks and trailing punctuation stripped and no whitespace rejection: every shipped Remote bullet ("- **Remote**: `origin` (GitHub). Confirm with `git remote -v`.")
 // carries a trailing sentence, so rejecting on whitespace would make the bullet unparseable on every
@@ -15,10 +23,9 @@ const { drivePath } = require('./drive-path.js');
 // single-token header value to its first whitespace-delimited token before stripping markup this way;
 // this mirrors that. Absent or unparseable -> null: a missing remote is not a refusal.
 function parseRemote(docText) {
-  if (!docText) return null;
-  const m = docText.match(/^-\s*\*\*Remote:?\*\*:?\s*(.+)$/m);
-  if (!m) return null;
-  const token = m[1].trim().split(/\s+/)[0];
+  const raw = bulletValue(docText, 'Remote');
+  if (!raw) return null;
+  const token = raw.split(/\s+/)[0];
   const value = token.replace(/^`+/, '').replace(/[`.,;:]+$/, '');
   return value || null;
 }
@@ -38,4 +45,4 @@ function resolveRemote(cwd, given) {
   }
 }
 
-module.exports = { parseRemote, resolveRemote };
+module.exports = { bulletValue, parseRemote, resolveRemote };

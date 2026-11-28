@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, reviewed, deploy, suite, base, discard, abandon (`abandon inventory` and `abandon apply`), get, state, status,
-// publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, prototype (`prototype push` and its deleting `prototype push --delete`), root, staging, dod-merge, dod-line, dod-tags, dod-check, dod-own, ci, section, tier, dod-open, contained, red-evidence, branch (the read-only `branch --root` and the deleting `branch delete`), checkout, lock, route, denial, consent, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, prototype (`prototype push` and its deleting `prototype push --delete`), root, staging, dod-merge, dod-line, dod-tags, dod-check, dod-own, ci, section, tier, dod-open, contained, red-evidence, branch (the read-only `branch --root` and the deleting `branch delete`), checkout, lock, route, denial, consent, candidates, config; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -70,6 +70,7 @@ const libOptions = () => require('../lib/options.js');
 const libRunLock = () => require('../lib/run-lock.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
 const libRoute = () => require('../lib/route.js');
+const libConfig = () => require('../lib/config.js');
 const libReviewedTip = () => require('../lib/reviewed-tip.js');
 const libUsage = () => require('../lib/usage.js');
 
@@ -551,6 +552,10 @@ function run(argv, cwd, stdinJson) {
     case 'dod-check':
       libDodCheck().verbDodCheck(stdinJson);
       break;
+    // No --root: config reads one docs/agents/ document, at the working tree's top level or at --at <commit>, and writes nothing (INV-0213, INV-0196).
+    case 'config':
+      libConfig().verbConfig(cwd, args);
+      break;
     // No --root: dod-own trims an anchor's Definition of Done on stdin to one component's lines, no ledger, no store call (ADR 0285).
     case 'dod-own':
       libDodOwn().verbDodOwn(args, stdinJson);
@@ -576,7 +581,7 @@ function isBulletStdinInvocation(argv) {
 
 // `--help` / `-h` asks for usage unless it is the value of a flag that takes one or the text of a bullet
 // verb (`unresolved add -h`): those are data, and usage text standing in for them would be written on.
-const VALUE_FLAGS = ['--sha', '--root', '--range', '--exit', '--branch', '--tip', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict', '--map-file', '--base', '--ci-head', '--ci-file', '--remote', '--lock', '--kind', '--window', '--last', '--stage', '--range-base', '--also', '--merge', '--target', '--repair', '--tag', '--since', '--read', '--timeout'];
+const VALUE_FLAGS = ['--sha', '--root', '--range', '--exit', '--branch', '--tip', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict', '--map-file', '--base', '--ci-head', '--ci-file', '--remote', '--lock', '--kind', '--window', '--last', '--stage', '--range-base', '--also', '--merge', '--target', '--repair', '--tag', '--since', '--read', '--timeout', '--at'];
 // How many values a flag of VALUE_FLAGS takes: `--repair` reads two (`open|closed <key>`), every other flag one.
 const flagArity = (flag) => (flag === '--repair' ? 2 : 1);
 function asksForHelp(argv) {

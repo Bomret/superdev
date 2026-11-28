@@ -1702,4 +1702,4 @@ Concepts: Operator configuration, No verdict
 Statement: A read of an operator configuration value from `docs/agents/` reads as absent only where the document, line, or bullet is missing. A document that exists but cannot be read, a commit the repository does not hold, or a document git cannot read at a held commit is a reported failure, never an absent value, for the `config` verb and for every library reader of the same value.
 Breaks: silently
 Check: tests named for the `config` verb and for `run-state-ref.js` — an unreadable document and an unheld commit refuse with nothing on stdout, and a missing bullet prints `absent`
-Paths: plugin/lib/remote.js, plugin/lib/run-state-ref.js, plugin/scripts/scope.js
+Paths: plugin/lib/config.js, plugin/lib/config-doc.js, plugin/lib/remote.js, plugin/lib/route.js, plugin/lib/run-state-ref.js, plugin/scripts/scope.js
