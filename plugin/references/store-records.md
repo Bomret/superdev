@@ -33,8 +33,8 @@ label, the scope branch, and the scope anchor's reference. It never names a pull
 - **Why, for an observation** → that no slice of the scope covers it and the scope did not cause it.
 
 **Read before write.** Applies to every trigger, before it creates a record. List the open records through the active
-store's **List the records** call; the deferred trigger lists them after its run-scoped `get deferred` check. A record
-that plainly states the same defect gets a comment through the store's **Comment on it** call instead of a new record.
+store's `## Triage record` **List the records** call; the deferred trigger lists them after its run-scoped `get deferred` check. A record
+that plainly states the same defect gets a comment through the store's `## Triage record` **Comment on it** call instead of a new record.
 
 - **The matched record's reference** → stands where a new record's would have, the deferred trigger's ledger bullet
   included.
@@ -47,7 +47,7 @@ that plainly states the same defect gets a comment through the store's **Comment
 - **A store document with no Comment on it call** → create a new record on a match.
 
 **Absorbed.** Applies to a record a scope anchor's Absorbs line names. The record carries a comment naming that anchor,
-posted by the `/superdev:plan` run that absorbed it. The store's `-plan` document's **Connect an absorbed record** call
+posted by the `/superdev:plan` run that absorbed it. The store's `-plan` document's `## Absorbed records` **Connect an absorbed record** call
 owns the mechanism.
 
 - **A store document with no Comment on it call** → the plan posts no comment, reports the gap once per plan run

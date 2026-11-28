@@ -30,7 +30,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 - **A remote backend**: a knowledge base on software (Confluence, a Forgejo, Gitea, or GitHub wiki, an "other" wiki). A local `docs/kb/` and none are not remote.
 - **A seed gap** and **`## Seed deviations`**: as §0's **Seed gaps** defines them.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc. A repository document an older seed wrote can lack a cited heading, and `section` then refuses: find the cited call by its bold name in that document, and name `/superdev:setup` in the run's report, whose re-run offers the missing section.
 
 ## 0. Check mode (`check`)
 
@@ -82,7 +82,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 **A replaced rule.** Applies to a rule the current seed replaced. Such a rule is a contradicted rule. List it as a seed gap under the seed rule it contradicts, never as a stale deviation or a section only the document carries.
 
 - A knowledge-base outline entry holding a placeholder (`<...>`, such as `How it works: <mechanism>`), or an outline lacking the rule, contradicts the seed's **Every outline entry names a topic page** rule. Explicit entries that differ from the seed's example entries are filled-in values, no gap.
-- A slice-store close that strips no status label contradicts the seed's **Close an issue** rule: a bare `tea issues close <index>` (Forgejo), a bare close `PATCH` (GitHub), or a bare `merged` transition where the ready marker is a label (Jira). An abandoned record's close follows **Close as abandoned**: a plain `completed` close of it (GitHub), a close with no abandoned comment (Forgejo), or a done transition with no **Abandoned resolution** (Jira) contradicts it. The triage record's **Close it** call is no such close.
+- A slice-store close that strips no status label contradicts the seed's **Close an issue** rule: a bare `tea issues close <index>` (Forgejo), a bare close `PATCH` (GitHub), or a bare `merged` transition where the ready marker is a label (Jira). An abandoned record's close follows **Close as abandoned**: a plain `completed` close of it (GitHub), a close with no abandoned comment (Forgejo), or a done transition with no **Abandoned resolution** (Jira) contradicts it. The `## Triage record` **Close it** call is no such close.
 
 **No gap.** Applies to a difference of these kinds: a renamed heading, a filled-in value where the seed carries a placeholder, setup-facing instruction text, and a section only the document carries. List none of them as a gap. A document with no seed gap says so.
 
@@ -372,7 +372,7 @@ hook. A shallow clone, or one with fewer commits, works from what it has.
 
 - `check` mode and sweep's chained setup leg ask nothing here.
 - Plain Bun/npm/yarn workspaces with no such tool have no affected mode.
-- **The tool is installed** → propose its affected form against the base branch `docs/agents/code-management.md` records, with the **whole-repo command** beside it (the same tool's whole-suite invocation), and validate it by **The probe worktree**.
+- **The tool is installed** → propose its affected form against the base branch `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config base` prints (`absent` → the base the code-host decision confirmed), with the **whole-repo command** beside it (the same tool's whole-suite invocation), and validate it by **The probe worktree**.
 - **The tool is not installed** → name it and its official install command, and write no affected form until it is installed and every query passes.
 - **No tool owns an affected mode** → keep the whole-suite full command and record the reason as prose beside the second fence.
 
@@ -608,7 +608,7 @@ The focused command selects every test a changed path can affect.
 - A re-run switches backends or picks up what a newer release added, by reconciling each document with its seed (§3).
 - The operator file is theirs alone and travels with no clone, so a fresh checkout configures it again or falls back to the API token's own identity.
 
-**The push offer.** Applies at the end of every run where `git status --porcelain --untracked-files=all` lists at least one path setup wrote this run: a `docs/agents/*.md` document, the root file holding the `## Agent skills` block, `.gitignore`, or the verify skill. Those listed paths are the **offer paths**. Ask with `AskUserQuestion`, listing each offer path, and offer the choices below. `<remote>` is the `Remote:` value of `docs/agents/code-management.md`. With no `Remote:` value, offer only **Leave uncommitted** and say no remote is configured.
+**The push offer.** Applies at the end of every run where `git status --porcelain --untracked-files=all` lists at least one path setup wrote this run: a `docs/agents/*.md` document, the root file holding the `## Agent skills` block, `.gitignore`, or the verify skill. Those listed paths are the **offer paths**. Ask with `AskUserQuestion`, listing each offer path, and offer the choices below. `<remote>` is the value `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config remote` prints. `absent` → offer only **Leave uncommitted** and say no remote is configured.
 
 - **Push to a new branch** `(Recommended)`. Run `git fetch <remote> <base>`, then cut `superdev-setup` from `<remote>/<base>` in a temporary worktree outside the checkout: `git worktree add "$(mktemp -d)/wt" -b superdev-setup <remote>/<base>`, with a numeric suffix on the branch when that name exists locally or on `<remote>`. Copy each offer path into the worktree, commit there, push with `-u <remote> <branch>`, then `git worktree remove` it once the commit stands. The invoking checkout is never switched, and the files stay in its working tree. Say that `/superdev:implement` reads the configuration from the remote base, so the branch lands there through the operator's usual route, such as a pull request, before the first run.
 - **Push to the current branch.** Offered only when `HEAD` is a branch. Commit in the invoking checkout and push with `-u <remote> <branch>`, the base branch included (INV-0001, ADR 0282). When that branch is not the base branch decision B confirmed, say the same as for a new branch.

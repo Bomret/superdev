@@ -59,7 +59,7 @@ it does with each.
 
 **`<base>` is the caller's.** Applies to choosing `<base>`. `hooks/scope-prune.js` uses `HEAD`, the current branch,
 which is safe only because the invoking checkout stays off the scope branch at every tier. `## Cutting the scope
-branch` uses the base branch named in `docs/agents/code-management.md`. A ref that
+branch` uses the base branch `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config base` prints, `absent` reading as `main`. A ref that
 already holds the branch's content reads contained.
 
 **A reverted base.** Applies to a base that took the branch's work and then reverted it.
@@ -116,9 +116,9 @@ test. A `planned` ledger's branch was already cut, and where the name was taken,
 1. Read `<branch>` from the ledger, `scope.js get branch --root <run-root>`, and verify it with `git rev-parse
    --verify <branch>`. Never rebuild `<type>/<scope>`, and never take a `guess` or `guess-remote` verdict of
    `scope.js branch`.
-2. A name that does not verify locally is fetched before anything else: `git fetch <remote> <branch>` (`<remote>` from
-   `docs/agents/code-management.md`). Then verify the fetch's own ref, `git rev-parse --verify <remote>/<branch>`,
-   never the bare name a second time. With no `Remote:` value, fetch nothing and take step 3's stop.
+2. A name that does not verify locally is fetched before anything else: `git fetch <remote> <branch>` (`<remote>` the value
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config remote` prints). Then verify the fetch's own ref, `git rev-parse --verify <remote>/<branch>`,
+   never the bare name a second time. `absent` → fetch nothing and take step 3's stop.
 3. A remote-tracking ref that still does not verify is a stop, naming the branch it looked for. **`--unattended` →
    block**, per `scope-mode.md`'s `## Unattended`.
 4. Create or reattach the scopetree with `git worktree add <run-root>/scopetree <branch>`, naming the bare branch, at
@@ -165,8 +165,8 @@ scope branch.
 node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" push --root <run-root> --remote <remote> --base <base>
 ```
 
-`<remote>` is the `Remote:` value of `docs/agents/code-management.md`, and `<base>` is that document's base branch.
-**No `Remote:` value** → skip the push, say once that the branch stays local, and name no default remote.
+`<remote>` is the value `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config remote` prints, and `<base>` the value `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config base` prints, `absent` reading as
+`main`. **`<remote>` `absent`** → skip the push, say once that the branch stays local, and name no default remote.
 
 **The push mode.** Applies to the verb's decision. It reads the branch from the ledger's `**Branch:**` line, fetches
 the remote branch, and decides the **push mode** (`CONTEXT.md`) from the remote tip it fetched:
@@ -207,7 +207,8 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
 - The step runs no test suite. The full-suite evidence `/superdev:ship` takes verifies every merge it makes.
 - Review pushes nothing here. At `submitted`, `/superdev:ship` pushes the merged tip.
 - `/superdev:plan`'s own cut never reads this step.
-- `<remote>` and `<base>` come from `docs/agents/code-management.md`. `<branch>` is the scope branch the playbook's
+- `<remote>` is the value `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config remote` prints, and `<base>` the value `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config base` prints, `absent` reading as
+  `main`. `<branch>` is the scope branch the playbook's
   branch step left you on.
 - Every commit this step makes, a renumber, a citation fix, or a merge, takes its message per `commit-messages.md`, with
   the change type and the scope anchor's store reference. A renumber or citation commit git refuses is reported with
@@ -224,7 +225,7 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
      scopetree stops.
 2. **Fetch the remote base.** Run `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>` through the Bash tool with its
    `timeout` set to 120000 ms. Capture `<tip>` at once with `git rev-parse FETCH_HEAD`, because step 3 overwrites
-   `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed. With no `Remote:` value, take
+   `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed. `<remote>` `absent` → take
    **A base that cannot be fetched is a degraded pass**.
 3. **Fast-forward the local `<base>` ref, and nothing more.** Run `git fetch . <tip>:refs/heads/<base>`. This is the
    only local-git write to `<base>` superdev makes: it moves a ref, writes no commit, and touches no working tree.

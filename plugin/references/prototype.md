@@ -17,7 +17,7 @@ design after it.
 - `<main>`: the main working tree, resolved as `review-inline-fix.md`'s **The values** resolves it.
 - `<tree>`: `<main>/.superdev/prototypes/<slug>`, absolute.
 - `<branch>`: `prototype/<slug>`.
-- `<start>`: the base branch `docs/agents/code-management.md` records, or `HEAD` where no such document records one.
+- `<start>`: the base branch `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config base` prints, or `HEAD` where it prints `absent`.
 
 **The `Prototype:` line.** Applies to every line that names a prototype branch in a slice `spec`. It takes one of two
 forms, and names the branch local until a push of it is confirmed (`## The push and its teardown`).

@@ -47,7 +47,7 @@ test a slice named as inherited.
 
 **Resolve the next command.** Applies to every exit of the handoff. Compute `BASE`, the scope's range base, with
 `scope.js base resolve --branch <branch> --base <base> --root <run-root>` (`scope-mode.md`'s `## The scope's range
-base`; `<base>` from `docs/agents/code-management.md`, default `main`). The next command is `/superdev:review
+base`; `<base>` the value `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" config base` prints, `absent` reading as `main`). The next command is `/superdev:review
 <BASE-sha>..<branch>` with the real commit substituted, for every scope whatever its slice types.
 
 **Start the review.** Applies once every slice is on the scope branch and this handoff's closer and publish ran. Start

@@ -42,10 +42,10 @@ finding, every `disputed` finding, and every observation a sweep carries takes t
 **The handoff steps.** Applies to every handoff of a ready intent. Run these steps in order.
 
 1. **Read the store document.** `docs/agents/issue-tracker.md`'s `## Intent record` section names the **Create it**
-   call. No such section, or a section with no **Create it** call → `## The fallback`, with the cause `the store
+   call. No such section, or a `## Intent record` section with no **Create it** call → `## The fallback`, with the cause `the store
    document describes no intent record`, naming `/superdev:setup` as the remedy: its re-run offers the section from
    the matching seed.
-2. **Create the record.** Make the **Create it** call with the whole intent file as the body, every section,
+2. **Create the record.** Make the `## Intent record` section's **Create it** call with the whole intent file as the body, every section,
    **Dropped directions** and **Load-bearing commitments** included, and the intent's heading as the title. The
    frontmatter stays out of the body.
    - **The body** → pass it as a file or a quoted heredoc, as the store document's call states, so no intent text
@@ -68,7 +68,7 @@ rules.
 - **The report says the intent exists only in this checkout**, names the cause, and names the local path. A missing
   `## Intent record` section, or a section lacking the **Create it** call, names `/superdev:setup` as the remedy.
 - **A record the create left behind is named.** A read-back that lost the signal closes the created record, as the
-  store document's **Create it** call states, and the report names its reference.
+  store document's `## Intent record` **Create it** call states, and the report names its reference.
 
 ## What the closing text names
 
