@@ -404,3 +404,16 @@ test('superdev-view reads a never-ended run under a run lock this old as `lock s
   assert.strictEqual(expr[1].split(' * ').reduce((a, n) => a * Number(n), 1), STALENESS_MS, 'parse.ts LOCK_STALE_MS equals run-lock.js STALENESS_MS');
 });
 
+
+test('#unreadable-doc (INV-0213): a code-management.md that cannot be read stops the cut with no --remote, naming the failure; --remote still wins.', () => {
+  const f = fixture();
+  const doc = path.join(f.repo, 'docs', 'agents', 'code-management.md');
+  fs.mkdirSync(doc, { recursive: true });
+  git(['branch', BRANCH, 'main'], f.repo);
+  const r = open(f);
+  assert.strictEqual(r.status, 1, r.out);
+  assert.match(r.err, /open: docs\/agents\/code-management\.md cannot be read \(EISDIR\)/);
+  assert.strictEqual(fs.existsSync(path.join(f.root, 'ledger.md')), false, 'no ledger written');
+  const named = open(f, ['--remote', 'origin']);
+  assert.strictEqual(named.status, 0, `--remote is used whatever the document's state: ${named.out}${named.err}`);
+});

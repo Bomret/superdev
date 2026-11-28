@@ -165,7 +165,7 @@ function verbOpen(cwd, args) {
   if (existing) {
     outcome = fs.existsSync(scopetree) ? { word: 'existing' } : attach(cwd, label, scopetree) || { word: 'existing' };
   } else {
-    outcome = cut(cwd, label, base, resolveRemote(cwd, remote), scopetree);
+    outcome = cut(cwd, label, base, resolveRemote(cwd, remote, 'open'), scopetree);
   }
   if (outcome.exitCode) return report(outcome);
 

@@ -401,3 +401,18 @@ test('#no-verdict-after-local: a tracking read killed after the local deletion r
   assert.deepStrictEqual(r.err.trim().split('\n'), ['git rev-parse was ended by signal SIGKILL — no verdict'], 'stderr holds the one no-verdict line');
   assert.strictEqual(localTip(f), null, 'the local branch is gone');
 });
+
+test('an unreadable code-management.md refuses with no --remote, deleting nothing, and --remote still wins (INV-0213)', () => {
+  const f = fixture();
+  const doc = path.join(f.repo, 'docs', 'agents', 'code-management.md');
+  fs.rmSync(doc, { force: true });
+  fs.mkdirSync(doc, { recursive: true });
+  const before = allRefs(f);
+  const r = del(f, []);
+  assert.strictEqual(r.status, 1, r.out);
+  assert.match(r.err, /branch delete: docs\/agents\/code-management\.md cannot be read \(EISDIR\)/);
+  assert.deepStrictEqual(allRefs(f), before, 'nothing deleted');
+  const named = del(f);
+  assert.strictEqual(named.status, 0, named.err);
+  assert.strictEqual(named.lines.remote.word, 'deleted', `--remote is used whatever the document's state: ${named.out}`);
+});

@@ -266,3 +266,16 @@ test('#unread-early: a killed local merge-tree runs no history tier, since the a
   const killed = seen.findIndex((c) => c.startsWith('merge-tree --write-tree --end-of-options main '));
   assert.deepStrictEqual(seen.slice(killed + 1).filter((c) => /^(merge-tree|merge-base|rev-list|diff|log|patch-id|fetch)\b/.test(c)), [], 'no tier read runs after the killed read');
 });
+
+test('#unreadable-doc (INV-0213): a code-management.md that cannot be read refuses with no --remote, naming the failure, and --remote still wins.', () => {
+  const repo = fixture();
+  const doc = path.join(repo, 'docs', 'agents', 'code-management.md');
+  fs.rmSync(doc);
+  fs.mkdirSync(doc);
+  const r = contained(repo, ['main', 'fix/open']);
+  assert.strictEqual(r.status, 1, r.out);
+  assert.strictEqual(r.out, '', 'no verdict printed');
+  assert.match(r.err, /contained: docs\/agents\/code-management\.md cannot be read \(EISDIR\)/);
+  const named = contained(repo, ['main', 'fix/open', '--remote', 'origin']);
+  assert.strictEqual(named.lines[2], 'remote origin', `--remote is used whatever the document's state: ${named.out}${named.err}`);
+});

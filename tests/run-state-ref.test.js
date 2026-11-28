@@ -323,3 +323,30 @@ test('#delete: `scope.js run-state delete` removes the remote ref and the local 
   assert.match(u.stdout, /run-state: not deleted: /, u.stdout);
 });
 
+
+test('#unreadable-doc (INV-0213): a code-management.md that exists but cannot be read is reported by name on send, fetch, and delete, never read as no remote.', () => {
+  const { fetchRunState, deleteRunState } = require('../plugin/lib/run-state-ref.js');
+  const f = fixture();
+  step(f);
+  const tip = remoteTip(f);
+  assert.ok(tip, 'sent while the document is readable');
+  const doc = path.join(f.repo, 'docs', 'agents', 'code-management.md');
+  fs.rmSync(doc);
+  fs.mkdirSync(doc);
+  const failure = /docs\/agents\/code-management\.md cannot be read \(EISDIR\)/;
+  fs.writeFileSync(path.join(f.root, 'ledger.md'), '# Ledger — x\n\n**Stage:** planned\n**Step:** implement\n');
+  const r = step(f);
+  assert.strictEqual(r.status, 0, 'the step end stands: best-effort');
+  assert.match(r.stdout, /^run-state: not sent, /m);
+  assert.match(r.stdout, failure);
+  const g = fixture({ files: false });
+  fs.rmSync(path.join(g.repo, 'docs', 'agents', 'code-management.md'));
+  fs.mkdirSync(path.join(g.repo, 'docs', 'agents', 'code-management.md'));
+  const fetched = fetchRunState(g.root, g.repo);
+  assert.match(fetched, /^run-state: not fetched, /);
+  assert.match(fetched, failure);
+  const deleted = deleteRunState(f.root, f.repo);
+  assert.match(deleted, /^run-state: not deleted, /);
+  assert.match(deleted, failure);
+  assert.strictEqual(remoteTip(f), tip, 'the remote ref stays');
+});

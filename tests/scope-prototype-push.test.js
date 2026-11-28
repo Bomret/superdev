@@ -453,3 +453,16 @@ test('#delete-no-verdict: a branch whose read is killed prints unknown, every ot
   assert.match(r.out, new RegExp(`^remote deleted origin prototype/${SCOPE}/b`, 'm'), `b is still deleted: ${r.out}`);
   assert.ok(remoteTip(f, `prototype/${SCOPE}/a`), 'the unread branch stays on the remote');
 });
+
+test('--delete with no --remote and an unreadable code-management.md refuses naming the failure and deletes nothing; --remote still wins (INV-0213)', () => {
+  const f = pushedBoth();
+  const doc = path.join(f.repo, 'docs', 'agents', 'code-management.md');
+  fs.mkdirSync(doc, { recursive: true });
+  const r = protoDelete(f, { remote: null });
+  assert.strictEqual(r.status, 1, r.out);
+  assert.match(r.err, /prototype push: docs\/agents\/code-management\.md cannot be read \(EISDIR\)/);
+  assert.ok(remoteTip(f, `prototype/${SCOPE}/a`) && remoteTip(f, `prototype/${SCOPE}/b`), 'both remote branches stay');
+  const named = protoDelete(f);
+  assert.strictEqual(named.status, 0, `--remote is used whatever the document's state: ${named.out}${named.err}`);
+  assert.strictEqual(remoteTip(f, `prototype/${SCOPE}/a`), null);
+});

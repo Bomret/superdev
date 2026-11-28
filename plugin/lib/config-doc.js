@@ -27,12 +27,21 @@ function readConfigDoc(cwd, name, at, verb) {
   const top = localRead(['rev-parse', '--show-toplevel'], cwd);
   refuseKilled('rev-parse', top);
   const root = top.status === 0 && top.stdout.trim() ? drivePath(top.stdout.trim()) : cwd;
+  const read = readDocFile(root, name);
+  if (read.failure) fail(`${verb}: ${read.failure}`);
+  return read.text;
+}
+
+// `docs/agents/<name>` under the directory `root`, never throwing: `{ text }`, `{ text: null }` where the file is absent
+// (ENOENT), or `{ failure }` naming the error for a file that exists but cannot be read. A library reader that reports
+// rather than refuses (the run-state ref operations) takes this form.
+function readDocFile(root, name) {
   try {
-    return fs.readFileSync(path.join(root, ...rel.split('/')), 'utf8');
+    return { text: fs.readFileSync(path.join(root, 'docs', 'agents', name), 'utf8') };
   } catch (e) {
-    if (e.code === 'ENOENT') return null;
-    fail(`${verb}: ${rel} cannot be read (${e.code || e.message})`);
+    if (e.code === 'ENOENT') return { text: null };
+    return { failure: `docs/agents/${name} cannot be read (${e.code || e.message})` };
   }
 }
 
-module.exports = { readConfigDoc };
+module.exports = { readConfigDoc, readDocFile };

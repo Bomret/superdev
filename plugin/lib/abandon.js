@@ -250,7 +250,7 @@ function prototypeItems(mwt, base, remote, names) {
 function detourInventory(cwd, { base, remote: given, intentFile, prototypes }) {
   const mwt = mainWorkTree(cwd);
   if (mwt === null) fail(`abandon: not inside a git repository (cwd: ${cwd})`);
-  const remote = resolveRemote(cwd, given);
+  const remote = resolveRemote(cwd, given, 'abandon');
   const items = [];
   if (intentFile !== undefined) {
     const it = intentItem(cwd, mwt, intentFile);
@@ -279,7 +279,7 @@ function checkRun(cwd, rootArg, base, given) {
   const scope = path.basename(root);
   const branch = readLedgerHeader(text, 'Branch');
   if (!branch) fail(`abandon: the ledger at ${ledgerFile} carries no **Branch:** line`);
-  const remote = resolveRemote(cwd, given);
+  const remote = resolveRemote(cwd, given, 'abandon');
   if (namesBase(branch, base, remote)) fail(`abandon: the **Branch:** line names the base branch ${base}; abandon never removes base`);
   const type = branch.split('/')[0];
   if (branch !== `${type}/${scope}` || !CHANGE_TYPES.includes(type)) fail(`abandon: the **Branch:** line ${branch} is not <type>/${scope}`);
@@ -372,9 +372,12 @@ function computeInventory(cwd, { root: rootArg, base, remote: given, intentFile,
     else if (read.tip) items.push(makeItem('scope-remote', subject, read.tip, containmentMarks(mwt, base, read.tip), { remote, ref }));
   }
 
-  // The run-state ref on the remote the run-state push uses, and its local seen ref.
-  const stateRemote = configuredRemote(mwt).remote || null;
+  // The run-state ref on the remote the run-state push uses, and its local seen ref. A code-management.md that cannot be read
+  // names no remote to read it on, so the ref is listed unknown with the failure, never left out (INV-0213).
+  const configured = configuredRemote(mwt);
+  const stateRemote = configured.remote || null;
   const stateRef = refName(scope);
+  if (configured.unreadable && stateRef) items.push(makeItem('run-state-ref', stateRef, null, [unknown(configured.note)], { ref: stateRef }));
   if (stateRemote && stateRef) {
     const read = readRemoteRef(mwt, stateRemote, stateRef);
     const subject = `${shownRemote(stateRemote)} ${stateRef}`;
