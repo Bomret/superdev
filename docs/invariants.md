@@ -1694,3 +1694,12 @@ Statement: The `test`, `fail-to-pass`, and `prepare` verbs start no command with
 Breaks: silently
 Check: tests named for the verbs — two runs from two worktrees at one slot never overlap, a dead holder's slot is reclaimed, and a queued run's line carries no wait time
 Paths: plugin/lib/test-slots.js, plugin/lib/test-verb.js, plugin/lib/fail-to-pass.js, plugin/lib/prepare.js, plugin/scripts/scope.js
+
+### INV-0213
+
+Class: architecture
+Concepts: Operator configuration, No verdict
+Statement: A read of an operator configuration value from `docs/agents/` reads as absent only where the document, line, or bullet is missing. A document that exists but cannot be read, a commit the repository does not hold, or a document git cannot read at a held commit is a reported failure, never an absent value, for the `config` verb and for every library reader of the same value.
+Breaks: silently
+Check: tests named for the `config` verb and for `run-state-ref.js` — an unreadable document and an unheld commit refuse with nothing on stdout, and a missing bullet prints `absent`
+Paths: plugin/lib/remote.js, plugin/lib/run-state-ref.js, plugin/scripts/scope.js
