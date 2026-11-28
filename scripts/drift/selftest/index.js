@@ -79,6 +79,7 @@ try {
   require('./root-inventory.test')(context);
   require('./lib.test')(context);
   require('./unterminated-fence.test')(context);
+  require('./call-citations.test')(context);
 
   // Every table any suite above scanned, and every table the registry declares, gets checked here, once,
   // against what it actually observed — not a curated subset. All the tables at fault are in the one

@@ -54,6 +54,7 @@ const {
   scanInvariantRegisterJoin,
   scanRootNoInventory,
   scanUnterminatedFences,
+  scanCallCitations,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -351,5 +352,12 @@ module.exports = [
     ok: 'every fenced code block in the Markdown below plugin/, the ADRs, docs/invariants.md, and CONTEXT.md closes, so no fence-masking check reads past a fence that runs to end of file',
     run: scanUnterminatedFences,
     format: (g) => `${g.source}:${g.line} opens a fenced code block that never closes — every fence-masking drift check reads nothing below it`,
+  },
+  {
+    id: 'call-citations',
+    ok: 'every shipped citation of a store or code-host call names a `## ` heading that holds the call in every seed of its family, a call whose heading differs between seeds excepted',
+    run: scanCallCitations,
+    format: (g) =>
+      `${g.source}:${g.line} cites the **${g.call}** call ${g.named.length ? `under ${g.named.map((h) => `\`## ${h}\``).join(', ')}, which no seed family holds it under in every seed` : 'with no `## ` heading'} — name the seed heading that holds it, so \`scope.js section\` fetches it`,
   },
 ];

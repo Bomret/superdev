@@ -19,4 +19,5 @@ module.exports = {
   ...require('./register-join'),
   ...require('./root-inventory'),
   ...require('./unterminated-fence'),
+  ...require('./call-citations'),
 };
