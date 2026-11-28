@@ -19,8 +19,19 @@ const FAMILIES = [
 ];
 const familyOf = (name) => (FAMILIES.find(([, re]) => re.test(name)) || [null])[0];
 
-// A bullet that defines a call: `**Name**:`, `**Name:**`, `**Name.**`, `**Name** (context):`, or `**A** and **B:**`.
-const DEFINITION = /^\s*[-*+]\s+\*\*([^*]+?)([:.])?\*\*(?:\s+and\s+\*\*([^*]+?)([:.])?\*\*)?\s*(?:\([^)]*\))?\s*(:)?/;
+// A bullet that defines one call, `**Name**:`, `**Name:**`, `**Name.**`, or `**Name** (context):`, and one that defines a
+// pair, `**A** and **B:**`, its last label ending in any of those forms.
+const LABEL_END = String.raw`(?:[:.]\*\*|\*\*\s*(?:\([^)]*\))?\s*:)`;
+const SINGLE = new RegExp(String.raw`^\s*[-*+]\s+\*\*([^*]+?)${LABEL_END}`);
+const PAIR = new RegExp(String.raw`^\s*[-*+]\s+\*\*([^*]+?)[:.]?\*\*\s+and\s+\*\*([^*]+?)${LABEL_END}`);
+
+// The call names a bullet line defines, none where it defines no call.
+function definedNames(line) {
+  const pair = PAIR.exec(line);
+  if (pair) return [pair[1], pair[2]];
+  const single = SINGLE.exec(line);
+  return single ? [single[1]] : [];
+}
 // A citation: `**<name>** call`, or `**<A>** and **<B>** calls`, a comma before the `and` allowed.
 const CITATION = /(?:\*\*([^*]+)\*\*,? and )?\*\*([^*]+)\*\* calls?\b/g;
 const HEADING_SPAN = /`##\s+([^`]+?)\s*`/g;
@@ -66,10 +77,8 @@ function seedCalls(refs) {
         deeper = h[1].length <= 3;
         continue;
       }
-      const m = DEFINITION.exec(bare);
-      if (!m || h2 === null || !deeper) continue;
-      const names = m[3] ? (m[4] || m[5] ? [m[1], m[3]] : []) : m[2] || m[5] ? [m[1]] : [];
-      for (const raw of names) {
+      if (h2 === null || !deeper) continue;
+      for (const raw of definedNames(bare)) {
         const name = norm(raw);
         if (!calls.has(name)) calls.set(name, new Map());
         const byFamily = calls.get(name);
@@ -129,6 +138,14 @@ function blocks(text) {
   return out;
 }
 
+// The backtick run that starts at `text[i]`: its length `n`, and `tick`, the code-span state after it. `tick` is the length
+// of the run that opened the current code span, 0 outside one; only a run of that same length closes it.
+function tickRun(text, i, tick) {
+  let n = 0;
+  while (text[i + n] === '`') n++;
+  return { n, tick: tick === 0 ? n : tick === n ? 0 : tick };
+}
+
 // A table row's cells, split at each `|` outside a code span.
 function cells(row) {
   const out = [];
@@ -136,11 +153,10 @@ function cells(row) {
   let tick = 0;
   for (let i = 0; i < row.length; i++) {
     if (row[i] === '`') {
-      let n = 0;
-      while (row[i + n] === '`') n++;
-      tick = tick === 0 ? n : tick === n ? 0 : tick;
-      cell += row.slice(i, i + n);
-      i += n - 1;
+      const run = tickRun(row, i, tick);
+      tick = run.tick;
+      cell += row.slice(i, i + run.n);
+      i += run.n - 1;
     } else if (row[i] === '|' && tick === 0 && row[i - 1] !== '\\') {
       out.push(cell);
       cell = '';
@@ -158,10 +174,9 @@ function sentences(text) {
   let tick = 0;
   for (let i = 0; i < text.length; i++) {
     if (text[i] === '`') {
-      let n = 0;
-      while (text[i + n] === '`') n++;
-      tick = tick === 0 ? n : tick === n ? 0 : tick;
-      i += n - 1;
+      const run = tickRun(text, i, tick);
+      tick = run.tick;
+      i += run.n - 1;
       continue;
     }
     if (tick || !'.?!'.includes(text[i]) || !(i + 1 === text.length || /\s/.test(text[i + 1]))) continue;
