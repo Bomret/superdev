@@ -105,6 +105,14 @@ test('base reads absent for the seeds\' unfilled prose value and for an empty sp
   assert.equal(value(r, 'base'), 'absent', 'a span holding only space');
 });
 
+test('base reads a value written as one bare token, with or without trailing punctuation.', () => {
+  const r = repo();
+  write(r, 'code-management.md', '- **Base branch:** develop\n');
+  assert.equal(value(r, 'base'), 'develop', 'a bare token');
+  write(r, 'code-management.md', '- **Base branch:** develop.\n');
+  assert.equal(value(r, 'base'), 'develop', 'a bare token ending in a period');
+});
+
 test('commands counts no Prepare-command or CI fence and no unclosed fence, and an empty first fence leaves only focused.', () => {
   const r = repo();
   write(r, 'verification.md', '# V\n\n## Prepare command\n\n```sh\nnpm ci\n```\n\n## CI\n\n```\nbuild\n```\n');
@@ -156,7 +164,7 @@ test('An unreadable document, an unheld commit, an option-shaped commit, remote,
   }
   for (const key of ['remote', 'base', 'posture', 'commands']) assert.match(refusal(r, key), /cannot be read/, `${key}: a document that exists but cannot be read`);
   const s = repo();
-  assert.match(refusal(s, 'remote', '--at', '0'.repeat(40)), /not in this repository/, 'an unheld commit');
+  assert.match(refusal(s, 'remote', '--at', '0'.repeat(40)), /not in this repository; fetch base first/, 'an unheld commit, with the base-fetch hint');
   assert.match(refusal(s, 'posture', '--at', 'no-such-branch'), /not in this repository/, 'an unknown branch name');
   assert.match(refusal(s, 'base', '--at', '--output=x'), /starts with "-"/, 'an --at value starting with -');
   assert.match(refusal(s, 'base', '--at', '-'), /starts with "-"/, 'a bare - as --at');
@@ -186,7 +194,7 @@ test('A git read a signal ended refuses with no value printed (INV-0009).', () =
   const verify = fakeGit({ match: '^rev-parse --verify' });
   assert.match(verify.withPath(() => refusal(r, 'base', '--at', 'HEAD')), /no verdict/, 'a killed commit resolve');
   const show = fakeGit({ match: '^show' });
-  assert.match(show.withPath(() => refusal(r, 'posture', '--at', 'HEAD')), /git cannot read/, 'a killed show');
+  assert.match(show.withPath(() => refusal(r, 'posture', '--at', 'HEAD')), /no verdict/, 'a killed show');
 });
 
 test('At a full-SHA merge commit, route routes by the posture config posture --at prints, and both refuse the same commits and documents.', () => {
@@ -207,7 +215,7 @@ test('At a full-SHA merge commit, route routes by the posture config posture --a
   assert.equal(route(none).out, 'wrap-up', 'absent reads as none');
   const unheld = 'f'.repeat(40);
   refusal(r, 'posture', '--at', unheld);
-  assert.ok(!route(unheld).ok, 'route refuses the unheld commit config refuses');
+  assert.match(route(unheld).err, /not in this repository; fetch base first/, 'route refuses the unheld commit config refuses, with the base-fetch hint');
   const blob = git(['rev-parse', `${manual}:docs/agents/deployment.md`], r);
   fs.rmSync(path.join(r, '.git', 'objects', blob.slice(0, 2), blob.slice(2)));
   assert.match(refusal(r, 'posture', '--at', manual), /git cannot read docs\/agents\/deployment\.md/);

@@ -198,7 +198,7 @@ Applies to the full interview. Scan these before any decision:
 | **Forgejo / self-hosted** (`tea`) | `references/code-management-forgejo.md` | base URL and owner/repo, and no token env var. Take the slice store's **The tea check** for the base URL, and check that `jq` is installed. No `jq` stops the step the way no `tea` does. |
 | **Other** (GitLab, …) | none | a paragraph describing push, open-MR, and base computation |
 
-**Posture and base.** Applies to every code host. Confirm the **default PR posture** (`draft` recommended | `ready` | `push-only`) and the **base branch** (default `main`).
+**Posture and base.** Applies to every code host. Confirm the **default PR posture** (`draft` recommended | `ready` | `push-only`) and the **base branch** (default `main`). Write the confirmed base into `code-management.md` as `` - **Base branch:** `<branch>` ``, replacing the seed's prose value.
 
 **The push bound.** Applies when the operator asks for a push bound other than 60000 milliseconds. Write `code-host.pushTimeoutMs` by an operator-file write (`assignee.md` → *Assignee*).
 

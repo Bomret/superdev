@@ -7,20 +7,24 @@
 const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
-const { localRead, refuseKilled, resolveCommit, fileAt } = require('./git-spawn.js');
+const { localRead, refuseKilled, resolveCommit, existsAt } = require('./git-spawn.js');
 const { drivePath } = require('./drive-path.js');
 
 // The text of `docs/agents/<name>`, or null where it is absent: at `at`, a commit-ish git resolves, where one is given;
 // otherwise at the top level of the checkout holding `cwd`, so a call from a subdirectory reads the same document, and in
 // `cwd` itself where git names no top level. `verb` opens each refusal message. An `at` that git would read as an option
-// is refused before any git call. An empty document at a commit reads as absent, since `fileAt` answers '' for both.
+// is refused before any git call. An empty document at a commit reads as absent, like a document the commit does not hold.
+// A `show` a signal ended refuses with no verdict; where `show` fails otherwise, `existsAt` tells an absent document from a
+// git that cannot read it.
 function readConfigDoc(cwd, name, at, verb) {
   const rel = `docs/agents/${name}`;
   if (at !== undefined && at !== null) {
     if (at.startsWith('-')) fail(`${verb}: commit "${at}" starts with "-"; git would read it as an option`);
     const commit = resolveCommit(at, cwd);
-    if (commit === null) fail(`${verb}: commit ${at} is not in this repository; fetch it first`);
-    const text = fileAt(commit, rel, cwd);
+    if (commit === null) fail(`${verb}: commit ${at} is not in this repository; fetch base first`);
+    const shown = localRead(['show', `${commit}:${rel}`], cwd);
+    refuseKilled('show', shown);
+    const text = shown.status === 0 ? shown.stdout : existsAt(commit, rel, cwd) === false ? '' : null;
     if (text === null) fail(`${verb}: git cannot read ${rel} at ${at}`);
     return text === '' ? null : text;
   }
