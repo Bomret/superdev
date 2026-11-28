@@ -1698,8 +1698,8 @@ Paths: plugin/lib/test-slots.js, plugin/lib/test-verb.js, plugin/lib/fail-to-pas
 ### INV-0213
 
 Class: architecture
-Concepts: Operator configuration, No verdict
-Statement: A read of an operator configuration value from `docs/agents/` reads as absent only where the document, line, or bullet is missing. A document that exists but cannot be read, a commit the repository does not hold, or a document git cannot read at a held commit is a reported failure, never an absent value, for the `config` verb and for every library reader of the same value.
+Concepts: No verdict
+Statement: A read of a configuration value of `docs/agents/` reads as absent only where the document, line, or bullet is missing. A document that exists but cannot be read, a commit the repository does not hold, or a document git cannot read at a held commit is a reported failure, never an absent value. This holds for the `config` verb, for every library reader of the `Remote:` value of `code-management.md`, and for `route`'s read of the deploy posture at a commit.
 Breaks: silently
 Check: tests named for the `config` verb and for `run-state-ref.js` — an unreadable document and an unheld commit refuse with nothing on stdout, and a missing bullet prints `absent`
 Paths: plugin/lib/config.js, plugin/lib/config-doc.js, plugin/lib/remote.js, plugin/lib/route.js, plugin/lib/run-state-ref.js, plugin/scripts/scope.js
