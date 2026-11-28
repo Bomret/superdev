@@ -48,7 +48,7 @@ diff, and give it the severity the entry it falls under states.
 - `fail-to-pass-check` (`fail-to-pass.md`'s `### The verdict`) reads every path the range's commits change, a listed
   one included.
 
-**Implementer suite run.** Applies to a `run full` or `run whole` line inside an `implementer` window, read with
+**Implementer suite run.** Applies to a `run full`, `run whole`, or `run timing` line inside an `implementer` window, read with
 `scope.js trace --window <dispatch id> --kind run --root <run-root>`. Report it as a Minor finding naming the line's
 time, its slice, and its kind. The implementer owns focused and path runs only (`implementer.md`'s `### Running
 tests`).

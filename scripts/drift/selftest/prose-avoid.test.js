@@ -401,6 +401,8 @@ module.exports = ({ assert, path, fixture, found }) => {
   const hits = [
     ['Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` in the scopetree.\n', 'a `scope.js test full` call'],
     ['Then run `scope.js test whole` once.\n', 'a `scope.js test whole` call'],
+    ['Then run `scope.js test timing` once.\n', 'a `scope.js test timing` call'],
+    ['Record it, then run `test timing`.\n', 'a bare `test timing` span'],
     ['Then run `scope.js test focused` once.\n', 'a pathless `scope.js test focused` call'],
     ['Gate the branch: run the full command from `docs/agents/verification.md`.\n', 'run the full command'],
     ['It runs the configured whole-repo command once.\n', 'runs the whole-repo command'],
@@ -429,6 +431,7 @@ module.exports = ({ assert, path, fixture, found }) => {
     assert.equal(noFull({ [rel]: 'The step runs no full suite.\n' }).length, 0, `${rel}: a run of no full suite passes`);
     assert.equal(noFull({ [rel]: 'Here no full suite runs.\n' }).length, 0, `${rel}: a negated subject-first run passes`);
     assert.equal(noFull({ [rel]: 'The loop never calls `scope.js test full`.\n' }).length, 0, `${rel}: a negated scope.js call passes`);
+    assert.equal(noFull({ [rel]: 'The loop never calls `scope.js test timing`.\n' }).length, 0, `${rel}: a negated timing call passes`);
     assert.equal(
       noFull({ [rel]: 'Tell it to run only its own tests, and never `test full`, `test whole`, or a `test focused` with no path.\n' }).length,
       0,
@@ -537,6 +540,7 @@ module.exports = ({ assert, path, fixture, found }) => {
   for (const [text, label] of [
     ['Then run `node scope.js test full` in the scope checkout.\n', 'scope.js test full'],
     ['Record it, then run `test whole`.\n', 'test whole'],
+    ['Then run `node scope.js test timing` on the tip.\n', 'scope.js test timing'],
     ['Run `scope.js test focused` once.\n', 'a pathless test focused'],
     ['At the exit, run the full suite on the tip.\n', 'running the full suite'],
   ]) {

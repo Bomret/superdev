@@ -152,7 +152,7 @@ for (const [label, sha] of [['unresolvable', 'deadbeef'.repeat(5)], ['none span'
 
 test('A fenced block inside `## CI` leaves the full and focused commands unchanged, and names no check.', () => {
   const raw = execFileSync('git', ['show', `${fenced}:docs/agents/verification.md`], { cwd: dir, encoding: 'utf8' });
-  assert.deepEqual(verificationCommandsOf(raw), { full: 'node t.js', focused: 'node t.js --related {paths}', whole: null });
+  assert.deepEqual(verificationCommandsOf(raw), { full: 'node t.js', focused: 'node t.js --related {paths}', whole: null, timing: null });
   const first = raw.replace(/```sh\nnode t\.js --related \{paths\}\n```\n/, '');
   assert.equal(verificationCommandsOf(first).focused, null, 'the CI fence never becomes the focused command');
   assert.equal(ci(fenced, lines(['lint', 'success'])).code, 0);

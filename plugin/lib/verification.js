@@ -136,12 +136,13 @@ function isTestPath(text, rel) {
 
 // The test commands a tree's `docs/agents/verification.md` configures, read the way
 // `references/test-selection.md` reads it: the first fenced block (`fenceBlocks`) is the full
-// command, the second the focused one, and the first backtick span under `## Whole-repo command` the
-// whole-repo one. Each is whitespace-collapsed, or null when absent. The run-trace hook (ADR 0117)
+// command, the second the focused one, the first backtick span under `## Whole-repo command` the
+// whole-repo one, and the first backtick span under `## Timing command` the timing one, each span read outside every fence
+// (INV-0069). Each is whitespace-collapsed, or null when absent. The run-trace hook (ADR 0117)
 // classes a Bash command against them.
 function verificationCommands(tree, keepLines) {
   let raw;
-  try { raw = fs.readFileSync(path.join(tree, 'docs', 'agents', 'verification.md'), 'utf8'); } catch { return { full: null, focused: null, whole: null }; }
+  try { raw = fs.readFileSync(path.join(tree, 'docs', 'agents', 'verification.md'), 'utf8'); } catch { return { full: null, focused: null, whole: null, timing: null }; }
   return verificationCommandsOf(raw, keepLines);
 }
 
@@ -151,9 +152,12 @@ function verificationCommandsOf(raw, keepLines) {
   const norm = (t) => (t ? (keepLines ? t.trim() : t.replace(/\s+/g, ' ').trim()) || null : null);
   // The `## Prepare command` and `## CI` sections' fences are no test command, wherever the sections sit.
   const { blocks, outside } = fenceBlocks(sectionSplit(prepareSection(raw).rest, 'CI').rest);
-  const sec = /^##\s+Whole-repo command\s*$([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/m.exec(outside);
-  const span = sec && /`([^`\n]+)`/.exec(sec[1]);
-  return { full: norm(blocks[0]), focused: norm(blocks[1]), whole: norm(span && span[1]) };
+  const spanUnder = (title) => {
+    const sec = new RegExp('^##\\s+' + title + '\\s*$([\\s\\S]*?)(?=^#{1,6}\\s|(?![\\s\\S]))', 'm').exec(outside);
+    const span = sec && /`([^`\n]+)`/.exec(sec[1]);
+    return span && span[1];
+  };
+  return { full: norm(blocks[0]), focused: norm(blocks[1]), whole: norm(spanUnder('Whole-repo command')), timing: norm(spanUnder('Timing command')) };
 }
 
 // The complete-selector declaration of a `verification.md` text (ADR 0175): null where there is no

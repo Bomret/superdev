@@ -166,6 +166,7 @@ test('A red record at the tip prints the commit and the failed files its paired 
     // `none` follows it.
     assert.strictEqual(out(bare([], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'no test file changed since: the branch tip, flagged clean-tip');
     assert.strictEqual(out(bare([['full', 'pass', e.M, 'clean']], e.R), e.repo), `covered ${e.R} by ${e.M}\nnone`, 'a passing clean run at the later commit covers, with no clean-tip flag');
+    assert.strictEqual(out(bare([['timing', 'pass', e.M, 'clean']], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'a passing timing run covers no red record (INV-0017)');
     assert.strictEqual(out(bare([['full', 'pass', e.M, 'dirty']], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'a dirty run is no pass, and the clean-tip line is the review\'s to judge');
     assert.strictEqual(out(bare([['full', 'pass', e.M, 'unknown']], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'an unknown tree never covers plainly (INV-0009)');
     assert.strictEqual(out(bare([['full', 'pass', e.T, 'unknown']], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'an unknown tree at the tip is no plain cover, and the review judges the tree');
